@@ -42,22 +42,6 @@
         </a>
       </li>
 
-      <li class="nav-heading">Account</li>
-
-      <li class="nav-item">
-        <a class="nav-link <? ($page == 'profile.php') ? '' : 'collapsed' ?>" href="profile">
-          <i class="bi bi-person-circle"></i>
-          <span>Profile</span>
-        </a>
-      </li>
-
-      <li class="nav-item">
-        <a class="nav-link <? ($page == 'faqs.php') ? '' : 'collapsed' ?>" href="faqs">
-          <i class="bi bi-question-circle"></i>
-          <span>FAQ's</span>
-        </a>
-      </li>
-
     </ul>
 
   </aside>

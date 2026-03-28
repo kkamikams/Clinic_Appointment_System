@@ -37,8 +37,15 @@
 
       <li class="nav-item">
         <a class="nav-link <? ($page == 'medical_records.php') ? '' : 'collapsed' ?>" href="medical_records">
-          <i class="bi bi-card-list"></i>
+          <i class="bi bi-clipboard2-pulse"></i>
           <span>Medical Records</span>
+        </a>
+      </li>
+
+      <li class="nav-item">
+        <a class="nav-link <? ($page == 'tasks.php') ? '' : 'collapsed' ?>" href="tasks">
+          <i class="bi bi-list-task"></i>
+          <span>Tasks</span>
         </a>
       </li>
 

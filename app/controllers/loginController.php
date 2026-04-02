@@ -1,6 +1,6 @@
 <?php session_start();
 $root = dirname(__DIR__);
-include_once($root . "/config/config.php");
+include_once('../../app/config/config.php');
 
 function generate_uuid()
 {
@@ -19,8 +19,10 @@ function generate_uuid()
 if (isset($_POST['loginButton'])) {
     $username = $_POST['username'];
     $password = $_POST['password'];
-
-    $loginQuery = "SELECT `id`, `firstName`, `lastName`, `emailAddress`, `username`, `password`, `role` FROM `users` WHERE username = ? AND password = ? LIMIT 1";
+    $loginQuery = "SELECT `id`, `firstName`, `lastName`, `emailAddress`, `role` 
+               FROM `users` 
+               WHERE `username` = ? AND `password` = ? 
+               LIMIT 1";
     $stmt = $conn->prepare($loginQuery);
 
     if ($stmt) {

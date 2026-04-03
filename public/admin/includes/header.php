@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta content="width=device-width, initial-scale=1.0" name="viewport">
 
-  <title>Dashboard - NiceAdmin Bootstrap Template</title>
+  <title>Dashboard - Queue Clinic</title>
   <meta content="" name="description">
   <meta content="" name="keywords">
 
@@ -16,6 +16,7 @@
   <!-- Google Fonts -->
   <link href="https://fonts.gstatic.com" rel="preconnect">
   <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Nunito:300,300i,400,400i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 
   <!-- Vendor CSS Files -->
   <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
@@ -36,6 +37,24 @@
   * Author: BootstrapMade.com
   * License: https://bootstrapmade.com/license/
   ======================================================== -->
+
+  <!-- Queue Clinic – Custom Styles -->
+  <style>
+    body {
+      font-family: 'DM Sans', sans-serif !important;
+    }
+
+    /* ── Sidebar brand ── */
+    #sidebar .logo-name,
+    .navbar-brand,
+    a.logo d,
+    .logo span {
+      font-family: 'DM Serif Display', serif !important;
+      font-style: italic !important;
+      color: #2563eb !important;
+    }
+  </style>
+
 </head>
 
-</body>
+<body>

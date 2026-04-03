@@ -4,16 +4,16 @@ include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 
-// Stats (active doctors only for Total/OnDuty/OnLeave) 
+// ── Stats (active doctors only for Total/OnDuty/OnLeave) ──────────
 $totalDoctors = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus != 'Inactive'")->fetch_row()[0];
 $onDuty       = $conn->query("SELECT COUNT(*) FROM doctors WHERE status = 'On Duty' AND employmentStatus = 'Active'")->fetch_row()[0];
 $onLeave      = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus = 'On Leave'")->fetch_row()[0];
 $totalSpecs   = $conn->query("SELECT COUNT(DISTINCT specialization) FROM doctors WHERE employmentStatus != 'Inactive'")->fetch_row()[0];
 
-// Today's day name for schedule highlight
+// ── Today's day name for schedule highlight ────────────────────────
 $todayName = date('l'); // e.g. "Monday"
 
-// Doctor rows 
+// ── Doctor rows ────────────────────────────────────────────────────
 $sql = "
     SELECT
         d.id, d.doctorCode, d.firstName, d.middleName, d.lastName,
@@ -348,7 +348,6 @@ function scheduleLabel($days, $start, $end)
         justify-content: center;
         font-size: .75rem;
         font-weight: 700;
-        align-self: center;
     }
 
     .doc-name {
@@ -579,7 +578,7 @@ function scheduleLabel($days, $start, $end)
         cursor: not-allowed;
     }
 
-    /*Redesigned Profile Modal*/
+    /* ── Redesigned Profile Modal ─────────────────────────── */
     .modal-overlay {
         display: none;
         position: fixed;
@@ -890,7 +889,7 @@ function scheduleLabel($days, $start, $end)
                 foreach ($specs as $s) echo "<option>" . htmlspecialchars($s) . "</option>";
                 ?>
             </select>
-            <a href="add_doctors" class="btn-primary-sm"><i class="bi bi-plus-lg"></i> Add Doctor</a>
+            <a href="add_doctors.php" class="btn-primary-sm"><i class="bi bi-plus-lg"></i> Add Doctor</a>
         </div>
 
         <div style="overflow-x:auto;">
@@ -950,7 +949,7 @@ function scheduleLabel($days, $start, $end)
                             <td>
                                 <div class="doc-cell">
                                     <div class="doc-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $initials ?></div>
-                                    <div style="display:flex;flex-direction:column;justify-content:center;">
+                                    <div>
                                         <div class="doc-name"><?= htmlspecialchars($fullName) ?></div>
                                         <div class="doc-id"><?= htmlspecialchars($d['specialization']) ?></div>
                                     </div>
@@ -1067,7 +1066,7 @@ function scheduleLabel($days, $start, $end)
     const ROWS_PER_PAGE = 5;
     let currentPage = 1;
 
-    // Live stat counters
+    // ── Live stat counters ─────────────────────────────────
     function recount() {
         const rows = Array.from(document.querySelectorAll('#doctorTbody tr:not(.filler-row)'));
         let duty = 0,
@@ -1098,7 +1097,7 @@ function scheduleLabel($days, $start, $end)
         }, 30);
     }
 
-    // Pagination 
+    // ── Pagination ─────────────────────────────────────────
     function getFilteredRows() {
         const q = document.getElementById('doctorSearch').value.toLowerCase();
         const spec = document.getElementById('specFilter').value;
@@ -1117,10 +1116,25 @@ function scheduleLabel($days, $start, $end)
         const start = (currentPage - 1) * ROWS_PER_PAGE;
         const end = start + ROWS_PER_PAGE;
 
+        document.querySelectorAll('#doctorTbody tr.filler-row').forEach(r => r.remove());
         document.querySelectorAll('#doctorTbody tr:not(.filler-row)').forEach(r => r.style.display = 'none');
         rows.forEach((r, i) => {
             r.style.display = (i >= start && i < end) ? '' : 'none';
         });
+
+        const shown = Math.min(end, total) - start;
+        const tbody = document.getElementById('doctorTbody');
+        for (let f = 0; f < ROWS_PER_PAGE - shown; f++) {
+            const tr = document.createElement('tr');
+            tr.className = 'filler-row';
+            tr.style.pointerEvents = 'none';
+            for (let c = 0; c < 8; c++) {
+                const td = document.createElement('td');
+                td.innerHTML = '&nbsp;';
+                tr.appendChild(td);
+            }
+            tbody.appendChild(tr);
+        }
 
         document.getElementById('paginationInfo').textContent = total === 0 ?
             'No doctors found' :
@@ -1151,7 +1165,7 @@ function scheduleLabel($days, $start, $end)
     }
     renderPage(1);
 
-    // Status dropdown 
+    // ── Status dropdown ────────────────────────────────────
     function toggleStatusDropdown(btn) {
         const dd = btn.nextElementSibling;
         const open = dd.classList.contains('open');
@@ -1190,7 +1204,7 @@ function scheduleLabel($days, $start, $end)
     });
 
     function editDoctor(id) {
-        window.location.href = 'edit_doctor?id=' + id;
+        window.location.href = 'edit_doctor.php?id=' + id;
     }
 
     // ── View modal ─────────────────────────────────────────

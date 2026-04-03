@@ -960,38 +960,6 @@ include('./includes/sidebar.php');
                     <td>08:00 AM</td>
                     <td><span class="badge bg-success">Completed</span></td>
                   </tr>
-                  <tr>
-                    <th scope="row"><a href="#">#A-1022</a></th>
-                    <td>Juan dela Cruz</td>
-                    <td><a href="#" class="text-primary">Dr. Lim – Cardiology</a></td>
-                    <td><?php echo date('M j, Y'); ?></td>
-                    <td>09:30 AM</td>
-                    <td><span class="badge bg-info">In Progress</span></td>
-                  </tr>
-                  <tr>
-                    <th scope="row"><a href="#">#A-1023</a></th>
-                    <td>Ana Garcia</td>
-                    <td><a href="#" class="text-primary">Dr. Torres – Pediatrics</a></td>
-                    <td><?php echo date('M j, Y'); ?></td>
-                    <td>10:00 AM</td>
-                    <td><span class="badge bg-success">Completed</span></td>
-                  </tr>
-                  <tr>
-                    <th scope="row"><a href="#">#A-1024</a></th>
-                    <td>Roberto Tan</td>
-                    <td><a href="#" class="text-primary">Dr. Reyes – General</a></td>
-                    <td><?php echo date('M j, Y'); ?></td>
-                    <td>11:00 AM</td>
-                    <td><span class="badge bg-danger">Cancelled</span></td>
-                  </tr>
-                  <tr>
-                    <th scope="row"><a href="#">#A-1025</a></th>
-                    <td>Liza Mendoza</td>
-                    <td><a href="#" class="text-primary">Dr. Cruz – Dermatology</a></td>
-                    <td><?php echo date('M j, Y'); ?></td>
-                    <td>01:30 PM</td>
-                    <td><span class="badge bg-warning">Pending</span></td>
-                  </tr>
                 </tbody>
               </table>
             </div>
@@ -1040,61 +1008,7 @@ include('./includes/sidebar.php');
                     <td><span class="badge bg-info">On Duty</span></td>
                   </tr>
                   <tr>
-                    <th scope="row"><a href="#"><img src="assets/img/product-2.jpg" alt="Dr. Anna Lim"></a></th>
-                    <td><a href="#" class="text-primary fw-bold">Dr. Anna Lim</a></td>
-                    <td>Cardiology</td>
-                    <td>
-                      <div class="duty-progress">
-                        <div class="duty-bar">
-                          <div class="duty-bar-fill" style="width:73%"></div>
-                        </div>
-                        <span class="duty-fraction"><span class="done">8</span><span class="total">/11</span></span>
-                      </div>
-                    </td>
-                    <td><span class="badge bg-info">On Duty</span></td>
-                  </tr>
-                  <tr>
-                    <th scope="row"><a href="#"><img src="assets/img/product-3.jpg" alt="Dr. Mark Torres"></a></th>
-                    <td><a href="#" class="text-primary fw-bold">Dr. Mark Torres</a></td>
-                    <td>Pediatrics</td>
-                    <td>
-                      <div class="duty-progress">
-                        <div class="duty-bar">
-                          <div class="duty-bar-fill" style="width:71%"></div>
-                        </div>
-                        <span class="duty-fraction"><span class="done">10</span><span class="total">/14</span></span>
-                      </div>
-                    </td>
-                    <td><span class="badge bg-info">On Duty</span></td>
-                  </tr>
-                  <tr>
-                    <th scope="row"><a href="#"><img src="assets/img/product-4.jpg" alt="Dr. Claire Cruz"></a></th>
-                    <td><a href="#" class="text-primary fw-bold">Dr. Claire Cruz</a></td>
-                    <td>Dermatology</td>
-                    <td>
-                      <div class="duty-progress">
-                        <div class="duty-bar">
-                          <div class="duty-bar-fill" style="width:75%"></div>
-                        </div>
-                        <span class="duty-fraction"><span class="done">6</span><span class="total">/8</span></span>
-                      </div>
-                    </td>
-                    <td><span class="badge bg-warning">Break</span></td>
-                  </tr>
-                  <tr>
-                    <th scope="row"><a href="#"><img src="assets/img/product-5.jpg" alt="Dr. Ramon Flores"></a></th>
-                    <td><a href="#" class="text-primary fw-bold">Dr. Ramon Flores</a></td>
-                    <td>Orthopedics</td>
-                    <td>
-                      <div class="duty-progress">
-                        <div class="duty-bar">
-                          <div class="duty-bar-fill" style="width:60%"></div>
-                        </div>
-                        <span class="duty-fraction"><span class="done">9</span><span class="total">/15</span></span>
-                      </div>
-                    </td>
-                    <td><span class="badge bg-info">On Duty</span></td>
-                  </tr>
+
                 </tbody>
               </table>
             </div>

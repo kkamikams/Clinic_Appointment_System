@@ -1,8 +1,11 @@
 <?php
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
+require_once('../../app/config/config.php');
 ?>
+
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
 
@@ -32,7 +35,6 @@ include('./includes/sidebar.php');
         --gray: #9ca3af;
         --gray-light: #f3f4f6;
         --gray-dark: #374151;
-        --teal: #14b8a6;
         --radius: 16px;
         --radius-sm: 10px;
         --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
@@ -134,15 +136,9 @@ include('./includes/sidebar.php');
         font-size: 2rem;
         font-weight: 700;
         color: var(--blue-500);
-        cursor: pointer;
         transition: all .2s;
         position: relative;
         overflow: hidden;
-    }
-
-    .avatar-preview:hover {
-        border-color: var(--blue-400);
-        background: var(--blue-50);
     }
 
     .avatar-preview img {
@@ -152,13 +148,6 @@ include('./includes/sidebar.php');
         border-radius: 50%;
         position: absolute;
         inset: 0;
-    }
-
-    .avatar-hint {
-        font-size: .73rem;
-        color: var(--text-muted);
-        text-align: center;
-        line-height: 1.5;
     }
 
     .btn-upload {
@@ -408,12 +397,12 @@ include('./includes/sidebar.php');
     @keyframes fadeUp {
         from {
             opacity: 0;
-            transform: translateY(10px)
+            transform: translateY(10px);
         }
 
         to {
             opacity: 1;
-            transform: translateY(0)
+            transform: translateY(0);
         }
     }
 </style>
@@ -432,64 +421,45 @@ include('./includes/sidebar.php');
 <section class="section page-add-patient">
     <div class="add-layout">
 
-        <!-- ── Side Card ─────────────────────────────── -->
+        <!-- Side Card -->
         <div class="form-card side-card">
-            <div class="section-label">Photo</div>
             <div class="avatar-uploader">
-                <div class="avatar-preview" id="avatarPreview" onclick="document.getElementById('avatarInput').click()">
+                <div class="avatar-preview" id="avatarPreview">
                     <span id="avatarInitials">?</span>
                 </div>
-                <div class="avatar-hint">Click the circle to upload a photo.<br>JPG, PNG — max 2 MB</div>
-                <button type="button" class="btn-upload" onclick="document.getElementById('avatarInput').click()">
-                    <i class="bi bi-upload"></i> Upload Photo
-                </button>
-                <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="previewAvatar(event)">
+                <div id="avatarWelcome" style="
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--text-body);
+    text-align: center;
+    margin-top: .5rem;
+    margin-bottom: 1rem;
+">Welcome!</div>
             </div>
-
-            <div class="form-divider"></div>
-
-            <div class="section-label">Patient Status</div>
-            <div class="radio-options">
-                <label class="radio-option selected">
-                    <input type="radio" name="status" value="Active" checked onchange="selectOption(this,'radio-option')">
-                    <span class="status-dot" style="background:var(--green)"></span> Active
-                </label>
-                <label class="radio-option">
-                    <input type="radio" name="status" value="Discharged" onchange="selectOption(this,'radio-option')">
-                    <span class="status-dot" style="background:var(--gray)"></span> Discharged
-                </label>
-                <label class="radio-option">
-                    <input type="radio" name="status" value="Inactive" onchange="selectOption(this,'radio-option')">
-                    <span class="status-dot" style="background:var(--red)"></span> Inactive
-                </label>
-            </div>
-
-            <div class="form-divider"></div>
 
             <div class="section-label">Patient Condition</div>
-            <div class="radio-options" id="conditionOptions">
+            <div class="radio-options">
                 <label class="radio-option selected">
-                    <input type="radio" name="condition" value="Stable" checked onchange="selectOption(this,'radio-option')">
+                    <input type="radio" name="condition" value="Stable" checked onchange="selectRadio(this)">
                     <span class="status-dot" style="background:var(--green)"></span> Stable
                 </label>
                 <label class="radio-option">
-                    <input type="radio" name="condition" value="Critical" onchange="selectOption(this,'radio-option')">
+                    <input type="radio" name="condition" value="Critical" onchange="selectRadio(this)">
                     <span class="status-dot" style="background:var(--red)"></span> Critical
                 </label>
                 <label class="radio-option">
-                    <input type="radio" name="condition" value="Under Observation" onchange="selectOption(this,'radio-option')">
+                    <input type="radio" name="condition" value="Under Observation" onchange="selectRadio(this)">
                     <span class="status-dot" style="background:var(--amber)"></span> Under Observation
                 </label>
                 <label class="radio-option">
-                    <input type="radio" name="condition" value="Recovering" onchange="selectOption(this,'radio-option')">
+                    <input type="radio" name="condition" value="Recovering" onchange="selectRadio(this)">
                     <span class="status-dot" style="background:var(--blue-500)"></span> Recovering
                 </label>
             </div>
         </div>
 
-        <!-- ── Main Form ──────────────────────────────── -->
+        <!-- Main Form -->
         <div class="form-card main-form-card">
-
             <div class="section-label">Personal Information</div>
             <div class="form-grid cols-3">
                 <div class="field" id="field-firstname">
@@ -547,6 +517,16 @@ include('./includes/sidebar.php');
 
             <div class="form-divider"></div>
 
+            <div class="section-label">Medical Information</div>
+            <div class="form-grid">
+                <div class="field">
+                    <label>Follow-up Date</label>
+                    <input type="date" id="followUpDate">
+                </div>
+            </div>
+
+            <div class="form-divider"></div>
+
             <div class="section-label">Additional Notes</div>
             <div class="form-grid cols-1">
                 <div class="field">
@@ -568,29 +548,14 @@ include('./includes/sidebar.php');
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
-    function previewAvatar(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
-            document.getElementById('avatarPreview').innerHTML = '<img src="' + ev.target.result + '" alt="Avatar">';
-        };
-        reader.readAsDataURL(file);
-    }
-
     function updateInitials() {
         const fn = document.getElementById('firstname').value.trim();
         const ln = document.getElementById('lastname').value.trim();
-        const prev = document.getElementById('avatarPreview');
-        if (!prev.querySelector('img'))
-            document.getElementById('avatarInitials').textContent = ((fn[0] || '') + (ln[0] || '')).toUpperCase() || '?';
+        document.getElementById('avatarInitials').textContent = ((fn[0] || '') + (ln[0] || '')).toUpperCase() || '?';
+        document.getElementById('avatarWelcome').textContent = fn ? 'Welcome, ' + fn + '!' : 'Welcome!';
     }
 
-    function selectOption(radio, cls) {
-        radio.closest('.form-card, .side-card, #conditionOptions')
-            ?.querySelectorAll('.' + cls)
-            .forEach(el => el.classList.remove('selected'));
-        // deselect siblings in same name group
+    function selectRadio(radio) {
         document.querySelectorAll(`input[name="${radio.name}"]`).forEach(r => {
             r.closest('.radio-option')?.classList.remove('selected');
         });
@@ -604,20 +569,18 @@ include('./includes/sidebar.php');
     function validateForm() {
         let valid = true;
         [{
-                id: 'firstname',
-                field: 'field-firstname'
-            }, {
-                id: 'lastname',
-                field: 'field-lastname'
-            },
-            {
-                id: 'gender',
-                field: 'field-gender'
-            }, {
-                id: 'contact',
-                field: 'field-contact'
-            }
-        ]
+            id: 'firstname',
+            field: 'field-firstname'
+        }, {
+            id: 'lastname',
+            field: 'field-lastname'
+        }, {
+            id: 'gender',
+            field: 'field-gender'
+        }, {
+            id: 'contact',
+            field: 'field-contact'
+        }]
         .forEach(({
             id,
             field
@@ -648,11 +611,10 @@ include('./includes/sidebar.php');
         fd.append('address', document.getElementById('address').value.trim());
         fd.append('contact', document.getElementById('contact').value.trim());
         fd.append('email', document.getElementById('email').value.trim());
+        fd.append('follow_up_date', document.getElementById('followUpDate').value);
         fd.append('notes', document.getElementById('notes').value.trim());
         fd.append('status', document.querySelector('input[name="status"]:checked')?.value || 'Active');
         fd.append('condition', document.querySelector('input[name="condition"]:checked')?.value || 'Stable');
-        const photo = document.getElementById('avatarInput').files[0];
-        if (photo) fd.append('photo', photo);
 
         fetch('save_patient.php', {
                 method: 'POST',
@@ -666,8 +628,7 @@ include('./includes/sidebar.php');
                 } else {
                     showToast('<i class="bi bi-exclamation-triangle-fill"></i> Error: ' + res.message, 'error');
                 }
-            })
-            .catch(() => showToast('Network error. Please try again.', 'error'));
+            }).catch(() => showToast('Network error. Please try again.', 'error'));
     }
 
     function showToast(msg, type = 'success') {

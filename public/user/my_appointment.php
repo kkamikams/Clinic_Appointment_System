@@ -1,11 +1,49 @@
 <?php
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
-?>
+require_once('../../app/config/config.php');
 
+$userEmail = $_SESSION['email'] ?? '';
+
+// Link user to patient
+$patientRow = null;
+if ($userEmail) {
+    $stmt = $conn->prepare("SELECT * FROM patients WHERE emailAddress=? AND status!='Inactive' LIMIT 1");
+    $stmt->bind_param('s', $userEmail);
+    $stmt->execute();
+    $patientRow = $stmt->get_result()->fetch_assoc();
+}
+$patientId = $patientRow['id'] ?? 0;
+
+// Stats
+$today = date('Y-m-d');
+if ($patientId) {
+    $statTotal     = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId")->fetch_row()[0];
+    $statUpcoming  = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND appointmentDate>='$today' AND status IN ('Pending','In Progress')")->fetch_row()[0];
+    $statCompleted = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND status='Completed'")->fetch_row()[0];
+    $statCancelled = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND status='Cancelled'")->fetch_row()[0];
+
+    // All appointments
+    $appointments = $conn->query("
+        SELECT a.*, CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
+               d.specialization, d.department
+        FROM appointments a
+        JOIN doctors d ON d.id = a.doctorId
+        WHERE a.patientId = $patientId
+        ORDER BY a.appointmentDate DESC, a.appointmentTime DESC
+    ")->fetch_all(MYSQLI_ASSOC);
+} else {
+    $statTotal = $statUpcoming = $statCompleted = $statCancelled = 0;
+    $appointments = [];
+}
+
+// Status filter from URL
+$filterStatus = $_GET['status'] ?? '';
+?>
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
 
     :root {
         --blue-50: #eff6ff;
@@ -30,23 +68,22 @@ include('./includes/sidebar.php');
         --red: #ef4444;
         --red-light: #fee2e2;
         --red-dark: #991b1b;
-        --violet: #8b5cf6;
-        --violet-light: #ede9fe;
-        --violet-dark: #5b21b6;
+        --teal: #06b6d4;
+        --teal-light: #cffafe;
+        --teal-dark: #155e75;
         --radius: 16px;
         --radius-sm: 10px;
-        --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-        --shadow-md: 0 4px 16px rgba(0,0,0,.07);
-        --shadow-lg: 0 8px 30px rgba(0,0,0,.10);
+        --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
+        --shadow-md: 0 4px 16px rgba(0, 0, 0, .07);
     }
 
-    .page-appt, .page-appt * {
+    .page-myappt,
+    .page-myappt * {
         font-family: 'DM Sans', sans-serif;
         box-sizing: border-box;
     }
 
     .pagetitle h1 {
-        font-family: 'DM Sans', sans-serif;
         font-weight: 700;
         font-size: 1.75rem;
         color: var(--text-dark);
@@ -66,7 +103,6 @@ include('./includes/sidebar.php');
         font-weight: 600;
     }
 
-    /* ── STAT STRIP ── */
     .stat-strip {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -75,7 +111,9 @@ include('./includes/sidebar.php');
     }
 
     @media(max-width:768px) {
-        .stat-strip { grid-template-columns: repeat(2, 1fr); }
+        .stat-strip {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
 
     .stat-card {
@@ -87,15 +125,37 @@ include('./includes/sidebar.php');
         border-left: 3px solid transparent;
         transition: box-shadow .2s, transform .2s;
         animation: fadeUp .32s ease both;
+        cursor: pointer;
+        text-decoration: none;
+        display: block;
     }
 
-    .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-    .stat-card:nth-child(1) { border-left-color: var(--blue-500);  animation-delay: .04s; }
-    .stat-card:nth-child(2) { border-left-color: var(--green);     animation-delay: .09s; }
-    .stat-card:nth-child(3) { border-left-color: var(--amber);     animation-delay: .14s; }
-    .stat-card:nth-child(4) { border-left-color: var(--violet);    animation-delay: .19s; }
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
 
-    .stat-card .sc-label {
+    .stat-card:nth-child(1) {
+        border-left-color: var(--blue-500);
+        animation-delay: .04s;
+    }
+
+    .stat-card:nth-child(2) {
+        border-left-color: var(--green);
+        animation-delay: .09s;
+    }
+
+    .stat-card:nth-child(3) {
+        border-left-color: var(--amber);
+        animation-delay: .14s;
+    }
+
+    .stat-card:nth-child(4) {
+        border-left-color: var(--red);
+        animation-delay: .19s;
+    }
+
+    .sc-label {
         font-size: .62rem;
         font-weight: 700;
         text-transform: uppercase;
@@ -104,7 +164,7 @@ include('./includes/sidebar.php');
         margin-bottom: .45rem;
     }
 
-    .stat-card .sc-num {
+    .sc-num {
         font-size: 2rem;
         font-weight: 700;
         color: var(--text-dark);
@@ -112,13 +172,12 @@ include('./includes/sidebar.php');
         line-height: 1;
     }
 
-    .stat-card .sc-sub {
+    .sc-sub {
         font-size: .7rem;
         color: var(--text-muted);
         margin-top: .25rem;
     }
 
-    /* ── MAIN TABLE CARD ── */
     .main-card {
         background: var(--card);
         border: 1px solid var(--border);
@@ -155,7 +214,9 @@ include('./includes/sidebar.php');
         margin-left: 4px;
     }
 
-    .search-box { position: relative; }
+    .search-box {
+        position: relative;
+    }
 
     .search-box i {
         position: absolute;
@@ -176,11 +237,14 @@ include('./includes/sidebar.php');
         color: var(--text-dark);
         background: var(--surface);
         outline: none;
-        width: 210px;
+        width: 200px;
         transition: border-color .2s;
     }
 
-    .search-box input:focus { border-color: var(--blue-400); background: #fff; }
+    .search-box input:focus {
+        border-color: var(--blue-400);
+        background: #fff;
+    }
 
     .filter-select {
         border: 1px solid var(--border);
@@ -194,7 +258,7 @@ include('./includes/sidebar.php');
         cursor: pointer;
     }
 
-    .btn-primary-sm {
+    .btn-book {
         background: var(--blue-600);
         color: #fff;
         border: none;
@@ -207,18 +271,16 @@ include('./includes/sidebar.php');
         display: flex;
         align-items: center;
         gap: 6px;
-        transition: background .15s, box-shadow .15s;
+        transition: background .15s;
         text-decoration: none;
         white-space: nowrap;
     }
 
-    .btn-primary-sm:hover {
+    .btn-book:hover {
         background: var(--blue-700);
-        box-shadow: 0 2px 8px rgba(37,99,235,.25);
         color: #fff;
     }
 
-    /* ── TABLE ── */
     .table {
         width: 100%;
         border-collapse: collapse;
@@ -232,7 +294,6 @@ include('./includes/sidebar.php');
         color: var(--text-muted);
         border-bottom: 1px solid var(--border);
         padding: .65rem .6rem;
-        background: transparent;
     }
 
     .table tbody td {
@@ -243,28 +304,18 @@ include('./includes/sidebar.php');
         padding: .75rem .6rem;
     }
 
-    .table tbody tr:last-child td { border-bottom: none; }
-    .table tbody tr:hover td { background: var(--blue-50); transition: background .15s; }
+    .table tbody tr:last-child td {
+        border-bottom: none;
+    }
 
-    .appt-id {
+    .table tbody tr:hover td {
+        background: var(--blue-50);
+    }
+
+    .appt-code {
         font-weight: 700;
         color: var(--blue-700);
         font-size: .8rem;
-    }
-
-    .doc-cell { display: flex; align-items: center; gap: 9px; }
-
-    .doc-avatar {
-        width: 32px;
-        height: 32px;
-        border-radius: 50%;
-        border: 2px solid var(--border);
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: .68rem;
-        font-weight: 700;
     }
 
     .doc-name {
@@ -273,9 +324,11 @@ include('./includes/sidebar.php');
         font-size: .82rem;
     }
 
-    .doc-spec { font-size: .66rem; color: var(--text-muted); }
+    .doc-spec {
+        font-size: .67rem;
+        color: var(--text-muted);
+    }
 
-    /* ── BADGES ── */
     .badge {
         font-family: 'DM Sans', sans-serif;
         font-size: .63rem;
@@ -285,170 +338,204 @@ include('./includes/sidebar.php');
         letter-spacing: .03em;
     }
 
-    .badge-confirmed  { background: var(--green-light);  color: var(--green-dark); }
-    .badge-pending    { background: var(--amber-light);  color: var(--amber-dark); }
-    .badge-cancelled  { background: var(--red-light);    color: var(--red-dark); }
-    .badge-completed  { background: var(--blue-100);     color: var(--blue-700); }
+    .bg-success {
+        background: var(--green-light) !important;
+        color: var(--green-dark) !important;
+    }
 
-    /* ── ACTION BUTTONS ── */
-    .action-btns { display: flex; gap: 5px; }
+    .bg-warning {
+        background: var(--amber-light) !important;
+        color: var(--amber-dark) !important;
+    }
 
-    .btn-act {
+    .bg-danger {
+        background: var(--red-light) !important;
+        color: var(--red-dark) !important;
+    }
+
+    .bg-info {
+        background: var(--teal-light) !important;
+        color: var(--teal-dark) !important;
+    }
+
+    .bg-secondary {
+        background: #f3f4f6 !important;
+        color: #374151 !important;
+    }
+
+    .channel-chip {
+        font-size: .65rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 5px;
+        background: var(--blue-50);
+        color: var(--blue-700);
+        border: 1px solid var(--blue-100);
+    }
+
+    .btn-cancel-appt {
         background: none;
         border: 1px solid var(--border);
         border-radius: 7px;
-        padding: 4px 9px;
+        padding: 4px 10px;
         font-size: .75rem;
         cursor: pointer;
         color: var(--text-muted);
         transition: all .15s;
-    }
-
-    .btn-act:hover { background: var(--blue-50); color: var(--blue-600); border-color: var(--blue-200); }
-    .btn-act.del:hover { background: var(--red-light); color: var(--red); border-color: #fca5a5; }
-    .btn-act:disabled { opacity: .4; cursor: not-allowed; }
-
-    /* ── PAGINATION ── */
-    .tbl-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 1rem;
-    }
-
-    .tbl-footer span { font-size: .75rem; color: var(--text-muted); }
-    .pg-btns { display: flex; gap: 5px; }
-
-    .pg-btns button {
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        padding: 4px 12px;
-        font-size: .78rem;
         font-family: 'DM Sans', sans-serif;
-        background: #fff;
-        color: var(--text-body);
-        cursor: pointer;
-        transition: background .15s;
-    }
-
-    .pg-btns button.active {
-        background: var(--blue-600);
-        color: #fff;
-        border-color: var(--blue-600);
-    }
-
-    .pg-btns button:hover:not(.active) { background: var(--surface); }
-
-    /* ── MODAL ── */
-    .modal-content {
-        border-radius: var(--radius);
-        border: 1px solid var(--border);
-        font-family: 'DM Sans', sans-serif;
-    }
-
-    .modal-header { border-bottom: 1px solid var(--border); padding: 1.1rem 1.5rem; }
-    .modal-footer { border-top: 1px solid var(--border); padding: .85rem 1.5rem; }
-    .modal-body   { padding: 1.5rem; }
-
-    .modal-title {
-        font-weight: 700;
-        font-size: 1rem;
-        color: var(--text-dark);
-    }
-
-    .detail-group { margin-bottom: 1rem; }
-
-    .detail-label {
-        font-size: .64rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .1em;
-        color: var(--text-muted);
-        margin-bottom: 3px;
-    }
-
-    .detail-value {
-        font-size: .875rem;
-        font-weight: 600;
-        color: var(--text-dark);
-    }
-
-    .btn-modal-close {
-        background: #fff;
-        color: var(--text-body);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: .45rem 1.2rem;
-        font-size: .84rem;
-        font-weight: 600;
-        font-family: 'DM Sans', sans-serif;
-        cursor: pointer;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
     }
 
-    .btn-modal-close:hover { background: var(--surface); }
-
-    /* ── CANCEL CONFIRM MODAL ── */
-    .cancel-confirm-body {
-        text-align: center;
-        padding: 2rem 1.5rem;
-    }
-
-    .cancel-confirm-body .cc-icon {
-        width: 56px;
-        height: 56px;
+    .btn-cancel-appt:hover {
         background: var(--red-light);
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 auto 1rem;
-        font-size: 1.5rem;
-        color: var(--red);
+        color: var(--red-dark);
+        border-color: #fca5a5;
     }
 
-    .cancel-confirm-body h5 { font-weight: 700; color: var(--text-dark); margin-bottom: .4rem; }
-    .cancel-confirm-body p  { font-size: .875rem; color: var(--text-muted); }
-
-    .btn-danger-sm {
-        background: var(--red);
-        color: #fff;
-        border: none;
-        border-radius: var(--radius-sm);
-        padding: .45rem 1.2rem;
-        font-size: .84rem;
-        font-weight: 600;
-        font-family: 'DM Sans', sans-serif;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        transition: background .15s;
+    .btn-cancel-appt:disabled {
+        opacity: .4;
+        cursor: not-allowed;
     }
 
-    .btn-danger-sm:hover { background: var(--red-dark); }
-
-    /* ── EMPTY STATE ── */
     .empty-state {
         text-align: center;
         padding: 3rem 1rem;
         color: var(--text-muted);
     }
 
-    .empty-state i { font-size: 2.5rem; margin-bottom: .75rem; display: block; }
-    .empty-state p { font-size: .875rem; margin: 0; }
+    .empty-state i {
+        font-size: 2.5rem;
+        display: block;
+        margin-bottom: .75rem;
+        opacity: .3;
+    }
+
+    .empty-state p {
+        font-size: .85rem;
+        margin: 0;
+    }
+
+    .alert-success-custom {
+        background: var(--green-light);
+        border: 1px solid #6ee7b7;
+        border-radius: var(--radius-sm);
+        padding: .85rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: .875rem;
+        color: var(--green-dark);
+        font-weight: 500;
+        margin-bottom: 1rem;
+    }
+
+    .alert-error-custom {
+        background: var(--red-light);
+        border: 1px solid #fca5a5;
+        border-radius: var(--radius-sm);
+        padding: .85rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: .875rem;
+        color: var(--red-dark);
+        font-weight: 500;
+        margin-bottom: 1rem;
+    }
+
+    /* Cancel confirm modal */
+    .cancel-modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, .5);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        backdrop-filter: blur(3px);
+    }
+
+    .cancel-modal-overlay.show {
+        display: flex;
+    }
+
+    .cancel-modal {
+        background: #fff;
+        border-radius: var(--radius);
+        padding: 1.75rem;
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, .18);
+        animation: fadeUp .2s ease both;
+    }
+
+    .cancel-modal h5 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        margin-bottom: .5rem;
+    }
+
+    .cancel-modal p {
+        font-size: .84rem;
+        color: var(--text-body);
+        margin-bottom: 1.25rem;
+    }
+
+    .cancel-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .btn-no {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: .45rem 1.2rem;
+        font-size: .83rem;
+        font-weight: 600;
+        font-family: 'DM Sans', sans-serif;
+        cursor: pointer;
+        color: var(--text-body);
+    }
+
+    .btn-yes-cancel {
+        background: var(--red);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-sm);
+        padding: .45rem 1.2rem;
+        font-size: .83rem;
+        font-weight: 600;
+        font-family: 'DM Sans', sans-serif;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: background .15s;
+    }
+
+    .btn-yes-cancel:hover {
+        background: var(--red-dark);
+    }
 
     @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 </style>
 
-<!-- PAGE TITLE -->
 <div class="pagetitle">
     <h1>My Appointments</h1>
     <nav>
@@ -459,415 +546,265 @@ include('./includes/sidebar.php');
     </nav>
 </div>
 
-<section class="section page-appt">
+<section class="section page-myappt">
 
-    <!-- STAT STRIP -->
-    <div class="stat-strip">
-        <div class="stat-card">
-            <div class="sc-label">Total Appointments</div>
-            <div class="sc-num">7</div>
-            <div class="sc-sub">All time bookings</div>
-        </div>
-        <div class="stat-card">
-            <div class="sc-label">Confirmed</div>
-            <div class="sc-num">2</div>
-            <div class="sc-sub">Upcoming sessions</div>
-        </div>
-        <div class="stat-card">
-            <div class="sc-label">Pending</div>
-            <div class="sc-num">2</div>
-            <div class="sc-sub">Awaiting approval</div>
-        </div>
-        <div class="stat-card">
-            <div class="sc-label">Completed</div>
-            <div class="sc-num">2</div>
-            <div class="sc-sub">Past visits</div>
-        </div>
+    <!-- Alerts -->
+    <div id="successAlert" class="alert-success-custom" style="display:none">
+        <i class="bi bi-check-circle-fill"></i>
+        <div id="successMsg">Appointment cancelled successfully.</div>
+    </div>
+    <div id="errorAlert" class="alert-error-custom" style="display:none">
+        <i class="bi bi-x-circle-fill"></i>
+        <div id="errorMsg">Something went wrong. Please try again.</div>
     </div>
 
-    <!-- MAIN TABLE CARD -->
+    <!-- Stat cards -->
+    <div class="stat-strip">
+        <a href="my_appointments" class="stat-card">
+            <div class="sc-label">Total</div>
+            <div class="sc-num"><?= $statTotal ?></div>
+            <div class="sc-sub">All appointments</div>
+        </a>
+        <a href="my_appointments?status=upcoming" class="stat-card">
+            <div class="sc-label">Upcoming</div>
+            <div class="sc-num"><?= $statUpcoming ?></div>
+            <div class="sc-sub">Scheduled sessions</div>
+        </a>
+        <a href="my_appointments?status=Completed" class="stat-card">
+            <div class="sc-label">Completed</div>
+            <div class="sc-num"><?= $statCompleted ?></div>
+            <div class="sc-sub">Finished visits</div>
+        </a>
+        <a href="my_appointments?status=Cancelled" class="stat-card">
+            <div class="sc-label">Cancelled</div>
+            <div class="sc-num"><?= $statCancelled ?></div>
+            <div class="sc-sub">Cancelled bookings</div>
+        </a>
+    </div>
+
+    <!-- Table card -->
     <div class="main-card">
         <div class="table-toolbar">
-            <h5>All Appointments <span>| <?php echo date('F j, Y'); ?></span></h5>
+            <h5>All Appointments <span>| <?= date('F j, Y') ?></span></h5>
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" id="apptSearch" placeholder="Search doctor or dept…" oninput="filterAppt()"/>
+                <input type="text" id="apptSearch" placeholder="Search doctor or code…" oninput="filterTable()">
             </div>
-            <select class="filter-select" id="apptStatus" onchange="filterAppt()">
+            <select class="filter-select" id="statusFilter" onchange="filterTable()">
                 <option value="">All Status</option>
-                <option>Confirmed</option>
-                <option>Pending</option>
-                <option>Cancelled</option>
-                <option>Completed</option>
+                <option value="Pending" <?= $filterStatus === 'Pending' ? 'selected' : '' ?>>Pending</option>
+                <option value="In Progress" <?= $filterStatus === 'In Progress' ? 'selected' : '' ?>>In Progress</option>
+                <option value="Completed" <?= $filterStatus === 'Completed' ? 'selected' : '' ?>>Completed</option>
+                <option value="Cancelled" <?= $filterStatus === 'Cancelled' ? 'selected' : '' ?>>Cancelled</option>
+                <option value="upcoming" <?= $filterStatus === 'upcoming' ? 'selected' : '' ?>>Upcoming</option>
             </select>
-            <a href="book_appointment.php" class="btn-primary-sm">
-                <i class="bi bi-plus-lg"></i> New Appointment
-            </a>
+            <a href="book_appointment" class="btn-book"><i class="bi bi-plus-lg"></i> Book New</a>
         </div>
 
-        <div style="overflow-x:auto;">
+        <div style="overflow-x:auto">
             <table class="table" id="apptTable">
                 <thead>
                     <tr>
-                        <th>#ID</th>
+                        <th>#</th>
                         <th>Doctor</th>
                         <th>Department</th>
                         <th>Date</th>
                         <th>Time</th>
+                        <th>Channel</th>
                         <th>Status</th>
-                        <th>Actions</th>
+                        <th>Action</th>
                     </tr>
                 </thead>
                 <tbody id="apptTbody">
-
-                    <tr data-doctor="Dr. Princess Mary Lapura" data-dept="Dermatology" data-status="Confirmed">
-                        <td><span class="appt-id">APT-001</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#dbeafe;color:#1d4ed8;">PL</div>
-                                <div>
-                                    <div class="doc-name">Dr. Princess Mary Lapura</div>
-                                    <div class="doc-spec">Dermatology</div>
+                    <?php if (empty($appointments)): ?>
+                        <tr>
+                            <td colspan="8">
+                                <div class="empty-state">
+                                    <i class="bi bi-calendar-x"></i>
+                                    <p>No appointments found.<br>
+                                        <a href="book_appointment" style="color:var(--blue-600);font-weight:600">Book your first appointment →</a>
+                                    </p>
                                 </div>
-                            </div>
-                        </td>
-                        <td>Dermatology</td>
-                        <td>April 5, 2026</td>
-                        <td>10:00 AM</td>
-                        <td><span class="badge badge-confirmed">Confirmed</span></td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" title="View" onclick="openViewModal('APT-001','Dr. Princess Mary Lapura','Dermatology','April 5, 2026','10:00 AM','Confirmed','Follow-up for skin allergy treatment.')">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn-act del" title="Cancel" onclick="openCancelModal(this, 'APT-001')">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Jose Reyes" data-dept="Internal Medicine" data-status="Pending">
-                        <td><span class="appt-id">APT-002</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#d1fae5;color:#065f46;">JR</div>
-                                <div>
-                                    <div class="doc-name">Dr. Jose Reyes</div>
-                                    <div class="doc-spec">Internal Medicine</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Internal Medicine</td>
-                        <td>April 8, 2026</td>
-                        <td>02:30 PM</td>
-                        <td><span class="badge badge-pending">Pending</span></td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" title="View" onclick="openViewModal('APT-002','Dr. Jose Reyes','Internal Medicine','April 8, 2026','02:30 PM','Pending','General check-up and blood pressure monitoring.')">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn-act del" title="Cancel" onclick="openCancelModal(this, 'APT-002')">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Maria Santos" data-dept="Pediatrics" data-status="Completed">
-                        <td><span class="appt-id">APT-003</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#fef3c7;color:#92400e;">MS</div>
-                                <div>
-                                    <div class="doc-name">Dr. Maria Santos</div>
-                                    <div class="doc-spec">Pediatrics</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Pediatrics</td>
-                        <td>March 28, 2026</td>
-                        <td>09:00 AM</td>
-                        <td><span class="badge badge-completed">Completed</span></td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" title="View" onclick="openViewModal('APT-003','Dr. Maria Santos','Pediatrics','March 28, 2026','09:00 AM','Completed','Routine pediatric checkup.')">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn-act del" title="Cancel" disabled style="opacity:.4;cursor:not-allowed;"><i class="bi bi-x-lg"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Ramon Cruz" data-dept="Orthopedics" data-status="Cancelled">
-                        <td><span class="appt-id">APT-004</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#fee2e2;color:#991b1b;">RC</div>
-                                <div>
-                                    <div class="doc-name">Dr. Ramon Cruz</div>
-                                    <div class="doc-spec">Orthopedics</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Orthopedics</td>
-                        <td>March 20, 2026</td>
-                        <td>11:30 AM</td>
-                        <td><span class="badge badge-cancelled">Cancelled</span></td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" title="View" onclick="openViewModal('APT-004','Dr. Ramon Cruz','Orthopedics','March 20, 2026','11:30 AM','Cancelled','Left knee pain assessment.')">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn-act del" title="Cancel" disabled style="opacity:.4;cursor:not-allowed;"><i class="bi bi-x-lg"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Princess Mary Lapura" data-dept="Dermatology" data-status="Confirmed">
-                        <td><span class="appt-id">APT-005</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#dbeafe;color:#1d4ed8;">PL</div>
-                                <div>
-                                    <div class="doc-name">Dr. Princess Mary Lapura</div>
-                                    <div class="doc-spec">Dermatology</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Dermatology</td>
-                        <td>April 12, 2026</td>
-                        <td>03:00 PM</td>
-                        <td><span class="badge badge-confirmed">Confirmed</span></td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" title="View" onclick="openViewModal('APT-005','Dr. Princess Mary Lapura','Dermatology','April 12, 2026','03:00 PM','Confirmed','Acne treatment follow-up.')">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn-act del" title="Cancel" onclick="openCancelModal(this, 'APT-005')">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Angela Villanueva" data-dept="Cardiology" data-status="Pending">
-                        <td><span class="appt-id">APT-006</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#ede9fe;color:#5b21b6;">AV</div>
-                                <div>
-                                    <div class="doc-name">Dr. Angela Villanueva</div>
-                                    <div class="doc-spec">Cardiology</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Cardiology</td>
-                        <td>April 15, 2026</td>
-                        <td>08:00 AM</td>
-                        <td><span class="badge badge-pending">Pending</span></td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" title="View" onclick="openViewModal('APT-006','Dr. Angela Villanueva','Cardiology','April 15, 2026','08:00 AM','Pending','Annual cardiac screening and ECG.')">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn-act del" title="Cancel" onclick="openCancelModal(this, 'APT-006')">
-                                    <i class="bi bi-x-lg"></i>
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Maria Santos" data-dept="Pediatrics" data-status="Completed">
-                        <td><span class="appt-id">APT-007</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#fef3c7;color:#92400e;">MS</div>
-                                <div>
-                                    <div class="doc-name">Dr. Maria Santos</div>
-                                    <div class="doc-spec">Pediatrics</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td>Pediatrics</td>
-                        <td>March 10, 2026</td>
-                        <td>01:00 PM</td>
-                        <td><span class="badge badge-completed">Completed</span></td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" title="View" onclick="openViewModal('APT-007','Dr. Maria Santos','Pediatrics','March 10, 2026','01:00 PM','Completed','Vaccination schedule update.')">
-                                    <i class="bi bi-eye"></i>
-                                </button>
-                                <button class="btn-act del" title="Cancel" disabled style="opacity:.4;cursor:not-allowed;"><i class="bi bi-x-lg"></i></button>
-                            </div>
-                        </td>
-                    </tr>
-
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($appointments as $appt):
+                            $statusMap = ['Completed' => 'bg-success', 'In Progress' => 'bg-info', 'Pending' => 'bg-warning', 'Cancelled' => 'bg-danger'];
+                            $sCls = $statusMap[$appt['status']] ?? 'bg-secondary';
+                            $isPast = $appt['appointmentDate'] < $today;
+                            $canCancel = !in_array($appt['status'], ['Cancelled', 'Completed']) && !$isPast;
+                            $isUpcoming = $appt['appointmentDate'] >= $today && in_array($appt['status'], ['Pending', 'In Progress']);
+                        ?>
+                            <tr data-code="<?= strtolower($appt['appointmentCode']) ?>"
+                                data-doctor="<?= strtolower($appt['doctorName']) ?>"
+                                data-status="<?= $appt['status'] ?>"
+                                data-upcoming="<?= $isUpcoming ? '1' : '0' ?>">
+                                <td><span class="appt-code"><?= htmlspecialchars($appt['appointmentCode']) ?></span></td>
+                                <td>
+                                    <div class="doc-name"><?= htmlspecialchars($appt['doctorName']) ?></div>
+                                    <div class="doc-spec"><?= htmlspecialchars($appt['specialization']) ?></div>
+                                </td>
+                                <td style="font-size:.8rem"><?= htmlspecialchars($appt['department'] ?? '—') ?></td>
+                                <td style="font-size:.82rem"><?= date('M j, Y', strtotime($appt['appointmentDate'])) ?></td>
+                                <td style="font-size:.82rem"><?= date('g:i A', strtotime($appt['appointmentTime'])) ?></td>
+                                <td><span class="channel-chip"><?= htmlspecialchars($appt['channel']) ?></span></td>
+                                <td><span class="badge <?= $sCls ?>"><?= htmlspecialchars($appt['status']) ?></span></td>
+                                <td>
+                                    <?php if ($canCancel): ?>
+                                        <button class="btn-cancel-appt" onclick="openCancelModal(<?= $appt['id'] ?>, '<?= htmlspecialchars($appt['appointmentCode']) ?>')">
+                                            <i class="bi bi-x-lg"></i> Cancel
+                                        </button>
+                                    <?php else: ?>
+                                        <span style="font-size:.75rem;color:var(--text-muted)">—</span>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
-
-            <div class="empty-state" id="emptyState" style="display:none;">
-                <i class="bi bi-calendar-x"></i>
-                <p>No appointments found matching your filter.</p>
-            </div>
         </div>
 
-        <div class="tbl-footer">
-            <span id="showingLabel">Showing 7 of 7 appointments</span>
-            <div class="pg-btns">
-                <button>‹ Prev</button>
-                <button class="active">1</button>
-                <button>2</button>
-                <button>Next ›</button>
-            </div>
-        </div>
+        <!-- Pagination info -->
+        <div style="margin-top:.75rem;font-size:.75rem;color:var(--text-muted)" id="tableInfo"></div>
     </div>
 
 </section>
 
-<!-- VIEW APPOINTMENT MODAL -->
-<div class="modal fade" id="viewApptModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-calendar-check me-2" style="color:var(--blue-600);"></i>
-                    Appointment Details
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="row g-3">
-                    <div class="col-6">
-                        <div class="detail-group">
-                            <div class="detail-label">Appointment ID</div>
-                            <div class="detail-value" id="modal-appt-id">—</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="detail-group">
-                            <div class="detail-label">Status</div>
-                            <div id="modal-status">—</div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="detail-group">
-                            <div class="detail-label">Doctor</div>
-                            <div class="detail-value" id="modal-doctor">—</div>
-                            <div style="font-size:.75rem;color:var(--text-muted);" id="modal-spec">—</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="detail-group">
-                            <div class="detail-label">Date</div>
-                            <div class="detail-value" id="modal-date">—</div>
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="detail-group">
-                            <div class="detail-label">Time</div>
-                            <div class="detail-value" id="modal-time">—</div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="detail-group">
-                            <div class="detail-label">Notes</div>
-                            <div style="font-size:.85rem;color:var(--text-body);" id="modal-notes">—</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn-modal-close" data-bs-dismiss="modal">
-                    <i class="bi bi-x-lg"></i> Close
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- CANCEL CONFIRM MODAL -->
-<div class="modal fade" id="cancelModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
-            <div class="modal-body cancel-confirm-body">
-                <div class="cc-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
-                <h5>Cancel Appointment?</h5>
-                <p>This will mark <strong id="cancelApptId"></strong> as Cancelled. This action cannot be undone.</p>
-                <div class="d-flex gap-2 justify-content-center mt-3">
-                    <button class="btn-modal-close" data-bs-dismiss="modal">Go Back</button>
-                    <button class="btn-danger-sm" id="confirmCancelBtn">
-                        <i class="bi bi-x-circle"></i> Yes, Cancel
-                    </button>
-                </div>
-            </div>
+<!-- Cancel Confirm Modal -->
+<div class="cancel-modal-overlay" id="cancelModal">
+    <div class="cancel-modal">
+        <h5><i class="bi bi-exclamation-triangle-fill" style="color:var(--amber);margin-right:6px"></i>Cancel Appointment?</h5>
+        <p>Are you sure you want to cancel <strong id="cancelCode"></strong>? This action cannot be undone.</p>
+        <div class="cancel-modal-footer">
+            <button class="btn-no" onclick="closeCancelModal()">No, Keep It</button>
+            <button class="btn-yes-cancel" id="confirmCancelBtn" onclick="confirmCancel()">
+                <i class="bi bi-x-lg"></i> Yes, Cancel
+            </button>
         </div>
     </div>
 </div>
 
 <script>
-    function filterAppt() {
-        const q  = document.getElementById('apptSearch').value.toLowerCase();
-        const st = document.getElementById('apptStatus').value;
+    let cancelTargetId = null;
+
+    // Apply URL status filter on load
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlStatus = '<?= htmlspecialchars($filterStatus) ?>';
+        if (urlStatus) {
+            document.getElementById('statusFilter').value = urlStatus;
+            filterTable();
+        }
+        updateTableInfo();
+    });
+
+    function filterTable() {
+        const q = document.getElementById('apptSearch').value.toLowerCase();
+        const st = document.getElementById('statusFilter').value;
         let visible = 0;
 
-        document.querySelectorAll('#apptTbody tr').forEach(row => {
-            const doc    = (row.dataset.doctor || '').toLowerCase();
-            const dept   = (row.dataset.dept   || '').toLowerCase();
-            const status = row.dataset.status  || '';
-            const matchQ = !q  || doc.includes(q) || dept.includes(q);
-            const matchS = !st || status === st;
-            const show   = matchQ && matchS;
+        document.querySelectorAll('#apptTbody tr[data-code]').forEach(row => {
+            const matchSearch = !q || row.dataset.code.includes(q) || row.dataset.doctor.includes(q);
+            let matchStatus = true;
+            if (st === 'upcoming') {
+                matchStatus = row.dataset.upcoming === '1';
+            } else if (st) {
+                matchStatus = row.dataset.status === st;
+            }
+            const show = matchSearch && matchStatus;
             row.style.display = show ? '' : 'none';
             if (show) visible++;
         });
 
-        document.getElementById('emptyState').style.display = visible === 0 ? '' : 'none';
-        const total = document.querySelectorAll('#apptTbody tr').length;
-        document.getElementById('showingLabel').textContent = `Showing ${visible} of ${total} appointments`;
+        updateTableInfo(visible);
     }
 
-    function openViewModal(id, doctor, spec, date, time, status, notes) {
-        document.getElementById('modal-appt-id').textContent = id;
-        document.getElementById('modal-doctor').textContent  = doctor;
-        document.getElementById('modal-spec').textContent    = spec;
-        document.getElementById('modal-date').textContent    = date;
-        document.getElementById('modal-time').textContent    = time;
-        document.getElementById('modal-notes').textContent   = notes;
-
-        const badgeMap = {
-            'Confirmed':  'badge-confirmed',
-            'Pending':    'badge-pending',
-            'Cancelled':  'badge-cancelled',
-            'Completed':  'badge-completed',
-        };
-        document.getElementById('modal-status').innerHTML =
-            `<span class="badge ${badgeMap[status] || ''}">${status}</span>`;
-
-        new bootstrap.Modal(document.getElementById('viewApptModal')).show();
+    function updateTableInfo(visible) {
+        const total = document.querySelectorAll('#apptTbody tr[data-code]').length;
+        const shown = visible !== undefined ? visible : total;
+        document.getElementById('tableInfo').textContent =
+            total ? `Showing ${shown} of ${total} appointments` : '';
     }
 
-    let cancelTargetRow = null;
-
-    function openCancelModal(btn, apptId) {
-        cancelTargetRow = btn.closest('tr');
-        document.getElementById('cancelApptId').textContent = apptId;
-        new bootstrap.Modal(document.getElementById('cancelModal')).show();
+    function openCancelModal(id, code) {
+        cancelTargetId = id;
+        document.getElementById('cancelCode').textContent = code;
+        document.getElementById('cancelModal').classList.add('show');
     }
 
-    document.getElementById('confirmCancelBtn').addEventListener('click', () => {
-        if (!cancelTargetRow) return;
+    function closeCancelModal() {
+        cancelTargetId = null;
+        document.getElementById('cancelModal').classList.remove('show');
+    }
 
-        const statusCell = cancelTargetRow.querySelector('td:nth-child(6)');
-        statusCell.innerHTML = '<span class="badge badge-cancelled">Cancelled</span>';
-        cancelTargetRow.dataset.status = 'Cancelled';
+    function confirmCancel() {
+        if (!cancelTargetId) return;
+        const btn = document.getElementById('confirmCancelBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Cancelling…';
 
-        const cancelBtn = cancelTargetRow.querySelector('.btn-act.del');
-        if (cancelBtn) { cancelBtn.disabled = true; cancelBtn.style.opacity = '.4'; }
+        const fd = new FormData();
+        fd.append('id', cancelTargetId);
 
-        bootstrap.Modal.getInstance(document.getElementById('cancelModal')).hide();
-        cancelTargetRow = null;
-        filterAppt();
+        fetch('bookapp_handler.php?action=cancel_appointment', {
+                method: 'POST',
+                body: fd
+            })
+            .then(r => r.json())
+            .then(res => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-x-lg"></i> Yes, Cancel';
+                closeCancelModal();
+                if (res.success) {
+                    showAlert('success', 'Appointment cancelled successfully.');
+                    // Update the row badge without reloading
+                    const row = document.querySelector(`button[onclick*="${cancelTargetId}"]`)?.closest('tr');
+                    if (row) {
+                        row.querySelector('.badge').className = 'badge bg-danger';
+                        row.querySelector('.badge').textContent = 'Cancelled';
+                        row.querySelector('.btn-cancel-appt').disabled = true;
+                        row.querySelector('.btn-cancel-appt').style.opacity = '.4';
+                        row.dataset.status = 'Cancelled';
+                        row.dataset.upcoming = '0';
+                    }
+                    // Update cancelled stat
+                    const cancelCard = document.querySelector('.stat-card:nth-child(4) .sc-num');
+                    if (cancelCard) cancelCard.textContent = parseInt(cancelCard.textContent) + 1;
+                    const upCard = document.querySelector('.stat-card:nth-child(2) .sc-num');
+                    if (upCard && parseInt(upCard.textContent) > 0) upCard.textContent = parseInt(upCard.textContent) - 1;
+                } else {
+                    showAlert('error', res.message || 'Failed to cancel. Please try again.');
+                }
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-x-lg"></i> Yes, Cancel';
+                closeCancelModal();
+                showAlert('error', 'Network error. Please try again.');
+            });
+    }
+
+    function showAlert(type, msg) {
+        document.getElementById('successAlert').style.display = 'none';
+        document.getElementById('errorAlert').style.display = 'none';
+        if (type === 'success') {
+            document.getElementById('successMsg').textContent = msg;
+            document.getElementById('successAlert').style.display = 'flex';
+            setTimeout(() => document.getElementById('successAlert').style.display = 'none', 5000);
+        } else {
+            document.getElementById('errorMsg').textContent = msg;
+            document.getElementById('errorAlert').style.display = 'flex';
+            setTimeout(() => document.getElementById('errorAlert').style.display = 'none', 5000);
+        }
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+    }
+
+    // Close modal on overlay click
+    document.getElementById('cancelModal').addEventListener('click', function(e) {
+        if (e.target === this) closeCancelModal();
     });
 </script>
 

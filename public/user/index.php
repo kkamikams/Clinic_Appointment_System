@@ -1,32 +1,108 @@
 <?php
-include('../../app/middleware/user.php');
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
-?>
+require_once('../../app/config/config.php');
 
+// ── Get logged-in user's patientId (linked via emailAddress or userId) ──
+$userId   = $_SESSION['user_id'] ?? 0;
+$userEmail = $_SESSION['email'] ?? '';
+
+// Try to find a matching patient record for this user
+$patientRow = null;
+if ($userId) {
+    $stmt = $conn->prepare("SELECT * FROM patients WHERE emailAddress = ? AND status != 'Inactive' LIMIT 1");
+    $stmt->bind_param('s', $userEmail);
+    $stmt->execute();
+    $patientRow = $stmt->get_result()->fetch_assoc();
+}
+$patientId = $patientRow['id'] ?? 0;
+$patientName = $patientRow ? trim($patientRow['firstName'] . ' ' . $patientRow['lastName']) : ($_SESSION['name'] ?? 'Patient');
+
+$today = date('Y-m-d');
+
+// ── Stats for this patient ─────────────────────────────────────────
+if ($patientId) {
+    $totalAppts    = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId")->fetch_row()[0];
+    $upcomingAppts = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND appointmentDate >= '$today' AND status IN ('Pending','In Progress')")->fetch_row()[0];
+    $pendingAppts  = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND status='Pending'")->fetch_row()[0];
+    $completedAppts = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND status='Completed'")->fetch_row()[0];
+    $totalRecords  = $conn->query("SELECT COUNT(*) FROM medicalRecords WHERE patientId=$patientId")->fetch_row()[0];
+
+    // Next upcoming appointment
+    $nextAppt = $conn->query("
+        SELECT a.*, CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName, d.specialization
+        FROM appointments a JOIN doctors d ON d.id=a.doctorId
+        WHERE a.patientId=$patientId AND a.appointmentDate >= '$today' AND a.status IN ('Pending','In Progress')
+        ORDER BY a.appointmentDate ASC, a.appointmentTime ASC LIMIT 1
+    ")->fetch_assoc();
+
+    // Recent appointments (last 5)
+    $recentAppts = $conn->query("
+        SELECT a.*, CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName, d.specialization
+        FROM appointments a JOIN doctors d ON d.id=a.doctorId
+        WHERE a.patientId=$patientId
+        ORDER BY a.appointmentDate DESC, a.appointmentTime DESC LIMIT 5
+    ")->fetch_all(MYSQLI_ASSOC);
+
+    // Recent medical records
+    $recentRecords = $conn->query("
+        SELECT mr.*, CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName, d.specialization
+        FROM medicalRecords mr JOIN doctors d ON d.id=mr.doctorId
+        WHERE mr.patientId=$patientId
+        ORDER BY mr.createdAt DESC LIMIT 3
+    ")->fetch_all(MYSQLI_ASSOC);
+
+    // Chart: last 6 months appointment trend
+    $chartMonths = [];
+    for ($i = 5; $i >= 0; $i--) {
+        $m = date('Y-m', strtotime("-$i months"));
+        $cnt = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND DATE_FORMAT(appointmentDate,'%Y-%m')='$m'")->fetch_row()[0];
+        $chartMonths[] = ['label' => date('M', strtotime("-$i months")), 'count' => (int)$cnt];
+    }
+} else {
+    $totalAppts = $upcomingAppts = $pendingAppts = $completedAppts = $totalRecords = 0;
+    $nextAppt = null;
+    $recentAppts = [];
+    $recentRecords = [];
+    $chartMonths = [];
+    for ($i = 5; $i >= 0; $i--) $chartMonths[] = ['label' => date('M', strtotime("-$i months")), 'count' => 0];
+}
+
+// ── Available doctors today ────────────────────────────────────────
+$availDoctors = $conn->query("
+    SELECT d.id, d.firstName, d.lastName, d.specialization, d.department, d.status,
+           COUNT(DISTINCT a.id) AS todayLoad, d.patientCapacity
+    FROM doctors d
+    LEFT JOIN appointments a ON a.doctorId=d.id AND a.appointmentDate='$today' AND a.status!='Cancelled'
+    LEFT JOIN doctorSchedules ds ON ds.doctorId=d.id AND ds.dayOfWeek=DAYNAME('$today')
+    WHERE d.employmentStatus='Active' AND ds.id IS NOT NULL
+    GROUP BY d.id
+    ORDER BY d.status='On Duty' DESC, d.lastName
+    LIMIT 6
+")->fetch_all(MYSQLI_ASSOC);
+
+$avatarBgs    = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
+$avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75'];
+?>
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&family=DM+Serif+Display:ital@0;1&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
 
     :root {
         --blue-50: #eff6ff;
         --blue-100: #dbeafe;
         --blue-200: #bfdbfe;
-        --blue-300: #93c5fd;
         --blue-400: #60a5fa;
         --blue-500: #3b82f6;
         --blue-600: #2563eb;
         --blue-700: #1d4ed8;
-        --blue-800: #1e40af;
-        --blue-900: #1e3a8a;
-
         --surface: #f5f7fb;
         --card: #ffffff;
         --border: #eaecf4;
         --text-dark: #111827;
         --text-body: #4b5563;
         --text-muted: #9ca3af;
-
         --green: #10b981;
         --green-light: #d1fae5;
         --green-dark: #065f46;
@@ -40,7 +116,8 @@ include('./includes/sidebar.php');
         --teal-light: #cffafe;
         --teal-dark: #155e75;
         --violet: #8b5cf6;
-
+        --violet-light: #ede9fe;
+        --violet-dark: #5b21b6;
         --radius: 16px;
         --radius-sm: 10px;
         --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
@@ -48,7 +125,6 @@ include('./includes/sidebar.php');
         --shadow-lg: 0 8px 30px rgba(0, 0, 0, .10);
     }
 
-    /* ── Base ── */
     .section.dashboard,
     .section.dashboard * {
         font-family: 'DM Sans', sans-serif;
@@ -60,9 +136,7 @@ include('./includes/sidebar.php');
         padding-bottom: 2.5rem;
     }
 
-    /* ── Page title — now DM Sans (not serif italic) ── */
     .pagetitle h1 {
-        font-family: 'DM Sans', sans-serif;
         font-weight: 700;
         font-size: 1.75rem;
         color: var(--text-dark);
@@ -82,117 +156,225 @@ include('./includes/sidebar.php');
         font-weight: 600;
     }
 
+    /* ── Welcome Banner ── */
+    .welcome-banner {
+        background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
+        border-radius: var(--radius);
+        padding: 1.5rem 1.75rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.25rem;
+        animation: fadeUp .3s ease both;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .welcome-banner .wb-text h2 {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: #fff;
+        margin: 0;
+        letter-spacing: -.02em;
+    }
+
+    .welcome-banner .wb-text p {
+        font-size: .82rem;
+        color: rgba(255, 255, 255, .75);
+        margin: .25rem 0 0;
+    }
+
+    .wb-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .wb-btn {
+        background: rgba(255, 255, 255, .18);
+        color: #fff;
+        border: 1px solid rgba(255, 255, 255, .3);
+        border-radius: var(--radius-sm);
+        padding: .45rem 1.1rem;
+        font-size: .82rem;
+        font-weight: 600;
+        font-family: 'DM Sans', sans-serif;
+        cursor: pointer;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        transition: background .15s;
+        white-space: nowrap;
+    }
+
+    .wb-btn:hover {
+        background: rgba(255, 255, 255, .28);
+        color: #fff;
+    }
+
+    .wb-btn.solid {
+        background: #fff;
+        color: var(--blue-700);
+    }
+
+    .wb-btn.solid:hover {
+        background: #f0f9ff;
+        color: var(--blue-700);
+    }
+
+    /* ── Next appointment highlight ── */
+    .next-appt-card {
+        background: linear-gradient(135deg, #ecfdf5, #fff);
+        border: 1px solid #a7f3d0;
+        border-radius: var(--radius);
+        padding: 1.25rem 1.5rem;
+        margin-bottom: 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        animation: fadeUp .32s .05s ease both;
+    }
+
+    .next-appt-card .na-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        background: var(--green);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+    }
+
+    .next-appt-card .na-label {
+        font-size: .62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+        color: var(--green-dark);
+        margin-bottom: 3px;
+    }
+
+    .next-appt-card .na-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--text-dark);
+    }
+
+    .next-appt-card .na-sub {
+        font-size: .78rem;
+        color: var(--text-muted);
+        margin-top: 2px;
+    }
+
+    .next-appt-card .na-badge {
+        background: var(--green-light);
+        color: var(--green-dark);
+        border-radius: 6px;
+        font-size: .65rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        letter-spacing: .04em;
+        margin-left: 6px;
+    }
+
+    /* ── Stat cards ── */
+    .stat-strip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 1.25rem;
+    }
+
+    @media(max-width:768px) {
+        .stat-strip {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    .stat-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 1.1rem 1.25rem;
+        border-left: 3px solid transparent;
+        transition: box-shadow .2s, transform .2s;
+        animation: fadeUp .32s ease both;
+        text-decoration: none;
+        display: block;
+    }
+
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px);
+    }
+
+    .stat-card:nth-child(1) {
+        border-left-color: var(--blue-500);
+        animation-delay: .04s;
+    }
+
+    .stat-card:nth-child(2) {
+        border-left-color: var(--green);
+        animation-delay: .09s;
+    }
+
+    .stat-card:nth-child(3) {
+        border-left-color: var(--amber);
+        animation-delay: .14s;
+    }
+
+    .stat-card:nth-child(4) {
+        border-left-color: var(--violet);
+        animation-delay: .19s;
+    }
+
+    .sc-label {
+        font-size: .62rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .11em;
+        color: var(--text-muted);
+        margin-bottom: .45rem;
+    }
+
+    .sc-num {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--text-dark);
+        letter-spacing: -.05em;
+        line-height: 1;
+    }
+
+    .sc-sub {
+        font-size: .7rem;
+        color: var(--text-muted);
+        margin-top: .25rem;
+    }
+
     /* ── Card base ── */
     .card {
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: var(--radius);
         box-shadow: var(--shadow);
-        transition: box-shadow .2s ease, transform .2s ease;
+        transition: box-shadow .2s, transform .2s;
         overflow: hidden;
     }
 
     .card:hover {
         box-shadow: var(--shadow-md);
-        transform: translateY(-1px);
     }
 
-    /* ── Stat cards ── */
-    .info-card .card-body {
-        padding: 1.4rem 1.5rem 1.3rem;
-        position: relative;
+    .card-body {
+        padding: 1.4rem 1.5rem;
     }
 
-    .info-card .card-title {
-        font-size: .67rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: .12em;
-        color: var(--text-muted);
-        margin-bottom: .85rem;
-    }
-
-    .info-card .card-title span {
-        font-weight: 400;
-        letter-spacing: 0;
-        text-transform: none;
-        font-size: .7rem;
-        color: var(--text-muted);
-        opacity: .75;
-    }
-
-    .info-card h6 {
-        font-family: 'DM Sans', sans-serif;
-        font-weight: 700;
-        font-size: 2.1rem;
-        color: var(--text-dark);
-        margin: 0;
-        line-height: 1;
-        letter-spacing: -.05em;
-    }
-
-    .info-card .stat-trend {
-        margin-top: .4rem;
-        font-size: .72rem;
-        font-weight: 500;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .info-card .stat-trend.up {
-        color: var(--green);
-    }
-
-    .info-card .stat-trend.down {
-        color: var(--red);
-    }
-
-    .info-card .stat-trend span {
-        font-weight: 400;
-        color: var(--text-muted);
-    }
-
-    .card-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 12px;
-        font-size: 1.2rem;
-        flex-shrink: 0;
-    }
-
-    .sales-card .card-icon {
-        background: var(--blue-50);
-        color: var(--blue-600);
-    }
-
-    .revenue-card .card-icon {
-        background: #ecfdf5;
-        color: var(--green);
-    }
-
-    .customers-card .card-icon {
-        background: #f5f3ff;
-        color: var(--violet);
-    }
-
-    .info-card {
-        border-left: 3px solid transparent;
-    }
-
-    .sales-card {
-        border-left-color: var(--blue-500);
-    }
-
-    .revenue-card {
-        border-left-color: var(--green);
-    }
-
-    .customers-card {
-        border-left-color: var(--violet);
-    }
-
-    /* ── Section card title ── */
     .card-title {
         font-size: .7rem;
         font-weight: 600;
@@ -211,17 +393,12 @@ include('./includes/sidebar.php');
         margin-left: 4px;
     }
 
-    /* ── Filter icon ── */
-    .filter .icon i {
-        color: var(--text-muted);
-        font-size: .9rem;
+    /* ── Table ── */
+    .table {
+        width: 100%;
+        border-collapse: collapse;
     }
 
-    .filter .icon:hover i {
-        color: var(--blue-600);
-    }
-
-    /* ── Tables ── */
     .table thead th {
         font-size: .65rem;
         font-weight: 600;
@@ -229,12 +406,11 @@ include('./includes/sidebar.php');
         letter-spacing: .1em;
         color: var(--text-muted);
         border-bottom: 1px solid var(--border) !important;
-        padding-bottom: .75rem;
+        padding: .65rem .5rem;
         background: transparent;
     }
 
-    .table tbody td,
-    .table tbody th {
+    .table tbody td {
         font-size: .83rem;
         color: var(--text-body);
         vertical-align: middle;
@@ -242,22 +418,8 @@ include('./includes/sidebar.php');
         padding: .7rem .5rem;
     }
 
-    .table tbody tr:hover td,
-    .table tbody tr:hover th {
+    .table tbody tr:hover td {
         background: var(--blue-50);
-    }
-
-    .table tbody th a {
-        color: var(--blue-700);
-        font-weight: 600;
-        text-decoration: none;
-        font-size: .79rem;
-    }
-
-    .table .text-primary {
-        color: var(--blue-600) !important;
-        text-decoration: none;
-        font-weight: 500;
     }
 
     /* ── Badges ── */
@@ -291,143 +453,201 @@ include('./includes/sidebar.php');
     }
 
     .badge.bg-violet {
-        background: #ede9fe !important;
-        color: #5b21b6 !important;
+        background: var(--violet-light) !important;
+        color: var(--violet-dark) !important;
     }
 
-    /* ── Duty progress pill ── */
-    .duty-progress {
+    .badge.bg-secondary {
+        background: #f3f4f6 !important;
+        color: #374151 !important;
+    }
+
+    /* ── Doctor cards ── */
+    .doctor-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    @media(max-width:576px) {
+        .doctor-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .doctor-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: .85rem 1rem;
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
+        transition: background .15s, border-color .15s;
     }
 
-    .duty-bar {
-        flex: 1;
-        height: 5px;
-        background: var(--blue-100);
-        border-radius: 99px;
-        overflow: hidden;
-        max-width: 80px;
+    .doctor-card:hover {
+        background: var(--blue-50);
+        border-color: var(--blue-200);
     }
 
-    .duty-bar-fill {
-        height: 100%;
-        background: linear-gradient(90deg, var(--blue-500), var(--blue-400));
-        border-radius: 99px;
-        transition: width .4s ease;
-    }
-
-    .duty-fraction {
-        font-size: .75rem;
-        font-weight: 600;
-        color: var(--text-body);
-        white-space: nowrap;
-    }
-
-    .duty-fraction .done {
-        color: var(--blue-700);
-    }
-
-    .duty-fraction .total {
-        color: var(--text-muted);
-        font-weight: 400;
-    }
-
-    /* ── Activity list ── */
-    .activity {
-        display: flex;
-        flex-direction: column;
-        gap: 0;
-    }
-
-    .activity-item {
-        padding: .6rem 0;
-        border-bottom: 1px solid var(--border);
-        gap: 0;
-    }
-
-    .activity-item:last-child {
-        border-bottom: none;
-    }
-
-    .activite-label {
-        font-size: .65rem;
-        font-weight: 600;
-        color: var(--text-muted);
-        min-width: 48px;
-        padding-top: 3px;
-        letter-spacing: .02em;
-    }
-
-    .activity-badge {
-        font-size: .42rem;
-        margin: 5px 14px 0;
-        flex-shrink: 0;
-    }
-
-    .activity-content {
-        font-size: .81rem;
-        color: var(--text-body);
-        line-height: 1.55;
-    }
-
-    .activity-content a {
-        color: var(--text-dark);
-        font-weight: 600;
-        text-decoration: none;
-    }
-
-    .activity-content a:hover {
-        color: var(--blue-700);
-    }
-
-    /* ── Top-selling thumb ── */
-    .top-selling img {
-        width: 36px;
-        height: 36px;
-        object-fit: cover;
+    .doc-avi {
+        width: 40px;
+        height: 40px;
         border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: .78rem;
+        font-weight: 700;
+        flex-shrink: 0;
         border: 2px solid var(--border);
     }
 
-    /* ── Staggered fade-in ── */
-    @keyframes fadeUp {
-        from {
-            opacity: 0;
-            transform: translateY(12px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+    .doc-info .doc-name {
+        font-size: .83rem;
+        font-weight: 600;
+        color: var(--text-dark);
     }
 
-    .col-xxl-4,
-    .col-xl-12,
-    .col-md-6 {
-        animation: fadeUp .38s ease both;
+    .doc-info .doc-spec {
+        font-size: .68rem;
+        color: var(--text-muted);
     }
 
-    .col-xxl-4:nth-child(1) {
-        animation-delay: .04s;
+    .doc-status {
+        font-size: .6rem;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 5px;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        white-space: nowrap;
     }
 
-    .col-xxl-4:nth-child(2) {
-        animation-delay: .10s;
+    .ds-duty {
+        background: var(--teal-light);
+        color: var(--teal-dark);
     }
 
-    .col-xxl-4:nth-child(3) {
-        animation-delay: .16s;
+    .ds-break {
+        background: var(--amber-light);
+        color: var(--amber-dark);
     }
 
-    .col-12 {
-        animation: fadeUp .38s ease both;
-        animation-delay: .22s;
+    .ds-off {
+        background: var(--red-light);
+        color: var(--red-dark);
     }
 
-    /* ── Dropdown ── */
+    /* ── Record type chip ── */
+    .rec-chip {
+        font-size: .63rem;
+        font-weight: 600;
+        padding: 2px 8px;
+        border-radius: 5px;
+    }
+
+    .chip-consultation {
+        background: var(--blue-50);
+        color: var(--blue-700);
+        border: 1px solid var(--blue-100);
+    }
+
+    .chip-lab {
+        background: var(--violet-light);
+        color: var(--violet-dark);
+        border: 1px solid #ddd6fe;
+    }
+
+    .chip-imaging {
+        background: var(--teal-light);
+        color: var(--teal-dark);
+        border: 1px solid #a5f3fc;
+    }
+
+    .chip-prescription {
+        background: var(--green-light);
+        color: var(--green-dark);
+        border: 1px solid #a7f3d0;
+    }
+
+    .chip-other {
+        background: var(--amber-light);
+        color: var(--amber-dark);
+        border: 1px solid #fde68a;
+    }
+
+    /* ── Book appointment CTA ── */
+    .book-cta {
+        background: linear-gradient(135deg, var(--blue-50), #fff);
+        border: 1px solid var(--blue-200);
+        border-radius: var(--radius);
+        padding: 1.25rem 1.5rem;
+        text-align: center;
+    }
+
+    .book-cta i {
+        font-size: 2rem;
+        color: var(--blue-400);
+        display: block;
+        margin-bottom: .5rem;
+    }
+
+    .book-cta p {
+        font-size: .83rem;
+        color: var(--text-muted);
+        margin-bottom: .85rem;
+    }
+
+    .btn-book {
+        background: var(--blue-600);
+        color: #fff;
+        border: none;
+        border-radius: var(--radius-sm);
+        padding: .55rem 1.4rem;
+        font-size: .84rem;
+        font-weight: 600;
+        font-family: 'DM Sans', sans-serif;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        transition: background .15s, box-shadow .15s;
+        text-decoration: none;
+    }
+
+    .btn-book:hover {
+        background: var(--blue-700);
+        box-shadow: 0 3px 10px rgba(37, 99, 235, .3);
+        color: #fff;
+    }
+
+    /* ── No data ── */
+    .no-data {
+        text-align: center;
+        padding: 1.5rem;
+        color: var(--text-muted);
+        font-size: .82rem;
+    }
+
+    .no-data i {
+        font-size: 1.8rem;
+        display: block;
+        margin-bottom: .4rem;
+        opacity: .3;
+    }
+
+    /* ── filter/dropdown ── */
+    .filter .icon i {
+        color: var(--text-muted);
+        font-size: .9rem;
+    }
+
+    .filter .icon:hover i {
+        color: var(--blue-600);
+    }
+
     .dropdown-menu {
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
@@ -446,247 +666,30 @@ include('./includes/sidebar.php');
         color: var(--blue-700);
     }
 
-    .dropdown-header h6 {
-        font-size: .67rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .09em;
-        color: var(--text-muted);
-    }
-
-    /* ── Scrollbar ── */
-    .overflow-auto::-webkit-scrollbar {
-        height: 4px;
-    }
-
-    .overflow-auto::-webkit-scrollbar-track {
-        background: var(--blue-50);
-        border-radius: 9px;
-    }
-
-    .overflow-auto::-webkit-scrollbar-thumb {
-        background: var(--blue-200);
-        border-radius: 9px;
-    }
-
-    /* ── Chart source legend ── */
-    .source-legend {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-top: .5rem;
-        padding: 0 .25rem;
-    }
-
-    .source-legend-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        font-size: .78rem;
-    }
-
-    .source-legend-dot {
-        width: 9px;
-        height: 9px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        margin-right: 8px;
-    }
-
-    .source-legend-label {
-        display: flex;
-        align-items: center;
-        color: var(--text-body);
-    }
-
-    .source-legend-val {
-        font-weight: 700;
-        color: var(--text-dark);
-        font-size: .78rem;
-    }
-
-    .source-legend-pct {
-        font-size: .68rem;
-        color: var(--text-muted);
-        margin-left: 4px;
-    }
-
-    /* ── Tasks widget ── */
-    .task-add-row {
-        display: flex;
-        gap: 8px;
-        margin-bottom: 1rem;
-    }
-
-    .task-add-row input[type="text"] {
-        flex: 1;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: .42rem .75rem;
-        font-size: .82rem;
-        font-family: 'DM Sans', sans-serif;
-        color: var(--text-dark);
-        background: var(--surface);
-        outline: none;
-        transition: border-color .2s;
-    }
-
-    .task-add-row input[type="text"]:focus {
-        border-color: var(--blue-400);
-        background: #fff;
-    }
-
-    .task-add-row button {
-        background: var(--blue-600);
-        color: #fff;
-        border: none;
-        border-radius: var(--radius-sm);
-        padding: .42rem .9rem;
-        font-size: .8rem;
-        font-weight: 600;
-        font-family: 'DM Sans', sans-serif;
-        cursor: pointer;
-        transition: background .15s;
-        white-space: nowrap;
-    }
-
-    .task-add-row button:hover {
-        background: var(--blue-700);
-    }
-
-    .task-list {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        max-height: 320px;
-        overflow-y: auto;
-    }
-
-    .task-item {
+    /* ── No patient linked notice ── */
+    .notice-card {
+        background: var(--amber-light);
+        border: 1px solid #fcd34d;
+        border-radius: var(--radius);
+        padding: 1.1rem 1.4rem;
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: .52rem .7rem;
-        border-radius: 9px;
-        border: 1px solid var(--border);
-        background: var(--surface);
-        transition: background .15s;
-        font-size: .82rem;
-    }
-
-    .task-item:hover {
-        background: var(--blue-50);
-    }
-
-    .task-item input[type="checkbox"] {
-        accent-color: var(--blue-600);
-        width: 15px;
-        height: 15px;
-        cursor: pointer;
-        flex-shrink: 0;
-    }
-
-    .task-item .task-label {
-        flex: 1;
-        color: var(--text-body);
-        line-height: 1.4;
-    }
-
-    .task-item .task-label.done {
-        text-decoration: line-through;
-        color: var(--text-muted);
-    }
-
-    .task-item .task-priority {
-        font-size: .6rem;
-        font-weight: 700;
-        padding: 2px 7px;
-        border-radius: 5px;
-        text-transform: uppercase;
-        letter-spacing: .05em;
-        flex-shrink: 0;
-    }
-
-    .task-item .task-priority.high {
-        background: var(--red-light);
-        color: var(--red-dark);
-    }
-
-    .task-item .task-priority.medium {
-        background: var(--amber-light);
+        margin-bottom: 1rem;
+        font-size: .84rem;
         color: var(--amber-dark);
     }
 
-    .task-item .task-priority.low {
-        background: var(--green-light);
-        color: var(--green-dark);
-    }
+    @keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px)
+        }
 
-    .task-item .task-delete {
-        background: none;
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        font-size: .75rem;
-        padding: 0 2px;
-        line-height: 1;
-        flex-shrink: 0;
-        transition: color .15s;
-    }
-
-    .task-item .task-delete:hover {
-        color: var(--red);
-    }
-
-    .task-empty {
-        text-align: center;
-        padding: 1.5rem 0;
-        color: var(--text-muted);
-        font-size: .8rem;
-    }
-
-    .task-stats {
-        display: flex;
-        gap: 12px;
-        margin-bottom: .75rem;
-    }
-
-    .task-stat {
-        flex: 1;
-        background: var(--surface);
-        border-radius: 8px;
-        padding: .4rem .6rem;
-        text-align: center;
-        border: 1px solid var(--border);
-    }
-
-    .task-stat .ts-num {
-        font-size: 1.1rem;
-        font-weight: 700;
-        color: var(--text-dark);
-        letter-spacing: -.04em;
-        line-height: 1;
-    }
-
-    .task-stat .ts-label {
-        font-size: .62rem;
-        color: var(--text-muted);
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: .07em;
-        margin-top: 2px;
-    }
-
-    .priority-select {
-        border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: .42rem .5rem;
-        font-size: .78rem;
-        font-family: 'DM Sans', sans-serif;
-        color: var(--text-body);
-        background: var(--surface);
-        outline: none;
-        cursor: pointer;
+        to {
+            opacity: 1;
+            transform: translateY(0)
+        }
     }
 </style>
 
@@ -694,194 +697,140 @@ include('./includes/sidebar.php');
     <h1>Dashboard</h1>
     <nav>
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="index.html">Home</a></li>
+            <li class="breadcrumb-item"><a href="index">Home</a></li>
             <li class="breadcrumb-item active">Dashboard</li>
         </ol>
     </nav>
 </div>
 
 <section class="section dashboard">
+
+    <?php if (!$patientId): ?>
+        <div class="notice-card">
+            <i class="bi bi-exclamation-triangle-fill" style="font-size:1.2rem;flex-shrink:0"></i>
+            <div>Your account is not yet linked to a patient record. <a href="book_appointment.php" style="color:var(--amber-dark);font-weight:600">Book an appointment</a> to get started, or contact admin to link your account.</div>
+        </div>
+    <?php endif; ?>
+
+    <!-- Welcome Banner -->
+    <div class="welcome-banner">
+        <div class="wb-text">
+            <h2>Welcome back, <?= htmlspecialchars(explode(' ', $patientName)[0]) ?>! 👋</h2>
+            <p>Here's your health overview for today, <?= date('l, F j, Y') ?></p>
+        </div>
+        <div class="wb-actions">
+            <a href="book_appointment.php" class="wb-btn solid"><i class="bi bi-calendar-plus"></i> Book Appointment</a>
+            <a href="my_appointments.php" class="wb-btn"><i class="bi bi-calendar2-check"></i> My Appointments</a>
+            <a href="medical_records.php" class="wb-btn"><i class="bi bi-file-medical"></i> My Records</a>
+        </div>
+    </div>
+
+    <?php if ($nextAppt): ?>
+        <!-- Next Appointment highlight -->
+        <div class="next-appt-card">
+            <div class="na-icon"><i class="bi bi-calendar-check"></i></div>
+            <div>
+                <div class="na-label">Next Appointment</div>
+                <div class="na-title">
+                    <?= htmlspecialchars($nextAppt['doctorName']) ?>
+                    <span class="na-badge"><?= htmlspecialchars($nextAppt['specialization']) ?></span>
+                </div>
+                <div class="na-sub">
+                    <?= date('l, F j, Y', strtotime($nextAppt['appointmentDate'])) ?> at
+                    <?= date('g:i A', strtotime($nextAppt['appointmentTime'])) ?> ·
+                    <?= htmlspecialchars($nextAppt['appointmentCode']) ?>
+                </div>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
+                <a href="my_appointments.php" style="background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);padding:.4rem 1rem;font-size:.78rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:5px;">
+                    <i class="bi bi-eye"></i> View
+                </a>
+            </div>
+        </div>
+    <?php endif; ?>
+
+    <!-- Stat strip -->
+    <div class="stat-strip">
+        <a href="my_appointments.php" class="stat-card">
+            <div class="sc-label">Total Appointments</div>
+            <div class="sc-num"><?= $totalAppts ?></div>
+            <div class="sc-sub">All time bookings</div>
+        </a>
+        <a href="my_appointments.php?status=upcoming" class="stat-card">
+            <div class="sc-label">Upcoming</div>
+            <div class="sc-num"><?= $upcomingAppts ?></div>
+            <div class="sc-sub">Scheduled sessions</div>
+        </a>
+        <a href="my_appointments.php?status=Pending" class="stat-card">
+            <div class="sc-label">Pending</div>
+            <div class="sc-num"><?= $pendingAppts ?></div>
+            <div class="sc-sub">Awaiting confirmation</div>
+        </a>
+        <a href="medical_records.php" class="stat-card">
+            <div class="sc-label">Medical Records</div>
+            <div class="sc-num"><?= $totalRecords ?></div>
+            <div class="sc-sub">Your health records</div>
+        </a>
+    </div>
+
     <div class="row g-3">
 
         <!-- ═══ Left side ═══ -->
         <div class="col-lg-8">
             <div class="row g-3">
 
-                <!-- Appointments Card -->
-                <div class="col-xxl-4 col-md-6">
-                    <div class="card info-card sales-card">
-                        <div class="filter">
-                            <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
-                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                                <li class="dropdown-header text-start">
-                                    <h6>Filter</h6>
-                                </li>
-                                <li><a class="dropdown-item" href="#">Today</a></li>
-                                <li><a class="dropdown-item" href="#">This Month</a></li>
-                                <li><a class="dropdown-item" href="#">This Year</a></li>
-                            </ul>
-                        </div>
-                        <div class="card-body">
-                            <h5 class="card-title">Appointments <span>| Today</span></h5>
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="card-icon d-flex align-items-center justify-content-center">
-                                    <i class="bi bi-calendar2-check"></i>
-                                </div>
-                                <div>
-                                    <h6>38</h6>
-                                    <div class="stat-trend up">
-                                        <i class="bi bi-arrow-up-short"></i>12%
-                                        <span>vs yesterday</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Patients Card -->
-                <div class="col-xxl-4 col-md-6">
-                    <div class="card info-card revenue-card">
-                        <div class="filter">
-                            <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
-                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                                <li class="dropdown-header text-start">
-                                    <h6>Filter</h6>
-                                </li>
-                                <li><a class="dropdown-item" href="#">Today</a></li>
-                                <li><a class="dropdown-item" href="#">This Month</a></li>
-                                <li><a class="dropdown-item" href="#">This Year</a></li>
-                            </ul>
-                        </div>
-                        <div class="card-body">
-                            <h5 class="card-title">Patients <span>| This Month</span></h5>
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="card-icon d-flex align-items-center justify-content-center">
-                                    <i class="bi bi-people"></i>
-                                </div>
-                                <div>
-                                    <h6>214</h6>
-                                    <div class="stat-trend up">
-                                        <i class="bi bi-arrow-up-short"></i>8%
-                                        <span>vs last month</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Doctors Card -->
-                <div class="col-xxl-4 col-xl-12">
-                    <div class="card info-card customers-card">
-                        <div class="filter">
-                            <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
-                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                                <li class="dropdown-header text-start">
-                                    <h6>Filter</h6>
-                                </li>
-                                <li><a class="dropdown-item" href="#">Today</a></li>
-                                <li><a class="dropdown-item" href="#">This Month</a></li>
-                                <li><a class="dropdown-item" href="#">This Year</a></li>
-                            </ul>
-                        </div>
-                        <div class="card-body">
-                            <h5 class="card-title">Doctors <span>| Active</span></h5>
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="card-icon d-flex align-items-center justify-content-center">
-                                    <i class="bi bi-person-badge"></i>
-                                </div>
-                                <div>
-                                    <h6>18</h6>
-                                    <div class="stat-trend up">
-                                        <i class="bi bi-dot" style="font-size:1.1rem;"></i>5
-                                        <span>on duty now</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Appointment Reports Chart -->
+                <!-- Appointment trend chart -->
                 <div class="col-12">
                     <div class="card">
                         <div class="filter">
                             <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
                             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
                                 <li class="dropdown-header text-start">
-                                    <h6>Filter</h6>
+                                    <h6>Actions</h6>
                                 </li>
-                                <li><a class="dropdown-item" href="#">Today</a></li>
-                                <li><a class="dropdown-item" href="#">This Month</a></li>
-                                <li><a class="dropdown-item" href="#">This Year</a></li>
+                                <li><a class="dropdown-item" href="my_appointments.php">View All Appointments</a></li>
+                                <li><a class="dropdown-item" href="book_appointment.php">Book New</a></li>
                             </ul>
                         </div>
                         <div class="card-body">
-                            <h5 class="card-title">Appointment Reports <span>/ This Week</span></h5>
-                            <div id="reportsChart"></div>
+                            <h5 class="card-title">Appointment History <span>/ Last 6 Months</span></h5>
+                            <div id="apptChart"></div>
                             <script>
-                                document.addEventListener("DOMContentLoaded", () => {
-                                    new ApexCharts(document.querySelector("#reportsChart"), {
+                                document.addEventListener('DOMContentLoaded', () => {
+                                    const raw = <?= json_encode($chartMonths) ?>;
+                                    new ApexCharts(document.querySelector('#apptChart'), {
                                         series: [{
-                                                name: 'Appointments',
-                                                data: [31, 40, 28, 51, 42, 82, 56]
-                                            },
-                                            {
-                                                name: 'Completed',
-                                                data: [11, 32, 45, 32, 34, 52, 41]
-                                            },
-                                            {
-                                                name: 'Cancelled',
-                                                data: [15, 11, 32, 18, 9, 24, 11]
-                                            }
-                                        ],
+                                            name: 'Appointments',
+                                            data: raw.map(r => r.count)
+                                        }],
                                         chart: {
-                                            height: 300,
-                                            type: 'area',
+                                            height: 220,
+                                            type: 'bar',
                                             toolbar: {
                                                 show: false
                                             },
-                                            fontFamily: 'DM Sans, sans-serif',
+                                            fontFamily: 'DM Sans,sans-serif'
                                         },
-                                        markers: {
-                                            size: 3,
-                                            strokeWidth: 2,
-                                            strokeColors: '#fff'
-                                        },
-                                        colors: ['#2563eb', '#10b981', '#f59e0b'],
-                                        fill: {
-                                            type: "gradient",
-                                            gradient: {
-                                                shadeIntensity: 1,
-                                                opacityFrom: 0.18,
-                                                opacityTo: 0.02,
-                                                stops: [0, 95, 100]
+                                        colors: ['#2563eb'],
+                                        plotOptions: {
+                                            bar: {
+                                                borderRadius: 6,
+                                                columnWidth: '45%'
                                             }
                                         },
                                         dataLabels: {
                                             enabled: false
                                         },
-                                        stroke: {
-                                            curve: 'smooth',
-                                            width: 2
-                                        },
                                         grid: {
                                             borderColor: '#eaecf4',
-                                            strokeDashArray: 4,
-                                            padding: {
-                                                left: 4,
-                                                right: 4
-                                            }
+                                            strokeDashArray: 4
                                         },
                                         xaxis: {
-                                            type: 'datetime',
-                                            categories: ["2018-09-19T00:00:00.000Z", "2018-09-19T01:30:00.000Z", "2018-09-19T02:30:00.000Z", "2018-09-19T03:30:00.000Z", "2018-09-19T04:30:00.000Z", "2018-09-19T05:30:00.000Z", "2018-09-19T06:30:00.000Z"],
+                                            categories: raw.map(r => r.label),
                                             labels: {
                                                 style: {
                                                     colors: '#9ca3af',
-                                                    fontSize: '11px',
-                                                    fontFamily: 'DM Sans'
+                                                    fontSize: '11px'
                                                 }
                                             },
                                             axisBorder: {
@@ -895,26 +844,14 @@ include('./includes/sidebar.php');
                                             labels: {
                                                 style: {
                                                     colors: '#9ca3af',
-                                                    fontSize: '11px',
-                                                    fontFamily: 'DM Sans'
-                                                }
+                                                    fontSize: '11px'
+                                                },
+                                                formatter: v => Math.round(v)
                                             }
                                         },
                                         tooltip: {
-                                            x: {
-                                                format: 'dd/MM/yy HH:mm'
-                                            }
-                                        },
-                                        legend: {
-                                            position: 'top',
-                                            horizontalAlign: 'right',
-                                            fontSize: '12px',
-                                            fontFamily: 'DM Sans',
-                                            fontWeight: 600,
-                                            markers: {
-                                                width: 7,
-                                                height: 7,
-                                                radius: 4
+                                            y: {
+                                                formatter: v => `${v} appointment${v!==1?'s':''}`
                                             }
                                         }
                                     }).render();
@@ -924,555 +861,215 @@ include('./includes/sidebar.php');
                     </div>
                 </div>
 
-                <!-- Today's Appointments Table (with date column) -->
+                <!-- Recent appointments table -->
                 <div class="col-12">
-                    <div class="card recent-sales overflow-auto">
+                    <div class="card">
                         <div class="filter">
                             <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
                             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
                                 <li class="dropdown-header text-start">
-                                    <h6>Filter</h6>
+                                    <h6>Actions</h6>
                                 </li>
-                                <li><a class="dropdown-item" href="#">Today</a></li>
-                                <li><a class="dropdown-item" href="#">This Month</a></li>
-                                <li><a class="dropdown-item" href="#">This Year</a></li>
+                                <li><a class="dropdown-item" href="my_appointments.php">View All</a></li>
+                                <li><a class="dropdown-item" href="book_appointment.php">Book New</a></li>
                             </ul>
                         </div>
                         <div class="card-body">
-                            <h5 class="card-title">Today's Appointments <span>| <?php echo date('F j, Y'); ?></span></h5>
-                            <table class="table table-borderless datatable">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">#</th>
-                                        <th scope="col">Patient</th>
-                                        <th scope="col">Doctor</th>
-                                        <th scope="col">Date</th>
-                                        <th scope="col">Time</th>
-                                        <th scope="col">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <th scope="row"><a href="#">#A-1021</a></th>
-                                        <td>Maria Santos</td>
-                                        <td><a href="#" class="text-primary">Dr. Reyes – General</a></td>
-                                        <td><?php echo date('M j, Y'); ?></td>
-                                        <td>08:00 AM</td>
-                                        <td><span class="badge bg-success">Completed</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><a href="#">#A-1022</a></th>
-                                        <td>Juan dela Cruz</td>
-                                        <td><a href="#" class="text-primary">Dr. Lim – Cardiology</a></td>
-                                        <td><?php echo date('M j, Y'); ?></td>
-                                        <td>09:30 AM</td>
-                                        <td><span class="badge bg-info">In Progress</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><a href="#">#A-1023</a></th>
-                                        <td>Ana Garcia</td>
-                                        <td><a href="#" class="text-primary">Dr. Torres – Pediatrics</a></td>
-                                        <td><?php echo date('M j, Y'); ?></td>
-                                        <td>10:00 AM</td>
-                                        <td><span class="badge bg-success">Completed</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><a href="#">#A-1024</a></th>
-                                        <td>Roberto Tan</td>
-                                        <td><a href="#" class="text-primary">Dr. Reyes – General</a></td>
-                                        <td><?php echo date('M j, Y'); ?></td>
-                                        <td>11:00 AM</td>
-                                        <td><span class="badge bg-danger">Cancelled</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><a href="#">#A-1025</a></th>
-                                        <td>Liza Mendoza</td>
-                                        <td><a href="#" class="text-primary">Dr. Cruz – Dermatology</a></td>
-                                        <td><?php echo date('M j, Y'); ?></td>
-                                        <td>01:30 PM</td>
-                                        <td><span class="badge bg-warning">Pending</span></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            <h5 class="card-title">Recent Appointments <span>| <?= date('F j, Y') ?></span></h5>
+
+                            <?php if (empty($recentAppts)): ?>
+                                <div class="no-data">
+                                    <i class="bi bi-calendar-x"></i>
+                                    No appointment history yet.<br>
+                                    <a href="book_appointment.php" style="color:var(--blue-600);font-weight:600">Book your first appointment →</a>
+                                </div>
+                            <?php else: ?>
+                                <table class="table table-borderless">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Doctor</th>
+                                            <th>Date</th>
+                                            <th>Time</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($recentAppts as $appt):
+                                            $statusMap = ['Completed' => 'bg-success', 'In Progress' => 'bg-info', 'Pending' => 'bg-warning', 'Cancelled' => 'bg-danger'];
+                                            $sCls = $statusMap[$appt['status']] ?? 'bg-secondary';
+                                        ?>
+                                            <tr>
+                                                <td><a href="my_appointments.php" style="font-weight:700;color:var(--blue-700);font-size:.8rem;text-decoration:none"><?= htmlspecialchars($appt['appointmentCode']) ?></a></td>
+                                                <td>
+                                                    <div style="font-weight:600;color:var(--text-dark);font-size:.82rem"><?= htmlspecialchars($appt['doctorName']) ?></div>
+                                                    <div style="font-size:.67rem;color:var(--text-muted)"><?= htmlspecialchars($appt['specialization']) ?></div>
+                                                </td>
+                                                <td><?= date('M j, Y', strtotime($appt['appointmentDate'])) ?></td>
+                                                <td><?= date('g:i A', strtotime($appt['appointmentTime'])) ?></td>
+                                                <td><span class="badge <?= $sCls ?>"><?= htmlspecialchars($appt['status']) ?></span></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                                <div style="text-align:center;padding-top:.5rem">
+                                    <a href="my_appointments.php" style="font-size:.78rem;color:var(--blue-600);font-weight:600">View all appointments →</a>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
 
-                <!-- Doctors on Duty -->
+                <!-- Recent medical records -->
                 <div class="col-12">
-                    <div class="card top-selling overflow-auto">
+                    <div class="card">
                         <div class="filter">
                             <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
                             <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
                                 <li class="dropdown-header text-start">
-                                    <h6>Filter</h6>
+                                    <h6>Actions</h6>
                                 </li>
-                                <li><a class="dropdown-item" href="#">Today</a></li>
-                                <li><a class="dropdown-item" href="#">This Month</a></li>
-                                <li><a class="dropdown-item" href="#">This Year</a></li>
+                                <li><a class="dropdown-item" href="medical_records.php">View All Records</a></li>
                             </ul>
                         </div>
-                        <div class="card-body pb-0">
-                            <h5 class="card-title">Doctors on Duty <span>| Today</span></h5>
-                            <table class="table table-borderless">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Photo</th>
-                                        <th scope="col">Doctor</th>
-                                        <th scope="col">Specialization</th>
-                                        <th scope="col">Patient Load</th>
-                                        <th scope="col">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <th scope="row"><a href="#"><img src="assets/img/product-1.jpg" alt="Dr. Jose Reyes"></a></th>
-                                        <td><a href="#" class="text-primary fw-bold">Dr. Jose Reyes</a></td>
-                                        <td>General Medicine</td>
-                                        <td>
-                                            <div class="duty-progress">
-                                                <div class="duty-bar">
-                                                    <div class="duty-bar-fill" style="width:71%"></div>
-                                                </div>
-                                                <span class="duty-fraction"><span class="done">12</span><span class="total">/17</span></span>
-                                            </div>
-                                        </td>
-                                        <td><span class="badge bg-info">On Duty</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><a href="#"><img src="assets/img/product-2.jpg" alt="Dr. Anna Lim"></a></th>
-                                        <td><a href="#" class="text-primary fw-bold">Dr. Anna Lim</a></td>
-                                        <td>Cardiology</td>
-                                        <td>
-                                            <div class="duty-progress">
-                                                <div class="duty-bar">
-                                                    <div class="duty-bar-fill" style="width:73%"></div>
-                                                </div>
-                                                <span class="duty-fraction"><span class="done">8</span><span class="total">/11</span></span>
-                                            </div>
-                                        </td>
-                                        <td><span class="badge bg-info">On Duty</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><a href="#"><img src="assets/img/product-3.jpg" alt="Dr. Mark Torres"></a></th>
-                                        <td><a href="#" class="text-primary fw-bold">Dr. Mark Torres</a></td>
-                                        <td>Pediatrics</td>
-                                        <td>
-                                            <div class="duty-progress">
-                                                <div class="duty-bar">
-                                                    <div class="duty-bar-fill" style="width:71%"></div>
-                                                </div>
-                                                <span class="duty-fraction"><span class="done">10</span><span class="total">/14</span></span>
-                                            </div>
-                                        </td>
-                                        <td><span class="badge bg-info">On Duty</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><a href="#"><img src="assets/img/product-4.jpg" alt="Dr. Claire Cruz"></a></th>
-                                        <td><a href="#" class="text-primary fw-bold">Dr. Claire Cruz</a></td>
-                                        <td>Dermatology</td>
-                                        <td>
-                                            <div class="duty-progress">
-                                                <div class="duty-bar">
-                                                    <div class="duty-bar-fill" style="width:75%"></div>
-                                                </div>
-                                                <span class="duty-fraction"><span class="done">6</span><span class="total">/8</span></span>
-                                            </div>
-                                        </td>
-                                        <td><span class="badge bg-warning">Break</span></td>
-                                    </tr>
-                                    <tr>
-                                        <th scope="row"><a href="#"><img src="assets/img/product-5.jpg" alt="Dr. Ramon Flores"></a></th>
-                                        <td><a href="#" class="text-primary fw-bold">Dr. Ramon Flores</a></td>
-                                        <td>Orthopedics</td>
-                                        <td>
-                                            <div class="duty-progress">
-                                                <div class="duty-bar">
-                                                    <div class="duty-bar-fill" style="width:60%"></div>
-                                                </div>
-                                                <span class="duty-fraction"><span class="done">9</span><span class="total">/15</span></span>
-                                            </div>
-                                        </td>
-                                        <td><span class="badge bg-info">On Duty</span></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="card-body">
+                            <h5 class="card-title">Recent Medical Records <span>| Latest</span></h5>
+
+                            <?php if (empty($recentRecords)): ?>
+                                <div class="no-data">
+                                    <i class="bi bi-file-medical"></i>
+                                    No medical records yet.
+                                </div>
+                            <?php else: ?>
+                                <table class="table table-borderless">
+                                    <thead>
+                                        <tr>
+                                            <th>Record</th>
+                                            <th>Doctor</th>
+                                            <th>Type</th>
+                                            <th>Diagnosis</th>
+                                            <th>Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php foreach ($recentRecords as $rec):
+                                            $typeMap = [
+                                                'Consultation' => 'chip-consultation',
+                                                'Lab Result' => 'chip-lab',
+                                                'Imaging' => 'chip-imaging',
+                                                'Prescription' => 'chip-prescription',
+                                                'Other' => 'chip-other'
+                                            ];
+                                            $tCls = $typeMap[$rec['recordType']] ?? 'chip-other';
+                                        ?>
+                                            <tr>
+                                                <td><span style="font-weight:700;color:var(--blue-700);font-size:.8rem"><?= htmlspecialchars($rec['recordCode']) ?></span></td>
+                                                <td style="font-size:.82rem"><?= htmlspecialchars($rec['doctorName']) ?></td>
+                                                <td><span class="rec-chip <?= $tCls ?>"><?= htmlspecialchars($rec['recordType']) ?></span></td>
+                                                <td style="font-size:.82rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><?= htmlspecialchars($rec['diagnosis'] ?? '—') ?></td>
+                                                <td style="font-size:.82rem"><?= date('M j, Y', strtotime($rec['createdAt'])) ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                                <div style="text-align:center;padding-top:.5rem">
+                                    <a href="medical_records.php" style="font-size:.78rem;color:var(--blue-600);font-weight:600">View all records →</a>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
 
             </div>
-        </div><!-- End Left side -->
+        </div>
 
         <!-- ═══ Right side ═══ -->
         <div class="col-lg-4">
 
-            <!-- Recent Activity -->
+            <!-- Book CTA -->
+            <div class="card mb-3">
+                <div class="card-body book-cta">
+                    <i class="bi bi-calendar-plus"></i>
+                    <h6 style="font-weight:700;color:var(--text-dark);margin-bottom:.3rem">Schedule an Appointment</h6>
+                    <p>Choose from our available doctors and book your slot in minutes.</p>
+                    <a href="book_appointment.php" class="btn-book"><i class="bi bi-plus-lg"></i> Book Now</a>
+                </div>
+            </div>
+
+            <!-- Available doctors today -->
             <div class="card mb-3">
                 <div class="filter">
                     <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
                     <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
                         <li class="dropdown-header text-start">
-                            <h6>Filter</h6>
+                            <h6>Actions</h6>
                         </li>
-                        <li><a class="dropdown-item" href="#">Today</a></li>
-                        <li><a class="dropdown-item" href="#">This Month</a></li>
-                        <li><a class="dropdown-item" href="#">This Year</a></li>
+                        <li><a class="dropdown-item" href="book_appointment.php">Book Appointment</a></li>
                     </ul>
                 </div>
                 <div class="card-body">
-                    <h5 class="card-title">Recent Activity <span>| Today</span></h5>
-                    <div class="activity">
-                        <div class="activity-item d-flex">
-                            <div class="activite-label">5 min</div>
-                            <i class='bi bi-circle-fill activity-badge align-self-start' style="color:var(--green)"></i>
-                            <div class="activity-content">New appointment booked by <a href="#">Maria Santos</a></div>
+                    <h5 class="card-title">Available Today <span>| <?= date('l') ?></span></h5>
+
+                    <?php if (empty($availDoctors)): ?>
+                        <div class="no-data"><i class="bi bi-person-slash"></i>No doctors scheduled today.</div>
+                    <?php else: ?>
+                        <div class="doctor-grid">
+                            <?php foreach ($availDoctors as $i => $doc):
+                                $bg  = $avatarBgs[$i % count($avatarBgs)];
+                                $col = $avatarColors[$i % count($avatarColors)];
+                                $ini = strtoupper(substr($doc['firstName'], 0, 1) . substr($doc['lastName'], 0, 1));
+                                $statusCls = $doc['status'] === 'On Duty' ? 'ds-duty' : ($doc['status'] === 'Break' ? 'ds-break' : 'ds-off');
+                            ?>
+                                <div class="doctor-card">
+                                    <div class="doc-avi" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $ini ?></div>
+                                    <div class="doc-info" style="flex:1;min-width:0">
+                                        <div class="doc-name">Dr. <?= htmlspecialchars($doc['firstName'] . ' ' . $doc['lastName']) ?></div>
+                                        <div class="doc-spec"><?= htmlspecialchars($doc['specialization']) ?></div>
+                                    </div>
+                                    <span class="doc-status <?= $statusCls ?>"><?= htmlspecialchars($doc['status']) ?></span>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
-                        <div class="activity-item d-flex">
-                            <div class="activite-label">20 min</div>
-                            <i class='bi bi-circle-fill activity-badge align-self-start' style="color:var(--red)"></i>
-                            <div class="activity-content">Appointment #A-1024 cancelled by patient</div>
+                        <div style="text-align:center;margin-top:.85rem">
+                            <a href="book_appointment.php" class="btn-book" style="font-size:.78rem;padding:.4rem 1rem">
+                                <i class="bi bi-calendar-plus"></i> Book a Slot
+                            </a>
                         </div>
-                        <div class="activity-item d-flex">
-                            <div class="activite-label">1 hr</div>
-                            <i class='bi bi-circle-fill activity-badge align-self-start' style="color:var(--blue-500)"></i>
-                            <div class="activity-content">Dr. Lim marked #A-1022 as <a href="#">In Progress</a></div>
-                        </div>
-                        <div class="activity-item d-flex">
-                            <div class="activite-label">2 hrs</div>
-                            <i class='bi bi-circle-fill activity-badge align-self-start' style="color:var(--teal)"></i>
-                            <div class="activity-content">Medical record updated for <a href="#">Ana Garcia</a></div>
-                        </div>
-                        <div class="activity-item d-flex">
-                            <div class="activite-label">3 hrs</div>
-                            <i class='bi bi-circle-fill activity-badge align-self-start' style="color:var(--amber)"></i>
-                            <div class="activity-content">New patient registered: Roberto Tan</div>
-                        </div>
-                        <div class="activity-item d-flex">
-                            <div class="activite-label">1 day</div>
-                            <i class='bi bi-circle-fill activity-badge align-self-start' style="color:var(--text-muted)"></i>
-                            <div class="activity-content">Dr. Flores updated availability for next week</div>
-                        </div>
-                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
 
-            <!-- ══ Tasks Widget (replaces Appointment Status Radar) ══ -->
+            <!-- Quick links -->
             <div class="card mb-3">
-                <div class="filter">
-                    <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
-                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                        <li class="dropdown-header text-start">
-                            <h6>Options</h6>
-                        </li>
-                        <li><a class="dropdown-item" href="#" onclick="clearDoneTasks(event)">Clear Completed</a></li>
-                        <li><a class="dropdown-item" href="#" onclick="clearAllTasks(event)">Clear All</a></li>
-                    </ul>
-                </div>
                 <div class="card-body">
-                    <h5 class="card-title">Tasks <span>| Today</span></h5>
-
-                    <!-- Stats row -->
-                    <div class="task-stats" id="taskStats">
-                        <div class="task-stat">
-                            <div class="ts-num" id="tsTotal">0</div>
-                            <div class="ts-label">Total</div>
-                        </div>
-                        <div class="task-stat">
-                            <div class="ts-num" id="tsDone">0</div>
-                            <div class="ts-label">Done</div>
-                        </div>
-                        <div class="task-stat">
-                            <div class="ts-num" id="tsLeft">0</div>
-                            <div class="ts-label">Left</div>
-                        </div>
-                    </div>
-
-                    <!-- Add task row -->
-                    <div class="task-add-row">
-                        <input type="text" id="taskInput" placeholder="Add a new task…" maxlength="100">
-                        <select class="priority-select" id="taskPriority">
-                            <option value="medium">Med</option>
-                            <option value="high">High</option>
-                            <option value="low">Low</option>
-                        </select>
-                        <button onclick="addTask()"><i class="bi bi-plus-lg me-1"></i>Add</button>
-                    </div>
-
-                    <!-- Task list -->
-                    <div class="task-list" id="taskList">
-                        <!-- seeded tasks -->
+                    <h5 class="card-title">Quick Links</h5>
+                    <div style="display:flex;flex-direction:column;gap:6px;">
+                        <?php
+                        $links = [
+                            ['book_appointment.php', 'bi-calendar-plus',  'Book Appointment',  'Schedule a new visit',    '#2563eb', '#dbeafe'],
+                            ['my_appointments.php',  'bi-calendar2-check', 'My Appointments',   'View all your bookings',  '#10b981', '#d1fae5'],
+                            ['medical_records.php',  'bi-file-medical',   'Medical Records',   'Your health history',     '#06b6d4', '#cffafe'],
+                            ['users.php',            'bi-person-gear',    'Profile Settings',  'Manage your account',     '#8b5cf6', '#ede9fe'],
+                        ];
+                        foreach ($links as [$href, $icon, $label, $sub, $color, $bg]):
+                        ?>
+                            <a href="<?= $href ?>" style="display:flex;align-items:center;gap:10px;padding:.65rem .85rem;border-radius:10px;background:var(--surface);border:1px solid var(--border);text-decoration:none;transition:background .15s" onmouseover="this.style.background='<?= $bg ?>'" onmouseout="this.style.background='var(--surface)'">
+                                <div style="width:34px;height:34px;border-radius:9px;background:<?= $bg ?>;color:<?= $color ?>;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">
+                                    <i class="bi <?= $icon ?>"></i>
+                                </div>
+                                <div>
+                                    <div style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= $label ?></div>
+                                    <div style="font-size:.67rem;color:var(--text-muted)"><?= $sub ?></div>
+                                </div>
+                                <i class="bi bi-chevron-right" style="margin-left:auto;color:var(--text-muted);font-size:.7rem"></i>
+                            </a>
+                        <?php endforeach; ?>
                     </div>
                 </div>
             </div>
 
-            <!-- Appointment Channel — horizontal bar chart -->
-            <div class="card mb-3">
-                <div class="filter">
-                    <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
-                    <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                        <li class="dropdown-header text-start">
-                            <h6>Filter</h6>
-                        </li>
-                        <li><a class="dropdown-item" href="#">Today</a></li>
-                        <li><a class="dropdown-item" href="#">This Month</a></li>
-                        <li><a class="dropdown-item" href="#">This Year</a></li>
-                    </ul>
-                </div>
-                <div class="card-body pb-2">
-                    <h5 class="card-title">Appointment Channel <span>| Today</span></h5>
-                    <div id="channelChart" style="min-height: 240px;" class="echart"></div>
-
-                    <div class="source-legend">
-                        <div class="source-legend-item">
-                            <div class="source-legend-label">
-                                <div class="source-legend-dot" style="background:#2563eb"></div>Online Booking
-                            </div>
-                            <div><span class="source-legend-val">480</span><span class="source-legend-pct">38%</span></div>
-                        </div>
-                        <div class="source-legend-item">
-                            <div class="source-legend-label">
-                                <div class="source-legend-dot" style="background:#10b981"></div>Walk-in
-                            </div>
-                            <div><span class="source-legend-val">320</span><span class="source-legend-pct">25%</span></div>
-                        </div>
-                        <div class="source-legend-item">
-                            <div class="source-legend-label">
-                                <div class="source-legend-dot" style="background:#f59e0b"></div>Phone Call
-                            </div>
-                            <div><span class="source-legend-val">210</span><span class="source-legend-pct">17%</span></div>
-                        </div>
-                        <div class="source-legend-item">
-                            <div class="source-legend-label">
-                                <div class="source-legend-dot" style="background:#8b5cf6"></div>Referral
-                            </div>
-                            <div><span class="source-legend-val">150</span><span class="source-legend-pct">12%</span></div>
-                        </div>
-                        <div class="source-legend-item">
-                            <div class="source-legend-label">
-                                <div class="source-legend-dot" style="background:#06b6d4"></div>Follow-up
-                            </div>
-                            <div><span class="source-legend-val">88</span><span class="source-legend-pct">7%</span></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div><!-- End Right side -->
+        </div>
     </div>
 </section>
-
-<script>
-    /* ── Task Widget JS ── */
-    let tasks = [{
-            id: 1,
-            label: 'Review morning appointment schedule',
-            priority: 'high',
-            done: false
-        },
-        {
-            id: 2,
-            label: 'Follow up on lab results for A-1021',
-            priority: 'high',
-            done: true
-        },
-        {
-            id: 3,
-            label: 'Update patient records for Ana Garcia',
-            priority: 'medium',
-            done: false
-        },
-        {
-            id: 4,
-            label: 'Send reminder SMS for afternoon slots',
-            priority: 'medium',
-            done: false
-        },
-        {
-            id: 5,
-            label: 'Check supply inventory – exam gloves',
-            priority: 'low',
-            done: false
-        },
-    ];
-
-    let nextId = 6;
-
-    function renderTasks() {
-        const list = document.getElementById('taskList');
-        if (tasks.length === 0) {
-            list.innerHTML = '<div class="task-empty"><i class="bi bi-check2-all d-block mb-1" style="font-size:1.4rem;color:var(--blue-200)"></i>No tasks yet</div>';
-        } else {
-            list.innerHTML = tasks.map(t => `
-        <div class="task-item" id="task-${t.id}">
-          <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTask(${t.id})">
-          <span class="task-label ${t.done ? 'done' : ''}">${escHtml(t.label)}</span>
-          <span class="task-priority ${t.priority}">${t.priority}</span>
-          <button class="task-delete" onclick="deleteTask(${t.id})" title="Remove"><i class="bi bi-x"></i></button>
-        </div>
-      `).join('');
-        }
-        const total = tasks.length;
-        const done = tasks.filter(t => t.done).length;
-        document.getElementById('tsTotal').textContent = total;
-        document.getElementById('tsDone').textContent = done;
-        document.getElementById('tsLeft').textContent = total - done;
-    }
-
-    function addTask() {
-        const input = document.getElementById('taskInput');
-        const label = input.value.trim();
-        if (!label) {
-            input.focus();
-            return;
-        }
-        const priority = document.getElementById('taskPriority').value;
-        tasks.unshift({
-            id: nextId++,
-            label,
-            priority,
-            done: false
-        });
-        input.value = '';
-        renderTasks();
-    }
-
-    function toggleTask(id) {
-        const t = tasks.find(t => t.id === id);
-        if (t) t.done = !t.done;
-        renderTasks();
-    }
-
-    function deleteTask(id) {
-        tasks = tasks.filter(t => t.id !== id);
-        renderTasks();
-    }
-
-    function clearDoneTasks(e) {
-        e.preventDefault();
-        tasks = tasks.filter(t => !t.done);
-        renderTasks();
-    }
-
-    function clearAllTasks(e) {
-        e.preventDefault();
-        tasks = [];
-        renderTasks();
-    }
-
-    function escHtml(str) {
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        renderTasks();
-
-        // Allow Enter key to add task
-        document.getElementById('taskInput').addEventListener('keydown', e => {
-            if (e.key === 'Enter') addTask();
-        });
-
-        // Channel chart
-        echarts.init(document.querySelector("#channelChart")).setOption({
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: {
-                    type: 'none'
-                }
-            },
-            grid: {
-                left: '2%',
-                right: '12%',
-                top: '4%',
-                bottom: '4%',
-                containLabel: true
-            },
-            xAxis: {
-                type: 'value',
-                axisLine: {
-                    show: false
-                },
-                axisTick: {
-                    show: false
-                },
-                splitLine: {
-                    lineStyle: {
-                        color: '#eaecf4',
-                        type: 'dashed'
-                    }
-                },
-                axisLabel: {
-                    fontFamily: 'DM Sans',
-                    fontSize: 10,
-                    color: '#9ca3af'
-                }
-            },
-            yAxis: {
-                type: 'category',
-                data: ['Follow-up', 'Referral', 'Phone Call', 'Walk-in', 'Online'],
-                axisLine: {
-                    show: false
-                },
-                axisTick: {
-                    show: false
-                },
-                axisLabel: {
-                    fontFamily: 'DM Sans',
-                    fontSize: 11,
-                    color: '#4b5563'
-                }
-            },
-            series: [{
-                type: 'bar',
-                data: [{
-                        value: 88,
-                        itemStyle: {
-                            color: '#06b6d4',
-                            borderRadius: [0, 6, 6, 0]
-                        }
-                    },
-                    {
-                        value: 150,
-                        itemStyle: {
-                            color: '#8b5cf6',
-                            borderRadius: [0, 6, 6, 0]
-                        }
-                    },
-                    {
-                        value: 210,
-                        itemStyle: {
-                            color: '#f59e0b',
-                            borderRadius: [0, 6, 6, 0]
-                        }
-                    },
-                    {
-                        value: 320,
-                        itemStyle: {
-                            color: '#10b981',
-                            borderRadius: [0, 6, 6, 0]
-                        }
-                    },
-                    {
-                        value: 480,
-                        itemStyle: {
-                            color: '#2563eb',
-                            borderRadius: [0, 6, 6, 0]
-                        }
-                    }
-                ],
-                barMaxWidth: 16,
-                label: {
-                    show: true,
-                    position: 'right',
-                    fontFamily: 'DM Sans',
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: '#4b5563',
-                    formatter: '{c}'
-                }
-            }]
-        });
-    });
-</script>
 
 <?php include('./includes/footer.php'); ?>

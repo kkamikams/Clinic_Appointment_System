@@ -1,298 +1,238 @@
 <?php
-// ============================================================
-//  tasks_handler.php
-//  Handles all AJAX requests from tasks.php
-// ============================================================
-
-date_default_timezone_set('Asia/Manila');
-require_once('../../app/config/config.php');   // provides $conn (mysqli)
-
+require_once('../../app/config/config.php');
 header('Content-Type: application/json');
 
-// ── Helper: send JSON response ──────────────────────────────
-function respond(bool $success, array $extra = []): void
+$action = $_GET['action'] ?? '';
+
+// ── Helper: log activity ──────────────────────────────────────────
+function logActivity($conn, $type, $desc, $refId = null)
 {
-    echo json_encode(array_merge(['success' => $success], $extra));
+    $refType = 'Task';
+    $stmt = $conn->prepare("INSERT INTO recentActivity (activityType, description, referenceId, referenceType) VALUES (?,?,?,?)");
+    $stmt->bind_param('ssis', $type, $desc, $refId, $refType);
+    $stmt->execute();
+}
+
+// ── Helper: stats ─────────────────────────────────────────────────
+function getStats($conn)
+{
+    $total        = $conn->query("SELECT COUNT(*) FROM tasks")->fetch_row()[0];
+    $done         = $conn->query("SELECT COUNT(*) FROM tasks WHERE status='Done'")->fetch_row()[0];
+    $pending      = $conn->query("SELECT COUNT(*) FROM tasks WHERE status='Pending'")->fetch_row()[0];
+    $high_pending = $conn->query("SELECT COUNT(*) FROM tasks WHERE priority='High' AND status='Pending'")->fetch_row()[0];
+    return compact('total', 'done', 'pending', 'high_pending');
+}
+
+// ── Helper: category breakdown ────────────────────────────────────
+function getCategories($conn)
+{
+    $rows = $conn->query("
+        SELECT category,
+               COUNT(*) AS total,
+               SUM(status='Done') AS done
+        FROM tasks
+        GROUP BY category
+        ORDER BY total DESC
+    ")->fetch_all(MYSQLI_ASSOC);
+    return $rows;
+}
+
+// ════════════════════════════════════════════════════════════════
+// LIST
+// ════════════════════════════════════════════════════════════════
+if ($action === 'list') {
+    $filter = $_GET['filter'] ?? 'all';
+    $search = '%' . ($conn->real_escape_string($_GET['search'] ?? '')) . '%';
+
+    $where  = "WHERE title LIKE ?";
+    $params = [$search];
+    $types  = 's';
+
+    switch ($filter) {
+        case 'pending':
+            $where .= " AND status = 'Pending'";
+            break;
+        case 'done':
+            $where .= " AND status = 'Done'";
+            break;
+        case 'high':
+            $where .= " AND priority = 'High'";
+            break;
+        case 'medium':
+            $where .= " AND priority = 'Medium'";
+            break;
+        case 'low':
+            $where .= " AND priority = 'Low'";
+            break;
+    }
+
+    $sql = "
+        SELECT t.*, u.firstName AS assigneeFirst, u.lastName AS assigneeLast,
+               CONCAT(u.firstName,' ',u.lastName) AS assigneeName
+        FROM tasks t
+        LEFT JOIN users u ON u.id = t.assignedTo
+        $where
+        ORDER BY FIELD(t.priority,'High','Medium','Low'), t.createdAt DESC
+    ";
+
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param($types, ...$params);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+    echo json_encode([
+        'success'    => true,
+        'rows'       => $rows,
+        'stats'      => getStats($conn),
+        'categories' => getCategories($conn),
+    ]);
     exit;
 }
 
-// ── Helper: sanitize string input ───────────────────────────
-function clean(mysqli $conn, ?string $val): string
-{
-    return $conn->real_escape_string(trim((string)$val));
-}
+// ════════════════════════════════════════════════════════════════
+// ADD
+// ════════════════════════════════════════════════════════════════
+if ($action === 'add' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $body = json_decode(file_get_contents('php://input'), true);
 
-// ── Route ───────────────────────────────────────────────────
-$action = $_GET['action'] ?? '';
+    $title      = trim($body['title']      ?? '');
+    $category   = $body['category']        ?? 'General';
+    $priority   = $body['priority']        ?? 'Medium';
+    $status     = $body['status']          ?? 'Pending';
+    $dueDate    = !empty($body['dueDate'])  ? $body['dueDate']  : null;
+    $assignedTo = !empty($body['assignedTo']) ? (int)$body['assignedTo'] : null;
 
-switch ($action) {
+    if (!$title) {
+        echo json_encode(['success' => false, 'error' => 'Title required.']);
+        exit;
+    }
 
-    // ────────────────────────────────────────────────────────
-    //  LIST  — returns rows + stats + category breakdown
-    // ────────────────────────────────────────────────────────
-    case 'list':
-        $filter = $_GET['filter'] ?? 'all';
-        $search = clean($conn, $_GET['search'] ?? '');
+    $stmt = $conn->prepare("INSERT INTO tasks (title, category, priority, status, dueDate, assignedTo) VALUES (?,?,?,?,?,?)");
+    $stmt->bind_param('sssssi', $title, $category, $priority, $status, $dueDate, $assignedTo);
 
-        // Build WHERE clauses
-        $where = [];
-
-        if ($filter === 'pending')  $where[] = "t.status = 'Pending'";
-        if ($filter === 'done')     $where[] = "t.status = 'Done'";
-        if ($filter === 'high')     $where[] = "t.priority = 'High'";
-        if ($filter === 'medium')   $where[] = "t.priority = 'Medium'";
-        if ($filter === 'low')      $where[] = "t.priority = 'Low'";
-
-        if ($search !== '') {
-            $where[] = "t.title LIKE '%{$search}%'";
-        }
-
-        $whereSQL = count($where) ? 'WHERE ' . implode(' AND ', $where) : '';
-
-        // Main query — LEFT JOIN users for assignee name
-        $sql = "
-            SELECT
-                t.id,
-                t.title,
-                t.category,
-                t.priority,
-                t.status,
-                t.dueDate,
-                t.assignedTo,
-                CONCAT(u.firstName, ' ', u.lastName) AS assigneeName
-            FROM tasks t
-            LEFT JOIN users u ON u.id = t.assignedTo
-            {$whereSQL}
-            ORDER BY
-                FIELD(t.priority,'High','Medium','Low'),
-                FIELD(t.status,'Pending','Done'),
-                t.dueDate ASC,
-                t.createdAt DESC
-        ";
-
-        $result = $conn->query($sql);
-        if (!$result) respond(false, ['error' => $conn->error]);
-
-        $rows = [];
-        while ($row = $result->fetch_assoc()) {
-            $rows[] = $row;
-        }
-
-        // ── Stats (always across ALL tasks, ignoring current filter) ──
-        $statsSQL = "
-            SELECT
-                COUNT(*)                                          AS total,
-                SUM(status = 'Done')                             AS done,
-                SUM(status = 'Pending')                          AS pending,
-                SUM(status = 'Pending' AND priority = 'High')    AS high_pending
-            FROM tasks
-        ";
-        $sr   = $conn->query($statsSQL)->fetch_assoc();
-        $stats = [
-            'total'        => (int)$sr['total'],
-            'done'         => (int)$sr['done'],
-            'pending'      => (int)$sr['pending'],
-            'high_pending' => (int)$sr['high_pending'],
-        ];
-
-        // ── Category breakdown ────────────────────────────────────────
-        $catSQL = "
-            SELECT
-                category,
-                COUNT(*)             AS total,
-                SUM(status = 'Done') AS done
-            FROM tasks
-            GROUP BY category
-            ORDER BY total DESC
-        ";
-        $cr   = $conn->query($catSQL);
-        $categories = [];
-        while ($c = $cr->fetch_assoc()) {
-            $categories[] = [
-                'category' => $c['category'],
-                'total'    => (int)$c['total'],
-                'done'     => (int)$c['done'],
-            ];
-        }
-
-        respond(true, [
-            'rows'       => $rows,
-            'stats'      => $stats,
-            'categories' => $categories,
-        ]);
-
-
-        // ────────────────────────────────────────────────────────
-        //  ADD
-        // ────────────────────────────────────────────────────────
-    case 'add':
-        $body = json_decode(file_get_contents('php://input'), true) ?? [];
-
-        $title      = clean($conn, $body['title']    ?? '');
-        $category   = clean($conn, $body['category'] ?? 'General');
-        $priority   = clean($conn, $body['priority'] ?? 'Medium');
-        $status     = clean($conn, $body['status']   ?? 'Pending');
-        $dueDate    = !empty($body['dueDate'])    ? clean($conn, $body['dueDate'])    : null;
-        $assignedTo = !empty($body['assignedTo']) ? (int)$body['assignedTo']          : null;
-
-        if ($title === '') respond(false, ['error' => 'Title is required.']);
-
-        // Validate ENUM values
-        $validCats  = ['Clinical', 'Admin', 'Inventory', 'Follow-up', 'General'];
-        $validPris  = ['High', 'Medium', 'Low'];
-        $validStats = ['Pending', 'Done'];
-
-        if (!in_array($category, $validCats))  $category  = 'General';
-        if (!in_array($priority, $validPris))  $priority  = 'Medium';
-        if (!in_array($status,   $validStats)) $status    = 'Pending';
-
-        $dueDateSQL    = $dueDate    ? "'{$dueDate}'"    : 'NULL';
-        $assignedToSQL = $assignedTo ? (int)$assignedTo  : 'NULL';
-
-        $sql = "
-            INSERT INTO tasks (title, category, priority, status, dueDate, assignedTo)
-            VALUES ('{$title}', '{$category}', '{$priority}', '{$status}', {$dueDateSQL}, {$assignedToSQL})
-        ";
-
-        if (!$conn->query($sql)) respond(false, ['error' => $conn->error]);
-
-        // Log activity
+    if ($stmt->execute()) {
         $newId = $conn->insert_id;
-        logActivity($conn, 'Task Added', "Task \"{$title}\" was created.", $newId, 'Task');
-
-        respond(true, ['id' => $newId]);
-
-
-        // ────────────────────────────────────────────────────────
-        //  EDIT
-        // ────────────────────────────────────────────────────────
-    case 'edit':
-        $body = json_decode(file_get_contents('php://input'), true) ?? [];
-
-        $id         = (int)($body['id']         ?? 0);
-        $title      = clean($conn, $body['title']    ?? '');
-        $category   = clean($conn, $body['category'] ?? 'General');
-        $priority   = clean($conn, $body['priority'] ?? 'Medium');
-        $status     = clean($conn, $body['status']   ?? 'Pending');
-        $dueDate    = !empty($body['dueDate'])    ? clean($conn, $body['dueDate'])    : null;
-        $assignedTo = !empty($body['assignedTo']) ? (int)$body['assignedTo']          : null;
-
-        if ($id === 0 || $title === '') respond(false, ['error' => 'Invalid input.']);
-
-        $dueDateSQL    = $dueDate    ? "'{$dueDate}'" : 'NULL';
-        $assignedToSQL = $assignedTo ? $assignedTo    : 'NULL';
-
-        $sql = "
-            UPDATE tasks SET
-                title      = '{$title}',
-                category   = '{$category}',
-                priority   = '{$priority}',
-                status     = '{$status}',
-                dueDate    = {$dueDateSQL},
-                assignedTo = {$assignedToSQL}
-            WHERE id = {$id}
-        ";
-
-        if (!$conn->query($sql)) respond(false, ['error' => $conn->error]);
-
-        logActivity($conn, 'Task Updated', "Task \"{$title}\" was updated.", $id, 'Task');
-
-        respond(true);
-
-
-        // ────────────────────────────────────────────────────────
-        //  TOGGLE  (Pending ↔ Done)
-        // ────────────────────────────────────────────────────────
-    case 'toggle':
-        $id = (int)($_POST['id'] ?? 0);
-        if ($id === 0) respond(false, ['error' => 'Invalid ID.']);
-
-        // Fetch current status
-        $row = $conn->query("SELECT status, title FROM tasks WHERE id = {$id}")->fetch_assoc();
-        if (!$row) respond(false, ['error' => 'Task not found.']);
-
-        $newStatus = ($row['status'] === 'Done') ? 'Pending' : 'Done';
-        $conn->query("UPDATE tasks SET status = '{$newStatus}' WHERE id = {$id}");
-
-        logActivity($conn, 'Task Toggled', "Task \"{$row['title']}\" marked as {$newStatus}.", $id, 'Task');
-
-        respond(true, ['newStatus' => $newStatus]);
-
-
-        // ────────────────────────────────────────────────────────
-        //  DELETE  (single)
-        // ────────────────────────────────────────────────────────
-    case 'delete':
-        $id = (int)($_POST['id'] ?? 0);
-        if ($id === 0) respond(false, ['error' => 'Invalid ID.']);
-
-        $row = $conn->query("SELECT title FROM tasks WHERE id = {$id}")->fetch_assoc();
-        $conn->query("DELETE FROM tasks WHERE id = {$id}");
-
-        if ($row) logActivity($conn, 'Task Deleted', "Task \"{$row['title']}\" was deleted.", $id, 'Task');
-
-        respond(true);
-
-
-        // ────────────────────────────────────────────────────────
-        //  BULK: mark_all_done
-        // ────────────────────────────────────────────────────────
-    case 'mark_all_done':
-        $conn->query("UPDATE tasks SET status = 'Done'");
-        logActivity($conn, 'Bulk Action', 'All tasks marked as done.', null, null);
-        respond(true);
-
-
-        // ────────────────────────────────────────────────────────
-        //  BULK: clear_done
-        // ────────────────────────────────────────────────────────
-    case 'clear_done':
-        $conn->query("DELETE FROM tasks WHERE status = 'Done'");
-        logActivity($conn, 'Bulk Action', 'All completed tasks were cleared.', null, null);
-        respond(true);
-
-
-        // ────────────────────────────────────────────────────────
-        //  BULK: clear_all
-        // ────────────────────────────────────────────────────────
-    case 'clear_all':
-        $conn->query("DELETE FROM tasks");
-        logActivity($conn, 'Bulk Action', 'All tasks were deleted.', null, null);
-        respond(true);
-
-
-        // ────────────────────────────────────────────────────────
-        //  GET USERS  — for "Assigned To" dropdown
-        // ────────────────────────────────────────────────────────
-    case 'get_users':
-        $res   = $conn->query("SELECT id, CONCAT(firstName,' ',lastName) AS name FROM users ORDER BY firstName");
-        $users = [];
-        while ($u = $res->fetch_assoc()) {
-            $users[] = ['id' => $u['id'], 'name' => $u['name']];
-        }
-        respond(true, ['data' => $users]);
-
-
-        // ────────────────────────────────────────────────────────
-        //  Unknown action
-        // ────────────────────────────────────────────────────────
-    default:
-        respond(false, ['error' => 'Unknown action.']);
+        logActivity($conn, 'task_add', "Task added: \"{$title}\"", $newId);
+        echo json_encode(['success' => true, 'id' => $newId, 'stats' => getStats($conn)]);
+    } else {
+        echo json_encode(['success' => false, 'error' => $conn->error]);
+    }
+    exit;
 }
 
+// ════════════════════════════════════════════════════════════════
+// EDIT
+// ════════════════════════════════════════════════════════════════
+if ($action === 'edit' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $body = json_decode(file_get_contents('php://input'), true);
 
-// ============================================================
-//  Helper — insert into recentActivity
-// ============================================================
-function logActivity(mysqli $conn, string $type, string $desc, ?int $refId, ?string $refType): void
-{
-    $type    = $conn->real_escape_string($type);
-    $desc    = $conn->real_escape_string($desc);
-    $refIdSQL   = $refId   ? (int)$refId                          : 'NULL';
-    $refTypeSQL = $refType ? "'{$conn->real_escape_string($refType)}'" : 'NULL';
+    $id         = (int)($body['id']          ?? 0);
+    $title      = trim($body['title']        ?? '');
+    $category   = $body['category']          ?? 'General';
+    $priority   = $body['priority']          ?? 'Medium';
+    $status     = $body['status']            ?? 'Pending';
+    $dueDate    = !empty($body['dueDate'])    ? $body['dueDate']    : null;
+    $assignedTo = !empty($body['assignedTo']) ? (int)$body['assignedTo'] : null;
 
-    $conn->query("
-        INSERT INTO recentActivity (activityType, description, referenceId, referenceType)
-        VALUES ('{$type}', '{$desc}', {$refIdSQL}, {$refTypeSQL})
-    ");
+    if (!$title) {
+        echo json_encode(['success' => false, 'error' => 'Title required.']);
+        exit;
+    }
+
+    $stmt = $conn->prepare("UPDATE tasks SET title=?, category=?, priority=?, status=?, dueDate=?, assignedTo=? WHERE id=?");
+    $stmt->bind_param('sssssii', $title, $category, $priority, $status, $dueDate, $assignedTo, $id);
+
+    if ($stmt->execute()) {
+        logActivity($conn, 'task_edit', "Task updated: \"{$title}\"", $id);
+        echo json_encode(['success' => true, 'stats' => getStats($conn)]);
+    } else {
+        echo json_encode(['success' => false, 'error' => $conn->error]);
+    }
+    exit;
 }
+
+// ════════════════════════════════════════════════════════════════
+// TOGGLE STATUS (done <-> pending)
+// ════════════════════════════════════════════════════════════════
+if ($action === 'toggle' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id  = (int)($_POST['id'] ?? 0);
+    $row = $conn->query("SELECT title, status FROM tasks WHERE id=$id")->fetch_assoc();
+
+    if (!$row) {
+        echo json_encode(['success' => false]);
+        exit;
+    }
+
+    $newStatus = $row['status'] === 'Done' ? 'Pending' : 'Done';
+    $stmt = $conn->prepare("UPDATE tasks SET status=? WHERE id=?");
+    $stmt->bind_param('si', $newStatus, $id);
+
+    if ($stmt->execute()) {
+        $verb = $newStatus === 'Done' ? 'completed' : 're-opened';
+        logActivity($conn, 'task_toggle', "Task \"{$row['title']}\" {$verb}", $id);
+        echo json_encode(['success' => true, 'newStatus' => $newStatus, 'stats' => getStats($conn)]);
+    } else {
+        echo json_encode(['success' => false]);
+    }
+    exit;
+}
+
+// ════════════════════════════════════════════════════════════════
+// DELETE
+// ════════════════════════════════════════════════════════════════
+if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $id    = (int)($_POST['id'] ?? 0);
+    $title = $conn->query("SELECT title FROM tasks WHERE id=$id")->fetch_row()[0] ?? '';
+
+    $stmt = $conn->prepare("DELETE FROM tasks WHERE id=?");
+    $stmt->bind_param('i', $id);
+
+    if ($stmt->execute()) {
+        if ($title) logActivity($conn, 'task_delete', "Task deleted: \"{$title}\"");
+        echo json_encode(['success' => true, 'stats' => getStats($conn)]);
+    } else {
+        echo json_encode(['success' => false]);
+    }
+    exit;
+}
+
+// ════════════════════════════════════════════════════════════════
+// BULK — mark all done
+// ════════════════════════════════════════════════════════════════
+if ($action === 'mark_all_done' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $conn->query("UPDATE tasks SET status='Done'");
+    logActivity($conn, 'task_bulk', "All tasks marked as done");
+    echo json_encode(['success' => true, 'stats' => getStats($conn)]);
+    exit;
+}
+
+// ════════════════════════════════════════════════════════════════
+// BULK — clear completed
+// ════════════════════════════════════════════════════════════════
+if ($action === 'clear_done' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $conn->query("DELETE FROM tasks WHERE status='Done'");
+    logActivity($conn, 'task_bulk', "All completed tasks cleared");
+    echo json_encode(['success' => true, 'stats' => getStats($conn)]);
+    exit;
+}
+
+// ════════════════════════════════════════════════════════════════
+// BULK — clear all
+// ════════════════════════════════════════════════════════════════
+if ($action === 'clear_all' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $conn->query("DELETE FROM tasks");
+    logActivity($conn, 'task_bulk', "All tasks cleared");
+    echo json_encode(['success' => true, 'stats' => getStats($conn)]);
+    exit;
+}
+
+// ════════════════════════════════════════════════════════════════
+// GET USERS (for assignee dropdown)
+// ════════════════════════════════════════════════════════════════
+if ($action === 'get_users') {
+    $rows = $conn->query("SELECT id, CONCAT(firstName,' ',lastName) AS name FROM users ORDER BY firstName")->fetch_all(MYSQLI_ASSOC);
+    echo json_encode(['success' => true, 'data' => $rows]);
+    exit;
+}
+
+echo json_encode(['success' => false, 'error' => 'Unknown action']);

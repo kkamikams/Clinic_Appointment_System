@@ -42,13 +42,6 @@
         </a>
       </li>
 
-      <li class="nav-item">
-        <a class="nav-link <? ($page == 'tasks.php') ? '' : 'collapsed' ?>" href="tasks">
-          <i class="bi bi-list-task"></i>
-          <span>Tasks</span>
-        </a>
-      </li>
-
     </ul>
 
   </aside>

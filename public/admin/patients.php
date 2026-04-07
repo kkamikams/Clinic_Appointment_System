@@ -1,4 +1,5 @@
 <?php
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
@@ -102,7 +103,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         font-weight: 600;
     }
 
-    /* ── Stat cards ── */
+    /* ── Stat strip ── */
     .stat-strip {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -334,7 +335,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         justify-content: center;
         font-size: .73rem;
         font-weight: 700;
-        align-self: center;
     }
 
     .pat-name {
@@ -428,7 +428,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         border-radius: var(--radius-sm);
         box-shadow: var(--shadow-md);
         z-index: 500;
-        min-width: 150px;
+        min-width: 160px;
         overflow: hidden;
         animation: fadeUp .18s ease both;
     }
@@ -470,6 +470,22 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
 
     .dot-inactive {
         background: #d1d5db;
+    }
+
+    .dot-critical {
+        background: var(--red);
+    }
+
+    .dot-stable {
+        background: var(--green);
+    }
+
+    .dot-recovering {
+        background: var(--blue-500);
+    }
+
+    .dot-observation {
+        background: var(--amber);
     }
 
     /* ── Action btns ── */
@@ -551,156 +567,183 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         cursor: not-allowed;
     }
 
-    /* ── View Modal ── */
-    .modal-overlay {
+    /* ── Side Panel (same as doctors) ── */
+    .panel-overlay {
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(15, 23, 42, .55);
-        z-index: 9999;
+        background: rgba(15, 23, 42, .45);
+        z-index: 9000;
+        backdrop-filter: blur(2px);
+    }
+
+    .panel-overlay.show {
+        display: block;
+    }
+
+    .view-panel {
+        display: none;
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 400px;
+        max-width: 100vw;
+        background: #fff;
+        box-shadow: -8px 0 40px rgba(0, 0, 0, .14);
+        z-index: 9001;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: 'DM Sans', sans-serif;
+        transform: translateX(100%);
+        transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .view-panel.show {
+        display: flex;
+        transform: translateX(0);
+    }
+
+    .vp-hero {
+        background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
+        padding: 1.25rem 1.5rem 1rem;
+        flex-shrink: 0;
+    }
+
+    .vp-hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: .85rem;
+    }
+
+    .vp-identity {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .vp-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, .3);
+        display: flex;
         align-items: center;
         justify-content: center;
-        padding: 1rem;
-        backdrop-filter: blur(3px);
+        font-size: 1.2rem;
+        font-weight: 700;
+        flex-shrink: 0;
     }
 
-    .modal-overlay.show {
-        display: flex;
+    .vp-name {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: -.02em;
     }
 
-    .profile-modal {
-        background: #fff;
-        border-radius: 20px;
-        width: 100%;
-        max-width: 520px;
-        box-shadow: 0 24px 60px rgba(0, 0, 0, .18);
-        animation: fadeUp .25s ease both;
-        overflow: hidden;
+    .vp-spec {
+        font-size: .78rem;
+        color: rgba(255, 255, 255, .7);
+        margin-top: 2px;
+        font-weight: 500;
     }
 
-    .pm-hero {
-        background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
-        padding: 1.5rem 1.75rem 3.5rem;
-        position: relative;
-    }
-
-    .pm-hero-close {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        background: rgba(255, 255, 255, .18);
+    .vp-close-btn {
+        background: rgba(255, 255, 255, .15);
         border: none;
         border-radius: 50%;
         width: 28px;
         height: 28px;
         cursor: pointer;
+        color: #fff;
+        font-size: .8rem;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #fff;
-        font-size: .8rem;
+        flex-shrink: 0;
         transition: background .15s;
     }
 
-    .pm-hero-close:hover {
-        background: rgba(255, 255, 255, .32);
+    .vp-close-btn:hover {
+        background: rgba(255, 255, 255, .28);
     }
 
-    .pm-identity {
+    .vp-badges-hero {
         display: flex;
-        align-items: flex-end;
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-
-    .pm-avatar-lg {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        border: 4px solid rgba(255, 255, 255, .9);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.7rem;
-        font-weight: 700;
-        flex-shrink: 0;
-        margin-bottom: -2.8rem;
-    }
-
-    .pm-name-block {
-        padding-bottom: .2rem;
-    }
-
-    .pm-name {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #fff;
-        line-height: 1.15;
-        letter-spacing: -.02em;
-    }
-
-    .pm-sub {
-        font-size: .82rem;
-        color: rgba(255, 255, 255, .75);
-        margin-top: .25rem;
-        font-weight: 500;
-    }
-
-    .pm-body {
-        padding: 3rem 1.75rem 1.75rem;
-    }
-
-    .pm-badges {
-        display: flex;
-        gap: 8px;
+        gap: 6px;
         flex-wrap: wrap;
-        margin-bottom: 1.25rem;
     }
 
-    .pm-grid {
+    .vp-badge-pill {
+        font-size: .65rem;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 20px;
+        letter-spacing: .03em;
+    }
+
+    .vp-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem 1.25rem;
+    }
+
+    .vp-section-hd {
+        font-size: .6rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+        color: var(--text-muted);
+        margin-bottom: .6rem;
+        padding-bottom: .5rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .vp-info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: .65rem 1.25rem;
+        gap: 6px;
+        margin-bottom: 1rem;
     }
 
-    .pm-item {
-        padding: .6rem .75rem;
+    .vp-info-item {
         background: var(--surface);
-        border-radius: 10px;
+        border-radius: 9px;
+        padding: .55rem .7rem;
     }
 
-    .pm-item .pm-lbl {
+    .vp-info-lbl {
         font-size: .58rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: .1em;
         color: var(--text-muted);
-        margin-bottom: 3px;
+        margin-bottom: 2px;
     }
 
-    .pm-item .pm-val {
-        font-size: .83rem;
+    .vp-info-val {
+        font-size: .8rem;
         font-weight: 600;
         color: var(--text-dark);
         word-break: break-word;
     }
 
-    .pm-footer {
+    .vp-footer {
         display: flex;
         justify-content: flex-end;
         gap: 8px;
-        padding-top: 1rem;
+        padding-top: .75rem;
         border-top: 1px solid var(--border);
-        margin-top: 1.25rem;
     }
 
-    .btn-close-profile {
+    .vp-btn-close {
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: .48rem 1.2rem;
-        font-size: .82rem;
+        border-radius: 9px;
+        padding: .45rem 1.2rem;
+        font-size: .8rem;
         font-weight: 600;
         font-family: 'DM Sans', sans-serif;
         cursor: pointer;
@@ -708,28 +751,8 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         transition: background .15s;
     }
 
-    .btn-close-profile:hover {
+    .vp-btn-close:hover {
         background: var(--border);
-    }
-
-    .btn-edit-profile {
-        background: var(--blue-600);
-        color: #fff;
-        border: none;
-        border-radius: var(--radius-sm);
-        padding: .48rem 1.2rem;
-        font-size: .82rem;
-        font-weight: 600;
-        font-family: 'DM Sans', sans-serif;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: background .15s;
-    }
-
-    .btn-edit-profile:hover {
-        background: var(--blue-700);
     }
 
     /* ── Toast ── */
@@ -772,12 +795,12 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
     @keyframes fadeUp {
         from {
             opacity: 0;
-            transform: translateY(10px)
+            transform: translateY(10px);
         }
 
         to {
             opacity: 1;
-            transform: translateY(0)
+            transform: translateY(0);
         }
     }
 </style>
@@ -793,6 +816,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
 </div>
 
 <section class="section page-patients">
+
     <!-- ── Stat Cards ── -->
     <div class="stat-strip">
         <div class="stat-card">
@@ -857,24 +881,24 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 </thead>
                 <tbody id="patTbody">
                     <?php foreach ($patients as $i => $p):
-                        $bg       = $avatarBgs[$i % count($avatarBgs)];
-                        $col      = $avatarColors[$i % count($avatarColors)];
-                        $initials = strtoupper(substr($p['firstName'], 0, 1) . substr($p['lastName'], 0, 1));
-                        $fullName = $p['firstName'] . ' ' . $p['lastName'];
-                        $age      = $p['age'] ?? '—';
+                        $bg        = $avatarBgs[$i % count($avatarBgs)];
+                        $col       = $avatarColors[$i % count($avatarColors)];
+                        $initials  = strtoupper(substr($p['firstName'], 0, 1) . substr($p['lastName'], 0, 1));
+                        $fullName  = $p['firstName'] . ' ' . $p['lastName'];
+                        $age       = $p['age'] ?? '—';
                         $lastVisit = $p['lastVisit'] ? date('M j, Y', strtotime($p['lastVisit'])) : '—';
-                        $doctor   = ($p['docFirst'] && $p['docLast']) ? 'Dr. ' . $p['docFirst'] . ' ' . $p['docLast'] : '—';
+                        $doctor    = ($p['docFirst'] && $p['docLast']) ? 'Dr. ' . $p['docFirst'] . ' ' . $p['docLast'] : '—';
                         $statusCls = match ($p['status']) {
-                            'Active' => 'badge-active',
+                            'Active'     => 'badge-active',
                             'Discharged' => 'badge-discharged',
-                            default => 'badge-inactive'
+                            default      => 'badge-inactive'
                         };
                         $condCls = match ($p['patientCondition']) {
-                            'Critical' => 'badge-critical',
-                            'Stable' => 'badge-stable',
-                            'Recovering' => 'badge-recovering',
+                            'Critical'          => 'badge-critical',
+                            'Stable'            => 'badge-stable',
+                            'Recovering'        => 'badge-recovering',
                             'Under Observation' => 'badge-observation',
-                            default => 'badge-stable'
+                            default             => 'badge-stable'
                         };
                     ?>
                         <tr
@@ -899,7 +923,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                             <td>
                                 <div class="pat-cell">
                                     <div class="pat-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $initials ?></div>
-                                    <div style="display:flex;flex-direction:column;justify-content:center;">
+                                    <div>
                                         <div class="pat-name"><?= htmlspecialchars($fullName) ?></div>
                                         <div class="pat-id"><?= htmlspecialchars($p['patientCode']) ?></div>
                                     </div>
@@ -909,8 +933,10 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                             <td><?= htmlspecialchars($p['contactNumber'] ?? '—') ?></td>
                             <td><?= $lastVisit ?></td>
                             <td><?= htmlspecialchars($doctor) ?></td>
+
+                            <!-- Status dropdown -->
                             <td class="status-cell">
-                                <button class="badge-btn" onclick="toggleStatusDropdown(this)">
+                                <button class="badge-btn" onclick="toggleDropdown(this)">
                                     <span class="badge <?= $statusCls ?>"><?= htmlspecialchars($p['status']) ?></span>
                                     <span class="badge-caret">▾</span>
                                 </button>
@@ -920,7 +946,21 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                     <div class="status-opt" onclick="setStatus(this,'Inactive','badge-inactive',<?= $p['id'] ?>)"><span class="dot dot-inactive"></span>Inactive</div>
                                 </div>
                             </td>
-                            <td><span class="badge <?= $condCls ?>"><?= htmlspecialchars($p['patientCondition']) ?></span></td>
+
+                            <!-- Condition dropdown -->
+                            <td class="status-cell">
+                                <button class="badge-btn" onclick="toggleDropdown(this)">
+                                    <span class="badge <?= $condCls ?>"><?= htmlspecialchars($p['patientCondition']) ?></span>
+                                    <span class="badge-caret">▾</span>
+                                </button>
+                                <div class="status-dropdown">
+                                    <div class="status-opt" onclick="setCondition(this,'Stable','badge-stable',<?= $p['id'] ?>)"><span class="dot dot-stable"></span>Stable</div>
+                                    <div class="status-opt" onclick="setCondition(this,'Recovering','badge-recovering',<?= $p['id'] ?>)"><span class="dot dot-recovering"></span>Recovering</div>
+                                    <div class="status-opt" onclick="setCondition(this,'Under Observation','badge-observation',<?= $p['id'] ?>)"><span class="dot dot-observation"></span>Under Observation</div>
+                                    <div class="status-opt" onclick="setCondition(this,'Critical','badge-critical',<?= $p['id'] ?>)"><span class="dot dot-critical"></span>Critical</div>
+                                </div>
+                            </td>
+
                             <td>
                                 <div class="action-btns">
                                     <button class="btn-act" title="Edit" onclick="window.location.href='edit_patient?id=<?= $p['id'] ?>'"><i class="bi bi-pencil"></i></button>
@@ -940,59 +980,66 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
     </div>
 </section>
 
-<!-- ── View Modal ── -->
-<div class="modal-overlay" id="viewModal">
-    <div class="profile-modal">
-        <div class="pm-hero">
-            <button class="pm-hero-close" onclick="closeModal()"><i class="bi bi-x"></i></button>
-            <div class="pm-identity">
-                <div class="pm-avatar-lg" id="pmAvatar"></div>
-                <div class="pm-name-block">
-                    <div class="pm-name" id="pmName"></div>
-                    <div class="pm-sub" id="pmSub"></div>
+<!-- ── Panel Overlay ── -->
+<div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+
+<!-- ── View Side Panel ── -->
+<div class="view-panel" id="viewPanel">
+
+    <div class="vp-hero">
+        <div class="vp-hero-top">
+            <div class="vp-identity">
+                <div class="vp-avatar" id="vpAvatar"></div>
+                <div>
+                    <div class="vp-name" id="vpName"></div>
+                    <div class="vp-spec" id="vpSub"></div>
                 </div>
+            </div>
+            <button class="vp-close-btn" onclick="closePanel()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="vp-badges-hero" id="vpBadges"></div>
+    </div>
+
+    <div class="vp-body">
+
+        <div class="vp-section-hd" style="margin-top:.25rem;">Patient Info</div>
+        <div class="vp-info-grid">
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Patient ID</div>
+                <div class="vp-info-val" id="vpCode"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Age / Gender</div>
+                <div class="vp-info-val" id="vpAgeGender"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Contact No.</div>
+                <div class="vp-info-val" id="vpContact"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Email</div>
+                <div class="vp-info-val" id="vpEmail"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Last Visit</div>
+                <div class="vp-info-val" id="vpLastVisit"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Doctor</div>
+                <div class="vp-info-val" id="vpDoctor"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Follow-up Date</div>
+                <div class="vp-info-val" id="vpFollowup"></div>
+            </div>
+            <div class="vp-info-item" style="grid-column:1/-1;">
+                <div class="vp-info-lbl">Address</div>
+                <div class="vp-info-val" id="vpAddress"></div>
             </div>
         </div>
-        <div class="pm-body">
-            <div class="pm-badges" id="pmBadges"></div>
-            <div class="pm-grid">
-                <div class="pm-item">
-                    <div class="pm-lbl">Patient ID</div>
-                    <div class="pm-val" id="pmCode"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Age / Gender</div>
-                    <div class="pm-val" id="pmAgeGender"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Contact No.</div>
-                    <div class="pm-val" id="pmContact"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Email</div>
-                    <div class="pm-val" id="pmEmail"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Last Visit</div>
-                    <div class="pm-val" id="pmLastVisit"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Doctor</div>
-                    <div class="pm-val" id="pmDoctor"></div>
-                </div>
-                <div class="pm-item" style="grid-column:1/-1;">
-                    <div class="pm-lbl">Address</div>
-                    <div class="pm-val" id="pmAddress"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Follow-up Date</div>
-                    <div class="pm-val" id="pmFollowup"></div>
-                </div>
-            </div>
-            <div class="pm-footer">
-                <button class="btn-close-profile" onclick="closeModal()">Close</button>
-                <button class="btn-edit-profile" id="pmEditBtn"><i class="bi bi-pencil"></i> Edit</button>
-            </div>
+
+        <div class="vp-footer">
+            <button class="vp-btn-close" onclick="closePanel()">Close</button>
         </div>
     </div>
 </div>
@@ -1031,20 +1078,11 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
 
         const shown = Math.min(end, total) - start;
         const tbody = document.getElementById('patTbody');
-        for (let f = 0; f < ROWS_PER_PAGE - shown && shown > 0; f++) {
-            const tr = document.createElement('tr');
-            tr.className = 'filler-row';
-            tr.style.pointerEvents = 'none';
-            for (let c = 0; c < 9; c++) {
-                const td = document.createElement('td');
-                td.innerHTML = '&nbsp;';
-                tr.appendChild(td);
-            }
-            tbody.appendChild(tr);
-        }
+
         document.getElementById('paginationInfo').textContent = total === 0 ?
             'No patients found' :
-            `Showing ${start+1}–${Math.min(end,total)} of ${total} patient${total!==1?'s':''}`;
+            `Showing ${start + 1}–${Math.min(end, total)} of ${total} patient${total !== 1 ? 's' : ''}`;
+
         const btns = document.getElementById('paginationBtns');
         btns.innerHTML = '';
         btns.appendChild(makeBtn('‹ Prev', currentPage === 1, () => renderPage(currentPage - 1)));
@@ -1070,13 +1108,18 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
     }
     renderPage(1);
 
-    // ── Status dropdown ──
-    function toggleStatusDropdown(btn) {
+    // ── Dropdowns ──
+    function toggleDropdown(btn) {
         const dd = btn.nextElementSibling;
         const open = dd.classList.contains('open');
         document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
         if (!open) dd.classList.add('open');
     }
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.status-cell'))
+            document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
+    });
 
     function setStatus(optEl, label, cls, patientId) {
         const dd = optEl.closest('.status-dropdown');
@@ -1102,10 +1145,31 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 } else showToast('❌ Failed to update status', 'error');
             });
     }
-    document.addEventListener('click', e => {
-        if (!e.target.closest('.status-cell'))
-            document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
-    });
+
+    function setCondition(optEl, label, cls, patientId) {
+        const dd = optEl.closest('.status-dropdown');
+        const badge = dd.previousElementSibling.querySelector('.badge');
+        badge.className = 'badge ' + cls;
+        badge.textContent = label;
+        dd.classList.remove('open');
+        const row = optEl.closest('tr');
+        row.dataset.condition = label;
+
+        fetch('update_patient_condition.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `id=${patientId}&condition=${encodeURIComponent(label)}`
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    recount();
+                    showToast('✔ Condition updated to <strong>' + label + '</strong>', 'info');
+                } else showToast('❌ Failed to update condition', 'error');
+            });
+    }
 
     // ── Live stat recount ──
     function recount() {
@@ -1145,47 +1209,64 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         }, 30);
     }
 
-    // ── View modal ──
+    // ── Badge styles for hero ──
+    const statusBadgeStyle = {
+        'Active': 'background:rgba(209,250,229,.25);color:#d1fae5;border:1px solid rgba(209,250,229,.4)',
+        'Discharged': 'background:rgba(243,244,246,.2);color:#e5e7eb;border:1px solid rgba(229,231,235,.3)',
+        'Inactive': 'background:rgba(243,244,246,.15);color:#d1d5db;border:1px solid rgba(209,213,219,.3)',
+    };
+    const condBadgeStyle = {
+        'Critical': 'background:rgba(254,226,226,.25);color:#fecaca;border:1px solid rgba(252,165,165,.3)',
+        'Stable': 'background:rgba(209,250,229,.2);color:#bbf7d0;border:1px solid rgba(134,239,172,.3)',
+        'Recovering': 'background:rgba(219,234,254,.2);color:#bfdbfe;border:1px solid rgba(147,197,253,.3)',
+        'Under Observation': 'background:rgba(254,243,199,.2);color:#fde68a;border:1px solid rgba(252,211,77,.3)',
+    };
+
     function viewPatient(row) {
         const d = row.dataset;
-        const statusCls = {
-            Active: 'badge-active',
-            Discharged: 'badge-discharged',
-            Inactive: 'badge-inactive'
-        } [d.status] || 'badge-inactive';
-        const condCls = {
-            Critical: 'badge-critical',
-            Stable: 'badge-stable',
-            Recovering: 'badge-recovering',
-            'Under Observation': 'badge-observation'
-        } [d.condition] || 'badge-stable';
 
-        document.getElementById('pmAvatar').textContent = d.avatar;
-        document.getElementById('pmAvatar').style.background = d.avatarBg;
-        document.getElementById('pmAvatar').style.color = d.avatarColor;
-        document.getElementById('pmName').textContent = d.fullname;
-        document.getElementById('pmSub').textContent = d.age + ' yrs · ' + d.gender;
-        document.getElementById('pmCode').textContent = d.code;
-        document.getElementById('pmAgeGender').textContent = d.age + ' / ' + d.gender;
-        document.getElementById('pmContact').textContent = d.contact;
-        document.getElementById('pmEmail').textContent = d.email;
-        document.getElementById('pmLastVisit').textContent = d.lastvisit;
-        document.getElementById('pmDoctor').textContent = d.doctor;
-        document.getElementById('pmAddress').textContent = d.address;
-        document.getElementById('pmFollowup').textContent = d.followup || '—';
-        document.getElementById('pmEditBtn').onclick = () => window.location.href = 'edit_patient.php?id=' + d.id;
-        document.getElementById('pmBadges').innerHTML =
-            `<span class="badge ${statusCls}">${d.status}</span>
-         <span class="badge ${condCls}">${d.condition}</span>`;
-        document.getElementById('viewModal').classList.add('show');
+        const avatar = document.getElementById('vpAvatar');
+        avatar.textContent = d.avatar;
+        avatar.style.background = d.avatarBg;
+        avatar.style.color = d.avatarColor;
+
+        document.getElementById('vpName').textContent = d.fullname;
+        document.getElementById('vpSub').textContent = d.age + ' yrs · ' + d.gender;
+        document.getElementById('vpCode').textContent = d.code;
+        document.getElementById('vpAgeGender').textContent = d.age + ' / ' + d.gender;
+        document.getElementById('vpContact').textContent = d.contact;
+        document.getElementById('vpEmail').textContent = d.email;
+        document.getElementById('vpLastVisit').textContent = d.lastvisit;
+        document.getElementById('vpDoctor').textContent = d.doctor;
+        document.getElementById('vpAddress').textContent = d.address;
+        document.getElementById('vpFollowup').textContent = d.followup || '—';
+
+        const sSt = statusBadgeStyle[d.status] || statusBadgeStyle['Inactive'];
+        const sCd = condBadgeStyle[d.condition] || condBadgeStyle['Stable'];
+        document.getElementById('vpBadges').innerHTML =
+            `<span class="vp-badge-pill" style="${sSt}">${escHtml(d.status)}</span>
+             <span class="vp-badge-pill" style="${sCd}">${escHtml(d.condition)}</span>`;
+
+        document.getElementById('panelOverlay').classList.add('show');
+        const panel = document.getElementById('viewPanel');
+        panel.style.display = 'flex';
+        requestAnimationFrame(() => panel.classList.add('show'));
     }
 
-    function closeModal() {
-        document.getElementById('viewModal').classList.remove('show');
+    function closePanel() {
+        const panel = document.getElementById('viewPanel');
+        panel.classList.remove('show');
+        document.getElementById('panelOverlay').classList.remove('show');
+        setTimeout(() => {
+            panel.style.display = 'none';
+        }, 280);
     }
-    document.getElementById('viewModal').addEventListener('click', function(e) {
-        if (e.target === this) closeModal();
-    });
+
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
 
     function showToast(msg, type = 'success') {
         const el = document.createElement('div');
@@ -1195,4 +1276,5 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         setTimeout(() => el.remove(), 3500);
     }
 </script>
+
 <?php include('./includes/footer.php'); ?>

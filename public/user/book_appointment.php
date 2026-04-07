@@ -1,9 +1,34 @@
 <?php
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
-?>
+require_once('../../app/config/config.php');
 
+$userEmail = $_SESSION['email'] ?? '';
+
+// Pre-fill patient data if linked
+$patientRow = null;
+if ($userEmail) {
+    $stmt = $conn->prepare("SELECT * FROM patients WHERE emailAddress=? AND status!='Inactive' LIMIT 1");
+    $stmt->bind_param('s', $userEmail);
+    $stmt->execute();
+    $patientRow = $stmt->get_result()->fetch_assoc();
+}
+
+// Load departments and doctors for dropdowns
+$departments = $conn->query("
+    SELECT DISTINCT department FROM doctors
+    WHERE employmentStatus='Active' AND department IS NOT NULL AND department!=''
+    ORDER BY department
+")->fetch_all(MYSQLI_ASSOC);
+
+$doctors = $conn->query("
+    SELECT id, CONCAT(firstName,' ',lastName) AS name, specialization, department, patientCapacity
+    FROM doctors WHERE employmentStatus='Active'
+    ORDER BY lastName, firstName
+")->fetch_all(MYSQLI_ASSOC);
+?>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
 
@@ -32,38 +57,37 @@ include('./includes/sidebar.php');
         --red-dark: #991b1b;
         --radius: 16px;
         --radius-sm: 10px;
-        --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-        --shadow-md: 0 4px 16px rgba(0,0,0,.07);
-        --shadow-lg: 0 8px 30px rgba(0,0,0,.10);
+        --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
+        --shadow-md: 0 4px 16px rgba(0, 0, 0, .07);
+        --shadow-lg: 0 8px 30px rgba(0, 0, 0, .10);
     }
 
-    .page-book, .page-book * {
+    .page-book,
+    .page-book * {
         font-family: 'DM Sans', sans-serif;
-        box-sizing: border-box;
+        box-sizing: border-box
     }
 
     .pagetitle h1 {
-        font-family: 'DM Sans', sans-serif;
         font-weight: 700;
         font-size: 1.75rem;
         color: var(--text-dark);
         letter-spacing: -.03em;
-        margin-bottom: 2px;
+        margin-bottom: 2px
     }
 
     .pagetitle .breadcrumb-item,
     .pagetitle .breadcrumb-item a {
         font-size: .78rem;
         color: var(--text-muted);
-        text-decoration: none;
+        text-decoration: none
     }
 
     .pagetitle .breadcrumb-item.active {
         color: var(--blue-600);
-        font-weight: 600;
+        font-weight: 600
     }
 
-    /* ── SECTION DIVIDER ── */
     .form-section-label {
         font-size: .64rem;
         font-weight: 700;
@@ -75,32 +99,36 @@ include('./includes/sidebar.php');
         border-bottom: 1px solid var(--border);
         display: flex;
         align-items: center;
-        gap: 7px;
+        gap: 7px
     }
 
-    .form-section-label i { color: var(--blue-500); font-size: .75rem; }
+    .form-section-label i {
+        color: var(--blue-500);
+        font-size: .75rem
+    }
 
-    /* ── MAIN CARD ── */
     .main-card {
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: var(--radius);
         box-shadow: var(--shadow);
         padding: 2rem;
-        animation: fadeUp .32s .1s ease both;
+        animation: fadeUp .32s .1s ease both
     }
 
-    /* ── FORM CONTROLS ── */
     .form-label {
         font-size: .72rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: .07em;
         color: var(--text-body);
-        margin-bottom: .4rem;
+        margin-bottom: .4rem
     }
 
-    .form-label .req { color: #ef4444; margin-left: 2px; }
+    .form-label .req {
+        color: #ef4444;
+        margin-left: 2px
+    }
 
     .form-control,
     .form-select {
@@ -111,21 +139,27 @@ include('./includes/sidebar.php');
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         padding: .55rem .85rem;
-        transition: border-color .2s, box-shadow .2s, background .2s;
+        transition: border-color .2s, box-shadow .2s, background .2s
     }
 
     .form-control:focus,
     .form-select:focus {
         border-color: var(--blue-400);
         background: #fff;
-        box-shadow: 0 0 0 3px rgba(96,165,250,.15);
-        outline: none;
+        box-shadow: 0 0 0 3px rgba(96, 165, 250, .15);
+        outline: none
     }
 
-    .form-control::placeholder { color: var(--text-muted); font-size: .84rem; }
-    textarea.form-control { min-height: 100px; resize: vertical; }
+    .form-control::placeholder {
+        color: var(--text-muted);
+        font-size: .84rem
+    }
 
-    /* ── SUBMIT BUTTON ── */
+    textarea.form-control {
+        min-height: 100px;
+        resize: vertical
+    }
+
     .btn-submit {
         background: var(--blue-600);
         color: #fff;
@@ -139,16 +173,14 @@ include('./includes/sidebar.php');
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        transition: background .15s, box-shadow .15s, transform .1s;
+        transition: background .15s, box-shadow .15s, transform .1s
     }
 
     .btn-submit:hover {
         background: var(--blue-700);
-        box-shadow: 0 4px 14px rgba(37,99,235,.3);
-        transform: translateY(-1px);
+        box-shadow: 0 4px 14px rgba(37, 99, 235, .3);
+        transform: translateY(-1px)
     }
-
-    .btn-submit:active { transform: translateY(0); }
 
     .btn-cancel-form {
         background: #fff;
@@ -163,12 +195,13 @@ include('./includes/sidebar.php');
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        transition: background .15s;
+        transition: background .15s
     }
 
-    .btn-cancel-form:hover { background: var(--surface); }
+    .btn-cancel-form:hover {
+        background: var(--surface)
+    }
 
-    /* ── SUCCESS ALERT ── */
     .alert-success-custom {
         background: var(--green-light);
         border: 1px solid #6ee7b7;
@@ -180,19 +213,33 @@ include('./includes/sidebar.php');
         font-size: .875rem;
         color: var(--green-dark);
         font-weight: 500;
-        animation: fadeUp .25s ease;
+        animation: fadeUp .25s ease
     }
 
-    .alert-success-custom i { font-size: 1.1rem; }
+    .alert-success-custom i {
+        font-size: 1.1rem
+    }
 
-    /* ── SUMMARY CARD ── */
+    .alert-error-custom {
+        background: var(--red-light);
+        border: 1px solid #fca5a5;
+        border-radius: var(--radius-sm);
+        padding: .85rem 1.25rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: .875rem;
+        color: var(--red-dark);
+        font-weight: 500
+    }
+
     .summary-card {
         background: var(--blue-50);
         border: 1px solid var(--blue-100);
         border-radius: var(--radius);
         padding: 1.5rem;
         position: sticky;
-        top: 1rem;
+        top: 1rem
     }
 
     .summary-card h6 {
@@ -204,7 +251,7 @@ include('./includes/sidebar.php');
         margin-bottom: 1rem;
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 6px
     }
 
     .summary-item {
@@ -212,21 +259,93 @@ include('./includes/sidebar.php');
         flex-direction: column;
         gap: 2px;
         padding: .6rem 0;
-        border-bottom: 1px solid var(--blue-100);
+        border-bottom: 1px solid var(--blue-100)
     }
 
-    .summary-item:last-child { border-bottom: none; }
-    .summary-item .s-label { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); }
-    .summary-item .s-value { font-size: .875rem; font-weight: 600; color: var(--text-dark); }
-    .summary-item .s-placeholder { font-size: .82rem; color: var(--text-muted); font-style: italic; }
+    .summary-item:last-child {
+        border-bottom: none
+    }
+
+    .summary-item .s-label {
+        font-size: .65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--text-muted)
+    }
+
+    .summary-item .s-value {
+        font-size: .875rem;
+        font-weight: 600;
+        color: var(--text-dark)
+    }
+
+    .summary-item .s-placeholder {
+        font-size: .82rem;
+        color: var(--text-muted);
+        font-style: italic
+    }
+
+    .slot-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: .5rem
+    }
+
+    .slot-btn {
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: .4rem;
+        font-size: .78rem;
+        font-family: 'DM Sans', sans-serif;
+        background: var(--surface);
+        color: var(--text-body);
+        cursor: pointer;
+        text-align: center;
+        transition: all .15s
+    }
+
+    .slot-btn:hover:not(:disabled) {
+        background: var(--blue-50);
+        border-color: var(--blue-300);
+        color: var(--blue-700)
+    }
+
+    .slot-btn.selected {
+        background: var(--blue-600);
+        color: #fff;
+        border-color: var(--blue-600)
+    }
+
+    .slot-btn:disabled {
+        opacity: .4;
+        cursor: not-allowed;
+        text-decoration: line-through
+    }
+
+    .slots-loading {
+        text-align: center;
+        padding: 1rem;
+        color: var(--text-muted);
+        font-size: .8rem
+    }
 
     @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(10px)
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0)
+        }
     }
 </style>
 
-<!-- PAGE TITLE -->
 <div class="pagetitle">
     <h1>Book Appointment</h1>
     <nav>
@@ -239,96 +358,110 @@ include('./includes/sidebar.php');
 
 <section class="section page-book">
 
-    <!-- SUCCESS ALERT (hidden by default) -->
-    <div id="successAlert" class="alert-success-custom mb-4" style="display:none;">
+    <div id="successAlert" class="alert-success-custom mb-4" style="display:none">
         <i class="bi bi-check-circle-fill"></i>
-        <div>
-            <strong>Appointment booked successfully!</strong>
-            Your appointment has been submitted and is awaiting confirmation.
+        <div><strong id="successMsg">Appointment booked successfully!</strong><br>
+            <span id="successCode"></span> — We'll see you soon.
         </div>
+    </div>
+    <div id="errorAlert" class="alert-error-custom mb-4" style="display:none">
+        <i class="bi bi-x-circle-fill"></i>
+        <div id="errorMsg">Something went wrong. Please try again.</div>
     </div>
 
     <div class="row g-4">
-
-        <!-- MAIN FORM CARD -->
         <div class="col-lg-8">
             <div class="main-card">
 
-                <!-- SECTION: PATIENT INFO -->
-                <div class="form-section-label mb-3">
-                    <i class="bi bi-person-fill"></i> Patient Information
-                </div>
+                <!-- Patient Info -->
+                <div class="form-section-label mb-3"><i class="bi bi-person-fill"></i> Patient Information</div>
                 <div class="row g-3 mb-4">
                     <div class="col-md-6">
                         <label class="form-label">Patient Name <span class="req">*</span></label>
-                        <input type="text" id="patientName" class="form-control" placeholder="e.g. Juan dela Cruz" oninput="updateSummary()"/>
+                        <input type="text" id="patientName" class="form-control"
+                            value="<?= htmlspecialchars($patientRow ? $patientRow['firstName'] . ' ' . $patientRow['lastName'] : '') ?>"
+                            placeholder="e.g. Juan dela Cruz" oninput="updateSummary()">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Date of Birth</label>
-                        <input type="date" class="form-control"/>
+                        <input type="date" id="dateOfBirth" class="form-control"
+                            value="<?= htmlspecialchars($patientRow['dateOfBirth'] ?? '') ?>">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Contact Number</label>
-                        <input type="tel" class="form-control" placeholder="e.g. 09171234567"/>
+                        <input type="tel" id="contactNumber" class="form-control"
+                            value="<?= htmlspecialchars($patientRow['contactNumber'] ?? '') ?>"
+                            placeholder="e.g. 09171234567">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Email Address</label>
-                        <input type="email" class="form-control" placeholder="e.g. patient@email.com"/>
+                        <input type="email" id="emailAddress" class="form-control"
+                            value="<?= htmlspecialchars($patientRow['emailAddress'] ?? $userEmail) ?>"
+                            placeholder="e.g. patient@email.com">
                     </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Gender</label>
+                        <select id="gender" class="form-select">
+                            <option value="">Select Gender</option>
+                            <option <?= ($patientRow['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
+                            <option <?= ($patientRow['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+                            <option <?= ($patientRow['gender'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
+                        </select>
+                    </div>
+                    <?php if ($patientRow): ?>
+                        <input type="hidden" id="patientId" value="<?= $patientRow['id'] ?>">
+                    <?php endif; ?>
                 </div>
 
-                <!-- SECTION: APPOINTMENT DETAILS -->
-                <div class="form-section-label mb-3">
-                    <i class="bi bi-calendar2-check-fill"></i> Appointment Details
-                </div>
+                <!-- Appointment Details -->
+                <div class="form-section-label mb-3"><i class="bi bi-calendar2-check-fill"></i> Appointment Details</div>
                 <div class="row g-3 mb-4">
                     <div class="col-md-6">
                         <label class="form-label">Department <span class="req">*</span></label>
-                        <select id="deptSelect" class="form-select" onchange="updateSummary(); syncDoctor()">
+                        <select id="deptSelect" class="form-select" onchange="updateSummary(); filterDoctors()">
                             <option value="">Select Department</option>
-                            <option>Dermatology</option>
-                            <option>Internal Medicine</option>
-                            <option>Pediatrics</option>
-                            <option>Orthopedics</option>
-                            <option>Cardiology</option>
-                            <option>Neurology</option>
-                            <option>Obstetrics &amp; Gynecology</option>
+                            <?php foreach ($departments as $dept): ?>
+                                <option><?= htmlspecialchars($dept['department']) ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Doctor <span class="req">*</span></label>
-                        <select id="doctorSelect" class="form-select" onchange="updateSummary()">
+                        <select id="doctorSelect" class="form-select" onchange="updateSummary(); loadSlots()">
                             <option value="">Select Doctor</option>
-                            <option>Dr. Princess Mary Lapura</option>
-                            <option>Dr. Jose Reyes</option>
-                            <option>Dr. Maria Santos</option>
-                            <option>Dr. Ramon Cruz</option>
-                            <option>Dr. Angela Villanueva</option>
+                            <?php foreach ($doctors as $doc): ?>
+                                <option value="<?= $doc['id'] ?>" data-dept="<?= htmlspecialchars($doc['department'] ?? '') ?>" data-spec="<?= htmlspecialchars($doc['specialization']) ?>">
+                                    Dr. <?= htmlspecialchars($doc['name']) ?> (<?= htmlspecialchars($doc['specialization']) ?>)
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Appointment Date <span class="req">*</span></label>
-                        <input type="date" id="apptDate" class="form-control" onchange="updateSummary()"/>
+                        <input type="date" id="apptDate" class="form-control" onchange="updateSummary(); loadSlots()">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Appointment Time <span class="req">*</span></label>
-                        <input type="time" id="apptTime" class="form-control" onchange="updateSummary()"/>
+                        <input type="hidden" id="apptTime">
+                        <div id="slotsContainer">
+                            <div class="slots-loading" style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">
+                                Select a doctor and date to see available slots.
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-12">
+                    <div class="col-md-6">
                         <label class="form-label">Type of Visit</label>
-                        <select class="form-select">
-                            <option>Consultation</option>
-                            <option>Follow-up</option>
-                            <option>Procedure</option>
-                            <option>Emergency</option>
+                        <select id="channel" class="form-select">
+                            <option value="Online">Online Booking</option>
+                            <option value="Walk-in">Walk-in</option>
+                            <option value="Phone">Phone</option>
+                            <option value="Referral">Referral</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- SECTION: NOTES -->
-                <div class="form-section-label mb-3">
-                    <i class="bi bi-card-text"></i> Additional Notes
-                </div>
+                <!-- Notes -->
+                <div class="form-section-label mb-3"><i class="bi bi-card-text"></i> Additional Notes</div>
                 <div class="row g-3 mb-4">
                     <div class="col-12">
                         <label class="form-label">Notes / Remarks</label>
@@ -336,56 +469,26 @@ include('./includes/sidebar.php');
                     </div>
                 </div>
 
-                <!-- FOOTER BUTTONS -->
-                <div class="d-flex justify-content-end gap-2 pt-2 border-top" style="border-color: var(--border) !important;">
-                    <button class="btn-cancel-form" onclick="resetForm()">
-                        <i class="bi bi-x-lg"></i> Cancel
-                    </button>
-                    <button class="btn-submit" onclick="submitForm()">
-                        <i class="bi bi-calendar-check"></i> Book Appointment
-                    </button>
+                <div class="d-flex justify-content-end gap-2 pt-2 border-top" style="border-color:var(--border)!important">
+                    <button class="btn-cancel-form" onclick="resetForm()"><i class="bi bi-x-lg"></i> Cancel</button>
+                    <button class="btn-submit" id="submitBtn" onclick="submitForm()"><i class="bi bi-calendar-check"></i> Book Appointment</button>
                 </div>
-
             </div>
         </div>
 
-        <!-- SUMMARY SIDEBAR -->
         <div class="col-lg-4">
             <div class="summary-card">
                 <h6><i class="bi bi-clipboard2-pulse-fill"></i> Appointment Summary</h6>
-
-                <div class="summary-item">
-                    <span class="s-label">Patient</span>
-                    <span id="sum-patient" class="s-placeholder">Not entered</span>
-                </div>
-                <div class="summary-item">
-                    <span class="s-label">Department</span>
-                    <span id="sum-dept" class="s-placeholder">Not selected</span>
-                </div>
-                <div class="summary-item">
-                    <span class="s-label">Doctor</span>
-                    <span id="sum-doctor" class="s-placeholder">Not selected</span>
-                </div>
-                <div class="summary-item">
-                    <span class="s-label">Date</span>
-                    <span id="sum-date" class="s-placeholder">Not selected</span>
-                </div>
-                <div class="summary-item">
-                    <span class="s-label">Time</span>
-                    <span id="sum-time" class="s-placeholder">Not selected</span>
-                </div>
-                <div class="summary-item">
-                    <span class="s-label">Notes</span>
-                    <span id="sum-notes" class="s-placeholder">None</span>
-                </div>
+                <div class="summary-item"><span class="s-label">Patient</span><span id="sum-patient" class="s-placeholder">Not entered</span></div>
+                <div class="summary-item"><span class="s-label">Department</span><span id="sum-dept" class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Doctor</span><span id="sum-doctor" class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Date</span><span id="sum-date" class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Time</span><span id="sum-time" class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Notes</span><span id="sum-notes" class="s-placeholder">None</span></div>
             </div>
-
-            <!-- Reminders Card -->
-            <div class="main-card mt-3" style="padding: 1.25rem;">
-                <div class="form-section-label mb-2">
-                    <i class="bi bi-info-circle-fill"></i> Reminders
-                </div>
-                <ul style="font-size:.8rem; color:var(--text-body); padding-left: 1.1rem; margin:0; line-height:1.8;">
+            <div class="main-card mt-3" style="padding:1.25rem">
+                <div class="form-section-label mb-2"><i class="bi bi-info-circle-fill"></i> Reminders</div>
+                <ul style="font-size:.8rem;color:var(--text-body);padding-left:1.1rem;margin:0;line-height:1.8">
                     <li>Arrive <strong>15 minutes</strong> before your schedule.</li>
                     <li>Bring a valid <strong>ID and insurance card</strong>.</li>
                     <li>Cancellations must be done <strong>24 hrs</strong> in advance.</li>
@@ -393,91 +496,170 @@ include('./includes/sidebar.php');
                 </ul>
             </div>
         </div>
-
-    </div><!-- /row -->
-
+    </div>
 </section>
 
 <script>
+    const HANDLER = 'bookapp_handler.php';
+    const allDoctors = <?= json_encode($doctors) ?>;
+
     function updateSummary() {
-        const set = (id, val, fallback) => {
+        const set = (id, val, fb) => {
             const el = document.getElementById(id);
             if (val && val.trim()) {
                 el.textContent = val;
                 el.className = 's-value';
             } else {
-                el.textContent = fallback;
+                el.textContent = fb;
                 el.className = 's-placeholder';
             }
         };
-
         set('sum-patient', document.getElementById('patientName').value, 'Not entered');
-        set('sum-dept',    document.getElementById('deptSelect').value,   'Not selected');
-        set('sum-doctor',  document.getElementById('doctorSelect').value, 'Not selected');
-        set('sum-notes',   document.getElementById('apptNotes').value,    'None');
-
-        // Date formatting
+        set('sum-dept', document.getElementById('deptSelect').value, 'Not selected');
+        const docSel = document.getElementById('doctorSelect');
+        set('sum-doctor', docSel.options[docSel.selectedIndex]?.text || '', 'Not selected');
+        set('sum-notes', document.getElementById('apptNotes').value, 'None');
         const rawDate = document.getElementById('apptDate').value;
         if (rawDate) {
             const d = new Date(rawDate + 'T00:00:00');
-            set('sum-date', d.toLocaleDateString('en-US', {year:'numeric', month:'long', day:'numeric'}), '');
-        } else {
-            set('sum-date', '', 'Not selected');
-        }
-
-        // Time formatting
+            set('sum-date', d.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            }), '');
+        } else set('sum-date', '', 'Not selected');
         const rawTime = document.getElementById('apptTime').value;
         if (rawTime) {
             const [h, m] = rawTime.split(':');
-            const hh = parseInt(h), ampm = hh >= 12 ? 'PM' : 'AM';
-            const hf = hh % 12 || 12;
-            set('sum-time', `${hf}:${m} ${ampm}`, '');
-        } else {
-            set('sum-time', '', 'Not selected');
-        }
+            const hh = parseInt(h),
+                ap = hh >= 12 ? 'PM' : 'AM',
+                hf = hh % 12 || 12;
+            set('sum-time', `${hf}:${m} ${ap}`, '');
+        } else set('sum-time', '', 'Not selected');
     }
 
-    function syncDoctor() {
+    function filterDoctors() {
         const dept = document.getElementById('deptSelect').value;
-        const docMap = {
-            'Dermatology':    'Dr. Princess Mary Lapura',
-            'Internal Medicine': 'Dr. Jose Reyes',
-            'Pediatrics':     'Dr. Maria Santos',
-            'Orthopedics':    'Dr. Ramon Cruz',
-            'Cardiology':     'Dr. Angela Villanueva',
-        };
         const sel = document.getElementById('doctorSelect');
-        sel.value = docMap[dept] || '';
+        sel.innerHTML = '<option value="">Select Doctor</option>';
+        allDoctors.filter(d => !dept || d.department === dept).forEach(d => {
+            sel.insertAdjacentHTML('beforeend',
+                `<option value="${d.id}" data-dept="${d.department||''}" data-spec="${d.specialization}">Dr. ${d.name} (${d.specialization})</option>`);
+        });
+        document.getElementById('apptTime').value = '';
+        document.getElementById('slotsContainer').innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">Select a doctor and date to see available slots.</div>';
+        updateSummary();
+    }
+
+    function loadSlots() {
+        const docId = document.getElementById('doctorSelect').value;
+        const date = document.getElementById('apptDate').value;
+        if (!docId || !date) return;
+        document.getElementById('slotsContainer').innerHTML = '<div class="slots-loading"><i class="bi bi-clock"></i> Loading slots…</div>';
+        fetch(`${HANDLER}?action=get_slots&doctorId=${docId}&date=${date}`)
+            .then(r => r.json()).then(res => {
+                if (!res.success || !res.slots.length) {
+                    document.getElementById('slotsContainer').innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">No slots available for this day.</div>';
+                    return;
+                }
+                let html = '<div class="slot-grid">';
+                res.slots.forEach(slot => {
+                    html += `<button type="button" class="slot-btn" ${!slot.available ? 'disabled' : ''}
+                    onclick="selectSlot('${slot.value}','${slot.label}',this)">${slot.label}</button>`;
+                });
+                html += '</div>';
+                document.getElementById('slotsContainer').innerHTML = html;
+            });
+    }
+
+    function selectSlot(value, label, btn) {
+        document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        document.getElementById('apptTime').value = value;
         updateSummary();
     }
 
     function submitForm() {
-        const name   = document.getElementById('patientName').value.trim();
+        const name = document.getElementById('patientName').value.trim();
         const doctor = document.getElementById('doctorSelect').value;
-        const date   = document.getElementById('apptDate').value;
-        const time   = document.getElementById('apptTime').value;
-
+        const date = document.getElementById('apptDate').value;
+        const time = document.getElementById('apptTime').value;
         if (!name || !doctor || !date || !time) {
-            alert('Please fill in all required fields (Patient Name, Doctor, Date, Time).');
+            showAlert('error', 'Please fill in all required fields and select a time slot.');
             return;
         }
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Booking…';
 
-        document.getElementById('successAlert').style.display = 'flex';
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-        setTimeout(() => { document.getElementById('successAlert').style.display = 'none'; }, 5000);
+        const payload = {
+            patientId: document.getElementById('patientId')?.value || '',
+            patientName: name,
+            dateOfBirth: document.getElementById('dateOfBirth').value,
+            contact: document.getElementById('contactNumber').value,
+            email: document.getElementById('emailAddress').value,
+            gender: document.getElementById('gender').value,
+            doctorId: doctor,
+            appointmentDate: date,
+            appointmentTime: time,
+            channel: document.getElementById('channel').value,
+            remarks: document.getElementById('apptNotes').value,
+        };
+        fetch(`${HANDLER}?action=book`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        }).then(r => r.json()).then(res => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-calendar-check"></i> Book Appointment';
+            if (res.success) {
+                document.getElementById('successMsg').textContent = 'Appointment booked successfully!';
+                document.getElementById('successCode').textContent = `Reference: ${res.appointmentCode}`;
+                showAlert('success');
+                resetForm();
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth'
+                });
+            } else {
+                showAlert('error', res.message || 'Failed to book. Please try again.');
+            }
+        }).catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-calendar-check"></i> Book Appointment';
+            showAlert('error', 'Network error. Please try again.');
+        });
+    }
+
+    function showAlert(type, msg = '') {
+        document.getElementById('successAlert').style.display = 'none';
+        document.getElementById('errorAlert').style.display = 'none';
+        if (type === 'success') {
+            document.getElementById('successAlert').style.display = 'flex';
+            setTimeout(() => document.getElementById('successAlert').style.display = 'none', 6000);
+        } else {
+            document.getElementById('errorMsg').textContent = msg;
+            document.getElementById('errorAlert').style.display = 'flex';
+            setTimeout(() => document.getElementById('errorAlert').style.display = 'none', 5000);
+        }
     }
 
     function resetForm() {
-        document.querySelectorAll('input, select, textarea').forEach(el => {
-            if (el.type === 'checkbox' || el.type === 'radio') el.checked = false;
-            else el.value = '';
-        });
+        document.querySelectorAll('#patientName,#dateOfBirth,#contactNumber,#apptNotes').forEach(el => el.value = '');
+        document.getElementById('deptSelect').value = '';
+        document.getElementById('doctorSelect').value = '';
+        document.getElementById('apptDate').value = '';
+        document.getElementById('apptTime').value = '';
+        document.getElementById('channel').value = 'Online';
+        document.getElementById('slotsContainer').innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">Select a doctor and date to see available slots.</div>';
         updateSummary();
-        document.getElementById('successAlert').style.display = 'none';
     }
 
-    // Set today as min date
+    // Set min date to today
     document.getElementById('apptDate').min = new Date().toISOString().split('T')[0];
+    updateSummary();
 </script>
 
 <?php include('./includes/footer.php'); ?>

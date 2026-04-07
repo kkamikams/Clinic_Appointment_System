@@ -1,9 +1,45 @@
 <?php
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
-?>
+require_once('../../app/config/config.php');
 
+$userEmail = $_SESSION['email'] ?? '';
+
+// Link user to patient
+$patientRow = null;
+if ($userEmail) {
+    $stmt = $conn->prepare("SELECT * FROM patients WHERE emailAddress=? AND status!='Inactive' LIMIT 1");
+    $stmt->bind_param('s', $userEmail);
+    $stmt->execute();
+    $patientRow = $stmt->get_result()->fetch_assoc();
+}
+$patientId = $patientRow['id'] ?? 0;
+
+if ($patientId) {
+    $statTotal = $conn->query("SELECT COUNT(*) FROM medicalRecords WHERE patientId=$patientId")->fetch_row()[0];
+    $statMonth = $conn->query("SELECT COUNT(*) FROM medicalRecords WHERE patientId=$patientId AND MONTH(createdAt)=MONTH(CURDATE()) AND YEAR(createdAt)=YEAR(CURDATE())")->fetch_row()[0];
+    $statDoctors = $conn->query("SELECT COUNT(DISTINCT doctorId) FROM medicalRecords WHERE patientId=$patientId")->fetch_row()[0];
+    $statDepts   = $conn->query("SELECT COUNT(DISTINCT d.specialization) FROM medicalRecords mr JOIN doctors d ON d.id=mr.doctorId WHERE mr.patientId=$patientId")->fetch_row()[0];
+
+    $records = $conn->query("
+        SELECT mr.*,
+               CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
+               d.specialization, d.department
+        FROM medicalRecords mr
+        JOIN doctors d ON d.id=mr.doctorId
+        WHERE mr.patientId=$patientId
+        ORDER BY mr.createdAt DESC
+    ")->fetch_all(MYSQLI_ASSOC);
+} else {
+    $statTotal = $statMonth = $statDoctors = $statDepts = 0;
+    $records = [];
+}
+
+$avatarBgs    = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
+$avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75'];
+?>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
 
@@ -38,18 +74,18 @@ include('./includes/sidebar.php');
         --violet-dark: #5b21b6;
         --radius: 16px;
         --radius-sm: 10px;
-        --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-        --shadow-md: 0 4px 16px rgba(0,0,0,.07);
-        --shadow-lg: 0 8px 30px rgba(0,0,0,.10);
+        --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
+        --shadow-md: 0 4px 16px rgba(0, 0, 0, .07);
+        --shadow-lg: 0 8px 30px rgba(0, 0, 0, .10);
     }
 
-    .page-rec, .page-rec * {
+    .page-rec,
+    .page-rec * {
         font-family: 'DM Sans', sans-serif;
         box-sizing: border-box;
     }
 
     .pagetitle h1 {
-        font-family: 'DM Sans', sans-serif;
         font-weight: 700;
         font-size: 1.75rem;
         color: var(--text-dark);
@@ -69,16 +105,17 @@ include('./includes/sidebar.php');
         font-weight: 600;
     }
 
-    /* ── STAT STRIP ── */
     .stat-strip {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 12px;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.5rem
     }
 
     @media(max-width:768px) {
-        .stat-strip { grid-template-columns: repeat(2, 1fr); }
+        .stat-strip {
+            grid-template-columns: repeat(2, 1fr)
+        }
     }
 
     .stat-card {
@@ -89,46 +126,64 @@ include('./includes/sidebar.php');
         padding: 1.1rem 1.25rem;
         border-left: 3px solid transparent;
         transition: box-shadow .2s, transform .2s;
-        animation: fadeUp .32s ease both;
+        animation: fadeUp .32s ease both
     }
 
-    .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-    .stat-card:nth-child(1) { border-left-color: var(--blue-500);  animation-delay: .04s; }
-    .stat-card:nth-child(2) { border-left-color: var(--green);     animation-delay: .09s; }
-    .stat-card:nth-child(3) { border-left-color: var(--teal);      animation-delay: .14s; }
-    .stat-card:nth-child(4) { border-left-color: var(--violet);    animation-delay: .19s; }
+    .stat-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-1px)
+    }
 
-    .stat-card .sc-label {
+    .stat-card:nth-child(1) {
+        border-left-color: var(--blue-500);
+        animation-delay: .04s
+    }
+
+    .stat-card:nth-child(2) {
+        border-left-color: var(--green);
+        animation-delay: .09s
+    }
+
+    .stat-card:nth-child(3) {
+        border-left-color: var(--teal);
+        animation-delay: .14s
+    }
+
+    .stat-card:nth-child(4) {
+        border-left-color: var(--violet);
+        animation-delay: .19s
+    }
+
+    .sc-label {
         font-size: .62rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: .11em;
         color: var(--text-muted);
-        margin-bottom: .45rem;
+        margin-bottom: .45rem
     }
 
-    .stat-card .sc-num {
+    .sc-num {
         font-size: 2rem;
         font-weight: 700;
         color: var(--text-dark);
         letter-spacing: -.05em;
-        line-height: 1;
+        line-height: 1
     }
 
-    .stat-card .sc-sub {
+    .sc-sub {
         font-size: .7rem;
         color: var(--text-muted);
-        margin-top: .25rem;
+        margin-top: .25rem
     }
 
-    /* ── MAIN TABLE CARD ── */
     .main-card {
         background: var(--card);
         border: 1px solid var(--border);
         border-radius: var(--radius);
         box-shadow: var(--shadow);
         padding: 1.5rem;
-        animation: fadeUp .32s .22s ease both;
+        animation: fadeUp .32s .22s ease both
     }
 
     .table-toolbar {
@@ -136,7 +191,7 @@ include('./includes/sidebar.php');
         align-items: center;
         gap: 10px;
         flex-wrap: wrap;
-        margin-bottom: 1.25rem;
+        margin-bottom: 1.25rem
     }
 
     .table-toolbar h5 {
@@ -146,7 +201,7 @@ include('./includes/sidebar.php');
         letter-spacing: .11em;
         color: var(--text-body);
         margin: 0;
-        flex: 1;
+        flex: 1
     }
 
     .table-toolbar h5 span {
@@ -155,10 +210,12 @@ include('./includes/sidebar.php');
         letter-spacing: 0;
         color: var(--text-muted);
         font-size: .7rem;
-        margin-left: 4px;
+        margin-left: 4px
     }
 
-    .search-box { position: relative; }
+    .search-box {
+        position: relative
+    }
 
     .search-box i {
         position: absolute;
@@ -167,7 +224,7 @@ include('./includes/sidebar.php');
         transform: translateY(-50%);
         color: var(--text-muted);
         font-size: .8rem;
-        pointer-events: none;
+        pointer-events: none
     }
 
     .search-box input {
@@ -179,11 +236,14 @@ include('./includes/sidebar.php');
         color: var(--text-dark);
         background: var(--surface);
         outline: none;
-        width: 210px;
-        transition: border-color .2s;
+        width: 200px;
+        transition: border-color .2s
     }
 
-    .search-box input:focus { border-color: var(--blue-400); background: #fff; }
+    .search-box input:focus {
+        border-color: var(--blue-400);
+        background: #fff
+    }
 
     .filter-select {
         border: 1px solid var(--border);
@@ -194,13 +254,12 @@ include('./includes/sidebar.php');
         color: var(--text-body);
         background: var(--surface);
         outline: none;
-        cursor: pointer;
+        cursor: pointer
     }
 
-    /* ── TABLE ── */
     .table {
         width: 100%;
-        border-collapse: collapse;
+        border-collapse: collapse
     }
 
     .table thead th {
@@ -211,7 +270,7 @@ include('./includes/sidebar.php');
         color: var(--text-muted);
         border-bottom: 1px solid var(--border);
         padding: .65rem .6rem;
-        background: transparent;
+        background: transparent
     }
 
     .table tbody td {
@@ -219,19 +278,28 @@ include('./includes/sidebar.php');
         color: var(--text-body);
         vertical-align: middle;
         border-bottom: 1px solid var(--border);
-        padding: .75rem .6rem;
+        padding: .75rem .6rem
     }
 
-    .table tbody tr:last-child td { border-bottom: none; }
-    .table tbody tr:hover td { background: var(--blue-50); transition: background .15s; }
+    .table tbody tr:last-child td {
+        border-bottom: none
+    }
+
+    .table tbody tr:hover td {
+        background: var(--blue-50)
+    }
 
     .rec-id {
         font-weight: 700;
         color: var(--blue-700);
-        font-size: .8rem;
+        font-size: .8rem
     }
 
-    .doc-cell { display: flex; align-items: center; gap: 9px; }
+    .doc-cell {
+        display: flex;
+        align-items: center;
+        gap: 9px
+    }
 
     .doc-avatar {
         width: 32px;
@@ -243,13 +311,20 @@ include('./includes/sidebar.php');
         align-items: center;
         justify-content: center;
         font-size: .68rem;
-        font-weight: 700;
+        font-weight: 700
     }
 
-    .doc-name { font-weight: 600; color: var(--text-dark); font-size: .82rem; }
-    .doc-spec  { font-size: .66rem; color: var(--text-muted); }
+    .doc-name {
+        font-weight: 600;
+        color: var(--text-dark);
+        font-size: .82rem
+    }
 
-    /* ── DIAGNOSIS PILL ── */
+    .doc-spec {
+        font-size: .66rem;
+        color: var(--text-muted)
+    }
+
     .diag-pill {
         display: inline-block;
         background: var(--teal-light);
@@ -258,11 +333,14 @@ include('./includes/sidebar.php');
         font-size: .63rem;
         font-weight: 600;
         padding: 2px 8px;
-        letter-spacing: .03em;
+        letter-spacing: .03em
     }
 
-    /* ── ACTION BUTTONS ── */
-    .action-btns { display: flex; gap: 5px; flex-wrap: wrap; }
+    .action-btns {
+        display: flex;
+        gap: 5px;
+        flex-wrap: wrap
+    }
 
     .btn-act {
         background: none;
@@ -273,27 +351,42 @@ include('./includes/sidebar.php');
         cursor: pointer;
         color: var(--text-muted);
         transition: all .15s;
-        white-space: nowrap;
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        white-space: nowrap
     }
 
-    .btn-act:hover { background: var(--blue-50); color: var(--blue-600); border-color: var(--blue-200); }
-    .btn-act.dl:hover { background: var(--green-light); color: var(--green-dark); border-color: #6ee7b7; }
+    .btn-act:hover {
+        background: var(--blue-50);
+        color: var(--blue-600);
+        border-color: var(--blue-200)
+    }
 
-    /* ── PAGINATION ── */
+    .btn-act.dl:hover {
+        background: var(--green-light);
+        color: var(--green-dark);
+        border-color: #6ee7b7
+    }
+
     .tbl-footer {
         display: flex;
         align-items: center;
         justify-content: space-between;
         flex-wrap: wrap;
         gap: 8px;
-        margin-top: 1rem;
+        margin-top: 1rem
     }
 
-    .tbl-footer span { font-size: .75rem; color: var(--text-muted); }
-    .pg-btns { display: flex; gap: 5px; }
+    .tbl-footer span {
+        font-size: .75rem;
+        color: var(--text-muted)
+    }
+
+    .pg-btns {
+        display: flex;
+        gap: 5px
+    }
 
     .pg-btns button {
         border: 1px solid var(--border);
@@ -304,35 +397,44 @@ include('./includes/sidebar.php');
         background: #fff;
         color: var(--text-body);
         cursor: pointer;
-        transition: background .15s;
+        transition: background .15s
     }
 
     .pg-btns button.active {
         background: var(--blue-600);
         color: #fff;
-        border-color: var(--blue-600);
+        border-color: var(--blue-600)
     }
 
-    .pg-btns button:hover:not(.active) { background: var(--surface); }
-
-    /* ── MODAL ── */
     .modal-content {
         border-radius: var(--radius);
         border: 1px solid var(--border);
-        font-family: 'DM Sans', sans-serif;
+        font-family: 'DM Sans', sans-serif
     }
 
-    .modal-header { border-bottom: 1px solid var(--border); padding: 1.1rem 1.5rem; }
-    .modal-footer { border-top: 1px solid var(--border); padding: .85rem 1.5rem; }
-    .modal-body   { padding: 1.5rem; }
+    .modal-header {
+        border-bottom: 1px solid var(--border);
+        padding: 1.1rem 1.5rem
+    }
+
+    .modal-footer {
+        border-top: 1px solid var(--border);
+        padding: .85rem 1.5rem
+    }
+
+    .modal-body {
+        padding: 1.5rem
+    }
 
     .modal-title {
         font-weight: 700;
         font-size: 1rem;
-        color: var(--text-dark);
+        color: var(--text-dark)
     }
 
-    .detail-group { margin-bottom: 1rem; }
+    .detail-group {
+        margin-bottom: 1rem
+    }
 
     .detail-label {
         font-size: .64rem;
@@ -340,13 +442,21 @@ include('./includes/sidebar.php');
         text-transform: uppercase;
         letter-spacing: .1em;
         color: var(--text-muted);
-        margin-bottom: 3px;
+        margin-bottom: 3px
     }
 
-    .detail-value { font-size: .875rem; font-weight: 600; color: var(--text-dark); }
-    .detail-text  { font-size: .85rem; color: var(--text-body); line-height: 1.6; }
+    .detail-value {
+        font-size: .875rem;
+        font-weight: 600;
+        color: var(--text-dark)
+    }
 
-    /* Prescription box */
+    .detail-text {
+        font-size: .85rem;
+        color: var(--text-body);
+        line-height: 1.6
+    }
+
     .rx-box {
         background: var(--blue-50);
         border: 1px solid var(--blue-100);
@@ -354,10 +464,8 @@ include('./includes/sidebar.php');
         padding: .85rem 1rem;
         font-size: .83rem;
         color: var(--text-body);
-        line-height: 1.7;
+        line-height: 1.7
     }
-
-    .rx-box strong { color: var(--blue-700); }
 
     .btn-modal-close {
         background: #fff;
@@ -371,10 +479,12 @@ include('./includes/sidebar.php');
         cursor: pointer;
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 6px
     }
 
-    .btn-modal-close:hover { background: var(--surface); }
+    .btn-modal-close:hover {
+        background: var(--surface)
+    }
 
     .btn-dl-sm {
         background: var(--green);
@@ -389,12 +499,31 @@ include('./includes/sidebar.php');
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        transition: background .15s;
+        transition: background .15s
     }
 
-    .btn-dl-sm:hover { background: var(--green-dark); }
+    .btn-dl-sm:hover {
+        background: var(--green-dark)
+    }
 
-    /* Download toast */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-muted)
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        margin-bottom: .75rem;
+        display: block;
+        opacity: .4
+    }
+
+    .empty-state p {
+        font-size: .875rem;
+        margin: 0
+    }
+
     .dl-toast {
         position: fixed;
         bottom: 1.5rem;
@@ -411,26 +540,22 @@ include('./includes/sidebar.php');
         gap: 8px;
         box-shadow: var(--shadow-md);
         z-index: 9999;
-        animation: fadeUp .2s ease;
+        animation: fadeUp .2s ease
     }
-
-    /* ── EMPTY STATE ── */
-    .empty-state {
-        text-align: center;
-        padding: 3rem 1rem;
-        color: var(--text-muted);
-    }
-
-    .empty-state i { font-size: 2.5rem; margin-bottom: .75rem; display: block; }
-    .empty-state p { font-size: .875rem; margin: 0; }
 
     @keyframes fadeUp {
-        from { opacity: 0; transform: translateY(10px); }
-        to   { opacity: 1; transform: translateY(0); }
+        from {
+            opacity: 0;
+            transform: translateY(10px)
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0)
+        }
     }
 </style>
 
-<!-- PAGE TITLE -->
 <div class="pagetitle">
     <h1>Medical Records</h1>
     <nav>
@@ -442,50 +567,47 @@ include('./includes/sidebar.php');
 </div>
 
 <section class="section page-rec">
-
-    <!-- STAT STRIP -->
     <div class="stat-strip">
         <div class="stat-card">
             <div class="sc-label">Total Records</div>
-            <div class="sc-num">6</div>
+            <div class="sc-num"><?= $statTotal ?></div>
             <div class="sc-sub">All medical records</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">This Month</div>
-            <div class="sc-num">2</div>
-            <div class="sc-sub"><?php echo date('F Y'); ?></div>
+            <div class="sc-num"><?= $statMonth ?></div>
+            <div class="sc-sub"><?= date('F Y') ?></div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Doctors Seen</div>
-            <div class="sc-num">4</div>
+            <div class="sc-num"><?= $statDoctors ?></div>
             <div class="sc-sub">Unique physicians</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Departments</div>
-            <div class="sc-num">4</div>
+            <div class="sc-num"><?= $statDepts ?></div>
             <div class="sc-sub">Specializations</div>
         </div>
     </div>
 
-    <!-- MAIN TABLE CARD -->
     <div class="main-card">
         <div class="table-toolbar">
-            <h5>All Medical Records <span>| <?php echo date('F j, Y'); ?></span></h5>
+            <h5>All Medical Records <span>| <?= date('F j, Y') ?></span></h5>
             <div class="search-box">
                 <i class="bi bi-search"></i>
-                <input type="text" id="recSearch" placeholder="Search diagnosis or doctor…" oninput="filterRecords()"/>
+                <input type="text" id="recSearch" placeholder="Search diagnosis or doctor…" oninput="filterRecords()">
             </div>
             <select class="filter-select" id="deptFilter" onchange="filterRecords()">
                 <option value="">All Departments</option>
-                <option>Dermatology</option>
-                <option>Internal Medicine</option>
-                <option>Pediatrics</option>
-                <option>Orthopedics</option>
-                <option>Cardiology</option>
+                <?php
+                $depts = array_unique(array_column($records, 'specialization'));
+                sort($depts);
+                foreach ($depts as $dept) echo "<option>" . htmlspecialchars($dept) . "</option>";
+                ?>
             </select>
         </div>
 
-        <div style="overflow-x:auto;">
+        <div style="overflow-x:auto">
             <table class="table" id="recTable">
                 <thead>
                     <tr>
@@ -493,210 +615,91 @@ include('./includes/sidebar.php');
                         <th>Doctor</th>
                         <th>Diagnosis</th>
                         <th>Prescription</th>
+                        <th>Type</th>
                         <th>Date</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="recTbody">
-
-                    <tr data-doctor="Dr. Princess Mary Lapura" data-dept="Dermatology" data-diag="Acne Vulgaris">
-                        <td><span class="rec-id">REC-001</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#dbeafe;color:#1d4ed8;">PL</div>
-                                <div>
-                                    <div class="doc-name">Dr. Princess Mary Lapura</div>
-                                    <div class="doc-spec">Dermatology</div>
+                    <?php if (empty($records)): ?>
+                        <tr>
+                            <td colspan="7">
+                                <div class="empty-state">
+                                    <i class="bi bi-file-medical"></i>
+                                    <p>No medical records found.<br>Records will appear here after your appointments are completed.</p>
                                 </div>
-                            </div>
-                        </td>
-                        <td><span class="diag-pill">Acne Vulgaris</span></td>
-                        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="Tretinoin 0.025% cream, Doxycycline 100mg">
-                            Tretinoin 0.025% cream, Doxycycline 100mg
-                        </td>
-                        <td>March 28, 2026</td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" onclick="openViewRecord('REC-001','Dr. Princess Mary Lapura','Dermatology','March 28, 2026','Acne Vulgaris','Tretinoin 0.025% cream nightly · Doxycycline 100mg twice daily for 2 weeks · Avoid sun exposure · Use SPF 30+ daily','Skin improved after initial treatment. Schedule follow-up in 4 weeks.')">
-                                    <i class="bi bi-eye"></i> View
-                                </button>
-                                <button class="btn-act dl" onclick="fakeDownload('REC-001')">
-                                    <i class="bi bi-download"></i> Download
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Jose Reyes" data-dept="Internal Medicine" data-diag="Hypertension">
-                        <td><span class="rec-id">REC-002</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#d1fae5;color:#065f46;">JR</div>
-                                <div>
-                                    <div class="doc-name">Dr. Jose Reyes</div>
-                                    <div class="doc-spec">Internal Medicine</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td><span class="diag-pill" style="background:#fee2e2;color:#991b1b;">Hypertension</span></td>
-                        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="Amlodipine 5mg, Losartan 50mg">
-                            Amlodipine 5mg, Losartan 50mg
-                        </td>
-                        <td>March 15, 2026</td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" onclick="openViewRecord('REC-002','Dr. Jose Reyes','Internal Medicine','March 15, 2026','Hypertension (Stage 1)','Amlodipine 5mg once daily · Losartan 50mg once daily · Low sodium diet · Daily walking 30 min · Monitor BP twice a week','BP: 145/92 mmHg at visit. Lifestyle modification counseling provided.')">
-                                    <i class="bi bi-eye"></i> View
-                                </button>
-                                <button class="btn-act dl" onclick="fakeDownload('REC-002')">
-                                    <i class="bi bi-download"></i> Download
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Maria Santos" data-dept="Pediatrics" data-diag="Upper Respiratory Tract Infection">
-                        <td><span class="rec-id">REC-003</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#fef3c7;color:#92400e;">MS</div>
-                                <div>
-                                    <div class="doc-name">Dr. Maria Santos</div>
-                                    <div class="doc-spec">Pediatrics</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td><span class="diag-pill" style="background:#fef3c7;color:#92400e;">URTI</span></td>
-                        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="Amoxicillin 250mg, Cetirizine 5mg">
-                            Amoxicillin 250mg, Cetirizine 5mg
-                        </td>
-                        <td>March 10, 2026</td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" onclick="openViewRecord('REC-003','Dr. Maria Santos','Pediatrics','March 10, 2026','Upper Respiratory Tract Infection (URTI)','Amoxicillin 250mg 3x daily for 7 days · Cetirizine 5mg once at night · Increase fluid intake · Steam inhalation','Mild fever, runny nose, and sore throat. No bacterial culture needed at this stage.')">
-                                    <i class="bi bi-eye"></i> View
-                                </button>
-                                <button class="btn-act dl" onclick="fakeDownload('REC-003')">
-                                    <i class="bi bi-download"></i> Download
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Ramon Cruz" data-dept="Orthopedics" data-diag="Patellofemoral Pain Syndrome">
-                        <td><span class="rec-id">REC-004</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#fee2e2;color:#991b1b;">RC</div>
-                                <div>
-                                    <div class="doc-name">Dr. Ramon Cruz</div>
-                                    <div class="doc-spec">Orthopedics</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td><span class="diag-pill" style="background:#ede9fe;color:#5b21b6;">PFPS</span></td>
-                        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="Ibuprofen 400mg, Physical Therapy">
-                            Ibuprofen 400mg, Physical Therapy
-                        </td>
-                        <td>Feb 22, 2026</td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" onclick="openViewRecord('REC-004','Dr. Ramon Cruz','Orthopedics','Feb 22, 2026','Patellofemoral Pain Syndrome (Left Knee)','Ibuprofen 400mg 3x daily after meals for 5 days · Physical therapy 3x per week · Knee compression sleeve · Avoid stairs and squatting initially','X-ray showed no structural damage. MRI recommended if pain persists after 4 weeks of PT.')">
-                                    <i class="bi bi-eye"></i> View
-                                </button>
-                                <button class="btn-act dl" onclick="fakeDownload('REC-004')">
-                                    <i class="bi bi-download"></i> Download
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Angela Villanueva" data-dept="Cardiology" data-diag="Sinus Bradycardia">
-                        <td><span class="rec-id">REC-005</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#ede9fe;color:#5b21b6;">AV</div>
-                                <div>
-                                    <div class="doc-name">Dr. Angela Villanueva</div>
-                                    <div class="doc-spec">Cardiology</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td><span class="diag-pill" style="background:#cffafe;color:#155e75;">Sinus Bradycardia</span></td>
-                        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="Observation, Lifestyle changes">
-                            Observation, Lifestyle changes
-                        </td>
-                        <td>Feb 10, 2026</td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" onclick="openViewRecord('REC-005','Dr. Angela Villanueva','Cardiology','Feb 10, 2026','Sinus Bradycardia (Mild)','No pharmacologic intervention at this stage · Increase aerobic activity gradually · Limit caffeine intake · Monitor heart rate daily · Return if HR < 45 bpm or syncope occurs','HR: 52 bpm on ECG. Asymptomatic. Likely exercise-induced. 24-hour Holter monitoring scheduled.')">
-                                    <i class="bi bi-eye"></i> View
-                                </button>
-                                <button class="btn-act dl" onclick="fakeDownload('REC-005')">
-                                    <i class="bi bi-download"></i> Download
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
-                    <tr data-doctor="Dr. Princess Mary Lapura" data-dept="Dermatology" data-diag="Contact Dermatitis">
-                        <td><span class="rec-id">REC-006</span></td>
-                        <td>
-                            <div class="doc-cell">
-                                <div class="doc-avatar" style="background:#dbeafe;color:#1d4ed8;">PL</div>
-                                <div>
-                                    <div class="doc-name">Dr. Princess Mary Lapura</div>
-                                    <div class="doc-spec">Dermatology</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td><span class="diag-pill">Contact Dermatitis</span></td>
-                        <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="Hydrocortisone cream, Loratadine 10mg">
-                            Hydrocortisone cream, Loratadine 10mg
-                        </td>
-                        <td>Jan 18, 2026</td>
-                        <td>
-                            <div class="action-btns">
-                                <button class="btn-act" onclick="openViewRecord('REC-006','Dr. Princess Mary Lapura','Dermatology','Jan 18, 2026','Allergic Contact Dermatitis','Hydrocortisone 1% cream apply to affected area twice daily · Loratadine 10mg once daily · Avoid known allergen (nickel jewelry) · Moisturize with fragrance-free lotion','Patch test positive for nickel. Rash localized to neck and wrists. Expected resolution in 2–3 weeks.')">
-                                    <i class="bi bi-eye"></i> View
-                                </button>
-                                <button class="btn-act dl" onclick="fakeDownload('REC-006')">
-                                    <i class="bi bi-download"></i> Download
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-
+                            </td>
+                        </tr>
+                    <?php else: ?>
+                        <?php foreach ($records as $i => $rec):
+                            $bg  = $avatarBgs[$i % count($avatarBgs)];
+                            $col = $avatarColors[$i % count($avatarColors)];
+                            $doctorParts = explode(' ', $rec['doctorName']);
+                            $ini = strtoupper(substr($doctorParts[1] ?? 'D', 0, 1) . substr(end($doctorParts), 0, 1));
+                            $typeMap = ['Consultation' => 'chip-consultation', 'Lab Result' => 'chip-lab', 'Imaging' => 'chip-imaging', 'Prescription' => 'chip-prescription', 'Other' => 'chip-other'];
+                            $tCls = $typeMap[$rec['recordType']] ?? 'chip-other';
+                            $rxLines = array_filter(array_map('trim', explode("\n", $rec['prescription'] ?? '')));
+                            $rxPreview = implode(' · ', array_slice($rxLines, 0, 2)) ?: ($rec['prescription'] ?? '—');
+                        ?>
+                            <tr data-doctor="<?= htmlspecialchars(strtolower($rec['doctorName'])) ?>"
+                                data-dept="<?= htmlspecialchars($rec['specialization']) ?>"
+                                data-diag="<?= htmlspecialchars(strtolower($rec['diagnosis'] ?? '')) ?>">
+                                <td><span class="rec-id"><?= htmlspecialchars($rec['recordCode']) ?></span></td>
+                                <td>
+                                    <div class="doc-cell">
+                                        <div class="doc-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $ini ?></div>
+                                        <div>
+                                            <div class="doc-name"><?= htmlspecialchars($rec['doctorName']) ?></div>
+                                            <div class="doc-spec"><?= htmlspecialchars($rec['specialization']) ?></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><?php if ($rec['diagnosis']): ?><span class="diag-pill"><?= htmlspecialchars($rec['diagnosis']) ?></span><?php else: ?>—<?php endif; ?></td>
+                                <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<?= htmlspecialchars($rec['prescription'] ?? '') ?>">
+                                    <?= htmlspecialchars($rxPreview) ?>
+                                </td>
+                                <td><span class="btn-act" style="cursor:default;<?= $tCls === 'chip-lab' ? 'background:var(--violet-light);color:var(--violet-dark);border-color:#ddd6fe' : ($tCls === 'chip-prescription' ? 'background:var(--green-light);color:var(--green-dark);border-color:#a7f3d0' : ($tCls === 'chip-imaging' ? 'background:var(--teal-light);color:var(--teal-dark);border-color:#a5f3fc' : 'background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-100)')) ?>"><?= htmlspecialchars($rec['recordType']) ?></span></td>
+                                <td><?= date('M j, Y', strtotime($rec['createdAt'])) ?></td>
+                                <td>
+                                    <div class="action-btns">
+                                        <button class="btn-act" onclick="openViewRecord(
+                    '<?= htmlspecialchars($rec['recordCode']) ?>',
+                    '<?= htmlspecialchars($rec['doctorName']) ?>',
+                    '<?= htmlspecialchars($rec['specialization']) ?>',
+                    '<?= date('F j, Y', strtotime($rec['createdAt'])) ?>',
+                    '<?= htmlspecialchars(addslashes($rec['diagnosis'] ?? '—')) ?>',
+                    '<?= htmlspecialchars(addslashes($rec['prescription'] ?? '—')) ?>',
+                    '<?= htmlspecialchars(addslashes($rec['notes'] ?? '—')) ?>'
+                )"><i class="bi bi-eye"></i> View</button>
+                                        <button class="btn-act dl" onclick="fakeDownload('<?= htmlspecialchars($rec['recordCode']) ?>')">
+                                            <i class="bi bi-download"></i> Download
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </tbody>
             </table>
-
-            <div class="empty-state" id="emptyState" style="display:none;">
+            <div class="empty-state" id="emptyState" style="display:none">
                 <i class="bi bi-file-medical"></i>
-                <p>No records found matching your search.</p>
+                <p>No records match your search.</p>
             </div>
         </div>
 
         <div class="tbl-footer">
-            <span id="showingLabel">Showing 6 of 6 records</span>
-            <div class="pg-btns">
-                <button>‹ Prev</button>
-                <button class="active">1</button>
-                <button>Next ›</button>
-            </div>
+            <span id="showingLabel">Showing <?= count($records) ?> of <?= count($records) ?> records</span>
+            <div class="pg-btns"><button class="active">1</button></div>
         </div>
     </div>
-
 </section>
 
 <!-- VIEW RECORD MODAL -->
-<div class="modal fade" id="viewRecordModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="viewRecordModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">
-                    <i class="bi bi-file-medical me-2" style="color:var(--teal);"></i>
-                    Medical Record Details
-                </h5>
+                <h5 class="modal-title"><i class="bi bi-file-medical me-2" style="color:var(--teal)"></i>Medical Record Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -728,7 +731,7 @@ include('./includes/sidebar.php');
                     <div class="col-12">
                         <div class="detail-group">
                             <div class="detail-label">Diagnosis</div>
-                            <div class="detail-value" id="mrec-diag" style="color:var(--teal-dark);"></div>
+                            <div class="detail-value" id="mrec-diag" style="color:var(--teal-dark)">—</div>
                         </div>
                     </div>
                     <div class="col-12">
@@ -746,69 +749,60 @@ include('./includes/sidebar.php');
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-modal-close" data-bs-dismiss="modal">
-                    <i class="bi bi-x-lg"></i> Close
-                </button>
-                <button class="btn-dl-sm" id="modalDlBtn">
-                    <i class="bi bi-download"></i> Download PDF
-                </button>
+                <button class="btn-modal-close" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> Close</button>
+                <button class="btn-dl-sm" id="modalDlBtn"><i class="bi bi-download"></i> Download PDF</button>
             </div>
         </div>
     </div>
 </div>
 
-<!-- DOWNLOAD TOAST -->
-<div id="dlToast" class="dl-toast" style="display:none;">
-    <i class="bi bi-check-circle-fill"></i>
-    <span id="dlToastMsg">Record downloaded successfully!</span>
+<div id="dlToast" class="dl-toast" style="display:none">
+    <i class="bi bi-check-circle-fill"></i><span id="dlToastMsg">Downloaded successfully!</span>
 </div>
 
 <script>
     function filterRecords() {
-        const q    = document.getElementById('recSearch').value.toLowerCase();
+        const q = document.getElementById('recSearch').value.toLowerCase();
         const dept = document.getElementById('deptFilter').value;
-        let visible = 0;
-
-        document.querySelectorAll('#recTbody tr').forEach(row => {
-            const doc  = (row.dataset.doctor || '').toLowerCase();
-            const diag = (row.dataset.diag   || '').toLowerCase();
-            const d    = row.dataset.dept    || '';
-            const matchQ = !q    || doc.includes(q) || diag.includes(q);
-            const matchD = !dept || d === dept;
-            const show   = matchQ && matchD;
+        let vis = 0;
+        document.querySelectorAll('#recTbody tr[data-doctor]').forEach(row => {
+            const doc = row.dataset.doctor || '';
+            const diag = row.dataset.diag || '';
+            const d = row.dataset.dept || '';
+            const show = (!q || doc.includes(q) || diag.includes(q)) && (!dept || d === dept);
             row.style.display = show ? '' : 'none';
-            if (show) visible++;
+            if (show) vis++;
         });
-
-        document.getElementById('emptyState').style.display = visible === 0 ? '' : 'none';
-        const total = document.querySelectorAll('#recTbody tr').length;
-        document.getElementById('showingLabel').textContent = `Showing ${visible} of ${total} records`;
+        document.getElementById('emptyState').style.display = vis === 0 ? '' : 'none';
+        const total = document.querySelectorAll('#recTbody tr[data-doctor]').length;
+        document.getElementById('showingLabel').textContent = `Showing ${vis} of ${total} records`;
     }
 
     function openViewRecord(id, doctor, dept, date, diag, rx, notes) {
-        document.getElementById('mrec-id').textContent     = id;
+        document.getElementById('mrec-id').textContent = id;
         document.getElementById('mrec-doctor').textContent = doctor;
-        document.getElementById('mrec-dept').textContent   = dept;
-        document.getElementById('mrec-date').textContent   = date;
-        document.getElementById('mrec-diag').textContent   = diag;
-        document.getElementById('mrec-notes').textContent  = notes;
-
-        const lines = rx.split('·').map(l => l.trim()).filter(Boolean);
-        document.getElementById('mrec-rx').innerHTML =
-            lines.map(l => `<div style="padding:3px 0;">• ${l}</div>`).join('');
-
+        document.getElementById('mrec-dept').textContent = dept;
+        document.getElementById('mrec-date').textContent = date;
+        document.getElementById('mrec-diag').textContent = diag;
+        document.getElementById('mrec-notes').textContent = notes;
+        const lines = rx.split(/[\n·]/).map(l => l.trim()).filter(Boolean);
+        document.getElementById('mrec-rx').innerHTML = lines.length ?
+            lines.map(l => `<div style="padding:3px 0">• ${l}</div>`).join('') :
+            '<em style="color:var(--text-muted)">No prescription recorded.</em>';
         document.getElementById('modalDlBtn').onclick = () => fakeDownload(id);
-
         new bootstrap.Modal(document.getElementById('viewRecordModal')).show();
     }
 
     let toastTimer;
+
     function fakeDownload(id) {
         document.getElementById('dlToastMsg').textContent = `${id} downloaded successfully!`;
         const toast = document.getElementById('dlToast');
         toast.style.display = 'flex';
         clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        toastTimer = setTimeout(() => {
+            toast.style.display = 'none';
+        }, 3000);
     }
 </script>
 

@@ -1,4 +1,5 @@
 <?php
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
@@ -11,7 +12,7 @@ $onLeave      = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatu
 $totalSpecs   = $conn->query("SELECT COUNT(DISTINCT specialization) FROM doctors WHERE employmentStatus != 'Inactive'")->fetch_row()[0];
 
 // ── Today's day name for schedule highlight ────────────────────────
-$todayName = date('l'); // e.g. "Monday"
+$todayName = date('l');
 
 // ── Doctor rows ────────────────────────────────────────────────────
 $sql = "
@@ -578,211 +579,303 @@ function scheduleLabel($days, $start, $end)
         cursor: not-allowed;
     }
 
-    /* ── Redesigned Profile Modal ─────────────────────────── */
-    .modal-overlay {
+    /* ── Side Panel ─────────────────────────────────────── */
+    .panel-overlay {
         display: none;
         position: fixed;
         inset: 0;
-        background: rgba(15, 23, 42, .55);
-        z-index: 9999;
+        background: rgba(15, 23, 42, .45);
+        z-index: 9000;
+        backdrop-filter: blur(2px);
+    }
+
+    .panel-overlay.show {
+        display: block;
+    }
+
+    .view-panel {
+        display: none;
+        position: fixed;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 400px;
+        max-width: 100vw;
+        background: #fff;
+        box-shadow: -8px 0 40px rgba(0, 0, 0, .14);
+        z-index: 9001;
+        flex-direction: column;
+        overflow: hidden;
+        font-family: 'DM Sans', sans-serif;
+        transform: translateX(100%);
+        transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .view-panel.show {
+        display: flex;
+        transform: translateX(0);
+    }
+
+    .vp-hero {
+        background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
+        padding: 1.25rem 1.5rem 1rem;
+        flex-shrink: 0;
+    }
+
+    .vp-hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: .85rem;
+    }
+
+    .vp-identity {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .vp-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: 3px solid rgba(255, 255, 255, .3);
+        display: flex;
         align-items: center;
         justify-content: center;
-        padding: 1rem;
-        backdrop-filter: blur(3px);
+        font-size: 1.2rem;
+        font-weight: 700;
+        flex-shrink: 0;
     }
 
-    .modal-overlay.show {
-        display: flex;
+    .vp-name {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #fff;
+        letter-spacing: -.02em;
     }
 
-    .profile-modal {
-        background: #fff;
-        border-radius: 20px;
-        width: 100%;
-        max-width: 520px;
-        box-shadow: 0 24px 60px rgba(0, 0, 0, .18);
-        animation: fadeUp .25s ease both;
-        overflow: hidden;
+    .vp-spec {
+        font-size: .78rem;
+        color: rgba(255, 255, 255, .7);
+        margin-top: 2px;
+        font-weight: 500;
     }
 
-    .pm-hero {
-        background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
-        padding: 1.5rem 1.75rem 3.5rem;
-        position: relative;
-    }
-
-    .pm-hero-close {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        background: rgba(255, 255, 255, .18);
+    .vp-close-btn {
+        background: rgba(255, 255, 255, .15);
         border: none;
         border-radius: 50%;
         width: 28px;
         height: 28px;
         cursor: pointer;
+        color: #fff;
+        font-size: .8rem;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #fff;
-        font-size: .8rem;
+        flex-shrink: 0;
         transition: background .15s;
     }
 
-    .pm-hero-close:hover {
-        background: rgba(255, 255, 255, .32);
+    .vp-close-btn:hover {
+        background: rgba(255, 255, 255, .28);
     }
 
-    .pm-identity {
-        display: flex;
-        align-items: flex-end;
-        gap: 1rem;
-        margin-top: 1rem;
-    }
-
-    .pm-avatar-lg {
-        width: 80px;
-        height: 80px;
-        border-radius: 50%;
-        border: 4px solid rgba(255, 255, 255, .9);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, .2);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.7rem;
-        font-weight: 700;
-        flex-shrink: 0;
-        margin-bottom: -2.8rem;
-    }
-
-    .pm-name-block {
-        padding-bottom: .2rem;
-    }
-
-    .pm-name {
-        font-size: 1.25rem;
-        font-weight: 700;
-        color: #fff;
-        line-height: 1.15;
-        letter-spacing: -.02em;
-    }
-
-    .pm-spec {
-        font-size: .82rem;
-        color: rgba(255, 255, 255, .75);
-        margin-top: .25rem;
-        font-weight: 500;
-    }
-
-    .pm-body {
-        padding: 3rem 1.75rem 1.75rem;
-    }
-
-    .pm-today-box {
-        background: linear-gradient(135deg, var(--blue-50), #fff);
-        border: 1px solid var(--blue-200);
-        border-radius: 12px;
-        padding: .85rem 1rem;
-        margin-bottom: 1.25rem;
-        display: flex;
-        align-items: center;
-        gap: .85rem;
-    }
-
-    .pm-today-icon {
-        width: 36px;
-        height: 36px;
+    .vp-shift-box {
+        background: rgba(255, 255, 255, .13);
         border-radius: 10px;
-        background: var(--blue-600);
+        padding: .6rem .85rem;
         display: flex;
         align-items: center;
-        justify-content: center;
-        color: #fff;
-        font-size: .85rem;
-        flex-shrink: 0;
+        gap: 10px;
     }
 
-    .pm-today-label {
+    .vp-shift-box i {
+        color: rgba(255, 255, 255, .8);
+        font-size: .85rem;
+    }
+
+    .vp-shift-lbl {
         font-size: .6rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: .1em;
-        color: var(--blue-600);
+        color: rgba(255, 255, 255, .6);
         margin-bottom: 2px;
     }
 
-    .pm-today-val {
-        font-size: .88rem;
+    .vp-shift-val {
+        font-size: .82rem;
+        font-weight: 600;
+        color: #fff;
+    }
+
+    .vp-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem 1.25rem;
+    }
+
+    .vp-load-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 1rem;
+    }
+
+    .vp-load-track {
+        flex: 1;
+        height: 5px;
+        background: var(--blue-100);
+        border-radius: 99px;
+        overflow: hidden;
+    }
+
+    .vp-load-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--blue-500), var(--blue-400));
+        border-radius: 99px;
+        transition: width .4s ease;
+    }
+
+    .vp-load-txt {
+        font-size: .73rem;
+        font-weight: 600;
+        color: var(--text-body);
+        white-space: nowrap;
+    }
+
+    .vp-section-hd {
+        font-size: .6rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+        color: var(--text-muted);
+        margin-bottom: .6rem;
+        padding-bottom: .5rem;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .vp-appt-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 1.1rem;
+    }
+
+    .vp-appt-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: .55rem .7rem;
+        background: var(--surface);
+        border-radius: 9px;
+    }
+
+    .vp-appt-num {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: var(--blue-100);
+        color: var(--blue-700);
+        font-size: .72rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .vp-appt-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .vp-appt-name {
+        font-size: .82rem;
         font-weight: 600;
         color: var(--text-dark);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
-    .pm-today-off {
-        background: var(--surface);
-        border-color: var(--border);
-    }
-
-    .pm-today-off .pm-today-icon {
-        background: var(--text-muted);
-    }
-
-    .pm-today-off .pm-today-label {
+    .vp-appt-time {
+        font-size: .7rem;
         color: var(--text-muted);
     }
 
-    .pm-grid {
+    .vp-appt-badge {
+        font-size: .62rem;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 20px;
+        flex-shrink: 0;
+    }
+
+    .vp-info-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: .65rem 1.25rem;
+        gap: 6px;
+        margin-bottom: 1rem;
     }
 
-    .pm-item {
-        padding: .6rem .75rem;
+    .vp-info-item {
         background: var(--surface);
-        border-radius: 10px;
+        border-radius: 9px;
+        padding: .55rem .7rem;
     }
 
-    .pm-item .pm-lbl {
+    .vp-info-lbl {
         font-size: .58rem;
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: .1em;
         color: var(--text-muted);
-        margin-bottom: 3px;
+        margin-bottom: 2px;
     }
 
-    .pm-item .pm-val {
-        font-size: .83rem;
+    .vp-info-val {
+        font-size: .8rem;
         font-weight: 600;
         color: var(--text-dark);
-        word-break: break-word;
     }
 
-    .pm-status-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        font-size: .75rem;
-        font-weight: 700;
-        border-radius: 20px;
-        padding: 3px 10px;
-    }
-
-    .pm-footer {
+    .vp-footer {
         display: flex;
         justify-content: flex-end;
         gap: 8px;
-        padding-top: 1rem;
+        padding-top: .75rem;
         border-top: 1px solid var(--border);
-        margin-top: 1.25rem;
     }
 
-    .btn-close-profile {
+    .vp-btn-edit {
+        background: var(--blue-600);
+        border: none;
+        border-radius: 9px;
+        padding: .45rem 1.2rem;
+        font-size: .8rem;
+        font-weight: 600;
+        font-family: 'DM Sans', sans-serif;
+        color: #fff;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        transition: background .15s;
+    }
+
+    .vp-btn-edit:hover {
+        background: var(--blue-700);
+    }
+
+    .vp-btn-close {
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: var(--radius-sm);
-        padding: .48rem 1.2rem;
-        font-size: .82rem;
+        border-radius: 9px;
+        padding: .45rem 1.2rem;
+        font-size: .8rem;
         font-weight: 600;
         font-family: 'DM Sans', sans-serif;
         cursor: pointer;
@@ -790,8 +883,21 @@ function scheduleLabel($days, $start, $end)
         transition: background .15s;
     }
 
-    .btn-close-profile:hover {
+    .vp-btn-close:hover {
         background: var(--border);
+    }
+
+    .vp-empty {
+        font-size: .8rem;
+        color: var(--text-muted);
+        padding: .75rem 0;
+        text-align: center;
+    }
+
+    .vp-error {
+        font-size: .8rem;
+        color: var(--red);
+        padding: .5rem 0;
     }
 
     .toast-wrap {
@@ -829,12 +935,12 @@ function scheduleLabel($days, $start, $end)
     @keyframes fadeUp {
         from {
             opacity: 0;
-            transform: translateY(10px)
+            transform: translateY(10px);
         }
 
         to {
             opacity: 1;
-            transform: translateY(0)
+            transform: translateY(0);
         }
     }
 </style>
@@ -850,7 +956,7 @@ function scheduleLabel($days, $start, $end)
 </div>
 
 <section class="section page-doctors">
-    <!-- Stat cards — ids let JS update them live -->
+
     <div class="stat-strip">
         <div class="stat-card">
             <div class="sc-label">Total Doctors</div>
@@ -918,12 +1024,10 @@ function scheduleLabel($days, $start, $end)
                         $schedule = scheduleLabel($d['workingDays'], $d['shiftStart'], $d['shiftEnd']);
                         $statusCls = match ($d['status']) {
                             'On Duty' => 'bg-info',
-                            'Break' => 'bg-warning',
-                            default => 'bg-danger'
+                            'Break'   => 'bg-warning',
+                            default   => 'bg-danger'
                         };
-
-                        // Today's schedule for this doctor
-                        $todayShift = $d['hasToday']
+                        $todayShift   = $d['hasToday']
                             ? date('g:iA', strtotime($d['todayStart'])) . ' – ' . date('g:iA', strtotime($d['todayEnd']))
                             : 'Not scheduled today';
                         $hasTodayBool = $d['hasToday'] ? 'true' : 'false';
@@ -996,67 +1100,88 @@ function scheduleLabel($days, $start, $end)
     </div>
 </section>
 
-<!-- ── Redesigned Profile Modal ──────────────────────────────────── -->
-<div class="modal-overlay" id="profileModal">
-    <div class="profile-modal">
-        <div class="pm-hero">
-            <button class="pm-hero-close" onclick="closeProfileModal()"><i class="bi bi-x"></i></button>
-            <div class="pm-identity">
-                <div class="pm-avatar-lg" id="pmAvatar"></div>
-                <div class="pm-name-block">
-                    <div class="pm-name" id="pmName"></div>
-                    <div class="pm-spec" id="pmSpec"></div>
-                </div>
-            </div>
-        </div>
-        <div class="pm-body">
-            <!-- Today's schedule highlight -->
-            <div class="pm-today-box" id="pmTodayBox">
-                <div class="pm-today-icon"><i class="bi bi-clock"></i></div>
+<!-- ── Panel Overlay ──────────────────────────────────── -->
+<div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
+
+<!-- ── View Side Panel ───────────────────────────────── -->
+<div class="view-panel" id="viewPanel">
+
+    <!-- Hero -->
+    <div class="vp-hero">
+        <div class="vp-hero-top">
+            <div class="vp-identity">
+                <div class="vp-avatar" id="vpAvatar"></div>
                 <div>
-                    <div class="pm-today-label">Today's Shift — <?= date('l, F j') ?></div>
-                    <div class="pm-today-val" id="pmTodayShift">—</div>
+                    <div class="vp-name" id="vpName"></div>
+                    <div class="vp-spec" id="vpSpec"></div>
                 </div>
             </div>
-            <!-- Info grid -->
-            <div class="pm-grid">
-                <div class="pm-item">
-                    <div class="pm-lbl">Doctor ID</div>
-                    <div class="pm-val" id="pmId"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Contact No.</div>
-                    <div class="pm-val" id="pmContact"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Email</div>
-                    <div class="pm-val" id="pmEmail"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">License No.</div>
-                    <div class="pm-val" id="pmLicense"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Full Schedule</div>
-                    <div class="pm-val" id="pmSchedule"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Experience</div>
-                    <div class="pm-val" id="pmExperience"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Patient Load</div>
-                    <div class="pm-val" id="pmLoad"></div>
-                </div>
-                <div class="pm-item">
-                    <div class="pm-lbl">Duty Status</div>
-                    <div class="pm-val" id="pmStatus"></div>
-                </div>
-            </div>
-            <div class="pm-footer">
-                <button class="btn-close-profile" onclick="closeProfileModal()">Close</button>
+            <button class="vp-close-btn" onclick="closePanel()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="vp-shift-box">
+            <i class="bi bi-clock"></i>
+            <div>
+                <div class="vp-shift-lbl">Today's shift — <?= date('l, F j') ?></div>
+                <div class="vp-shift-val" id="vpShift">—</div>
             </div>
         </div>
+    </div>
+
+    <!-- Body -->
+    <div class="vp-body">
+
+        <!-- Load bar -->
+        <div class="vp-load-row">
+            <div class="vp-load-track">
+                <div class="vp-load-fill" id="vpLoadFill" style="width:0%"></div>
+            </div>
+            <span class="vp-load-txt" id="vpLoadTxt"></span>
+        </div>
+
+        <!-- Today's appointments -->
+        <div class="vp-section-hd">Today's Appointments</div>
+        <div class="vp-appt-list" id="vpApptList">
+            <div class="vp-empty">Loading appointments…</div>
+        </div>
+
+        <!-- Doctor info -->
+        <div class="vp-section-hd">Doctor Info</div>
+        <div class="vp-info-grid">
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Doctor ID</div>
+                <div class="vp-info-val" id="vpId"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Contact No.</div>
+                <div class="vp-info-val" id="vpContact"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Email</div>
+                <div class="vp-info-val" id="vpEmail"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">License No.</div>
+                <div class="vp-info-val" id="vpLicense"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Experience</div>
+                <div class="vp-info-val" id="vpExp"></div>
+            </div>
+            <div class="vp-info-item">
+                <div class="vp-info-lbl">Employment</div>
+                <div class="vp-info-val" id="vpEmp"></div>
+            </div>
+            <div class="vp-info-item" style="grid-column:1/-1;">
+                <div class="vp-info-lbl">Full Schedule</div>
+                <div class="vp-info-val" id="vpSchedule"></div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="vp-footer">
+            <button class="vp-btn-close" onclick="closePanel()">Close</button>
+        </div>
+
     </div>
 </div>
 
@@ -1066,7 +1191,7 @@ function scheduleLabel($days, $start, $end)
     const ROWS_PER_PAGE = 5;
     let currentPage = 1;
 
-    // ── Live stat counters ─────────────────────────────────
+    // ── Live stat counters ────────────────────────────────
     function recount() {
         const rows = Array.from(document.querySelectorAll('#doctorTbody tr:not(.filler-row)'));
         let duty = 0,
@@ -1097,7 +1222,7 @@ function scheduleLabel($days, $start, $end)
         }, 30);
     }
 
-    // ── Pagination ─────────────────────────────────────────
+    // ── Pagination ────────────────────────────────────────
     function getFilteredRows() {
         const q = document.getElementById('doctorSearch').value.toLowerCase();
         const spec = document.getElementById('specFilter').value;
@@ -1124,21 +1249,10 @@ function scheduleLabel($days, $start, $end)
 
         const shown = Math.min(end, total) - start;
         const tbody = document.getElementById('doctorTbody');
-        for (let f = 0; f < ROWS_PER_PAGE - shown; f++) {
-            const tr = document.createElement('tr');
-            tr.className = 'filler-row';
-            tr.style.pointerEvents = 'none';
-            for (let c = 0; c < 8; c++) {
-                const td = document.createElement('td');
-                td.innerHTML = '&nbsp;';
-                tr.appendChild(td);
-            }
-            tbody.appendChild(tr);
-        }
 
         document.getElementById('paginationInfo').textContent = total === 0 ?
             'No doctors found' :
-            `Showing ${start+1}–${Math.min(end,total)} of ${total} doctor${total!==1?'s':''}`;
+            `Showing ${start + 1}–${Math.min(end, total)} of ${total} doctor${total !== 1 ? 's' : ''}`;
 
         const btns = document.getElementById('paginationBtns');
         btns.innerHTML = '';
@@ -1165,7 +1279,7 @@ function scheduleLabel($days, $start, $end)
     }
     renderPage(1);
 
-    // ── Status dropdown ────────────────────────────────────
+    // ── Status dropdown ───────────────────────────────────
     function toggleStatusDropdown(btn) {
         const dd = btn.nextElementSibling;
         const open = dd.classList.contains('open');
@@ -1190,7 +1304,7 @@ function scheduleLabel($days, $start, $end)
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
-                    recount(); // ← live stat update
+                    recount();
                     showToast('✔ Status updated to <strong>' + label + '</strong>', 'info');
                 } else {
                     showToast('❌ Failed to update status', 'error');
@@ -1207,44 +1321,100 @@ function scheduleLabel($days, $start, $end)
         window.location.href = 'edit_doctor.php?id=' + id;
     }
 
-    // ── View modal ─────────────────────────────────────────
+    // ── View side panel ───────────────────────────────────
+    const apptBadgeStyles = {
+        'Confirmed': 'background:#d1fae5;color:#065f46',
+        'Pending': 'background:#fef3c7;color:#92400e',
+        'Arrived': 'background:#cffafe;color:#155e75',
+        'Completed': 'background:#ede9fe;color:#5b21b6',
+        'Cancelled': 'background:#fee2e2;color:#991b1b',
+    };
+
     function viewDoctor(row) {
         const d = row.dataset;
         const badge = row.querySelector('.badge');
 
-        // Avatar
-        document.getElementById('pmAvatar').textContent = d.avatar;
-        document.getElementById('pmAvatar').style.background = d.avatarBg;
-        document.getElementById('pmAvatar').style.color = d.avatarColor;
-        document.getElementById('pmName').textContent = d.name;
-        document.getElementById('pmSpec').textContent = d.spec;
+        // Hero
+        const avatar = document.getElementById('vpAvatar');
+        avatar.textContent = d.avatar;
+        avatar.style.background = d.avatarBg;
+        avatar.style.color = d.avatarColor;
+        document.getElementById('vpName').textContent = d.name;
+        document.getElementById('vpSpec').textContent = d.spec;
 
-        // Info fields
-        document.getElementById('pmId').textContent = d.id;
-        document.getElementById('pmContact').textContent = d.contact;
-        document.getElementById('pmEmail').textContent = d.email;
-        document.getElementById('pmLicense').textContent = d.license;
-        document.getElementById('pmSchedule').textContent = d.schedule;
-        document.getElementById('pmExperience').textContent = d.experience;
-        document.getElementById('pmLoad').textContent = d.load + ' patients';
-        document.getElementById('pmStatus').textContent = badge ? badge.textContent : '—';
+        // Shift
+        document.getElementById('vpShift').textContent =
+            d.todayHas === 'true' ? d.todayShift : 'Not scheduled today';
 
-        // Today's schedule
-        const todayBox = document.getElementById('pmTodayBox');
-        const todayShift = document.getElementById('pmTodayShift');
-        const hasToday = d.todayHas === 'true';
-        todayShift.textContent = d.todayShift;
-        todayBox.classList.toggle('pm-today-off', !hasToday);
+        // Load bar
+        const parts = (d.load || '0/20').split('/');
+        const cur = parseInt(parts[0]) || 0;
+        const cap = parseInt(parts[1]) || 20;
+        const pct = cap > 0 ? Math.min(100, Math.round(cur / cap * 100)) : 0;
+        document.getElementById('vpLoadFill').style.width = pct + '%';
+        document.getElementById('vpLoadTxt').textContent = cur + ' / ' + cap + ' patients today';
 
-        document.getElementById('profileModal').classList.add('show');
+        // Info
+        document.getElementById('vpId').textContent = d.id || '—';
+        document.getElementById('vpContact').textContent = d.contact || '—';
+        document.getElementById('vpEmail').textContent = d.email || '—';
+        document.getElementById('vpLicense').textContent = d.license || '—';
+        document.getElementById('vpExp').textContent = d.experience || '—';
+        document.getElementById('vpEmp').textContent = d.empStatus || '—';
+        document.getElementById('vpSchedule').textContent = d.schedule || '—';
+
+        // Show panel with animation
+        document.getElementById('panelOverlay').classList.add('show');
+        // Force reflow so transition fires
+        const panel = document.getElementById('viewPanel');
+        panel.style.display = 'flex';
+        requestAnimationFrame(() => panel.classList.add('show'));
+
+        // Load appointments
+        const apptList = document.getElementById('vpApptList');
+        apptList.innerHTML = '<div class="vp-empty">Loading appointments…</div>';
+
+        fetch('get_doctor_appointments.php?doctor_id=' + d.dbid)
+            .then(r => r.json())
+            .then(appts => {
+                if (!appts.length) {
+                    apptList.innerHTML = '<div class="vp-empty">No appointments today.</div>';
+                    return;
+                }
+                apptList.innerHTML = appts.map((a, i) => {
+                    const bs = apptBadgeStyles[a.status] || 'background:var(--surface);color:var(--text-muted)';
+                    return `
+                    <div class="vp-appt-item">
+                        <div class="vp-appt-num">${i + 1}</div>
+                        <div class="vp-appt-info">
+                            <div class="vp-appt-name">${escHtml(a.patientName)}</div>
+                            <div class="vp-appt-time">${escHtml(a.time)} · ${escHtml(a.reason || 'Consultation')}</div>
+                        </div>
+                        <span class="vp-appt-badge" style="${bs}">${escHtml(a.status)}</span>
+                    </div>`;
+                }).join('');
+            })
+            .catch(() => {
+                apptList.innerHTML = '<div class="vp-error">Could not load appointments.</div>';
+            });
     }
 
-    function closeProfileModal() {
-        document.getElementById('profileModal').classList.remove('show');
+    function closePanel() {
+        const panel = document.getElementById('viewPanel');
+        panel.classList.remove('show');
+        document.getElementById('panelOverlay').classList.remove('show');
+        setTimeout(() => {
+            panel.style.display = 'none';
+        }, 280);
     }
-    document.getElementById('profileModal').addEventListener('click', function(e) {
-        if (e.target === this) closeProfileModal();
-    });
+
+    function escHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
 
     function showToast(msg, type = 'success') {
         const el = document.createElement('div');

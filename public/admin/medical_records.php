@@ -1,7 +1,9 @@
 <?php
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
+require_once('../../app/config/config.php');
 ?>
 
 <style>
@@ -50,7 +52,6 @@ include('./includes/sidebar.php');
     }
 
     .pagetitle h1 {
-        font-family: 'DM Sans', sans-serif;
         font-weight: 700;
         font-size: 1.75rem;
         color: var(--text-dark);
@@ -140,20 +141,6 @@ include('./includes/sidebar.php');
         font-size: .7rem;
         color: var(--text-muted);
         margin-top: .25rem;
-    }
-
-    /* Layout */
-    .records-layout {
-        display: grid;
-        grid-template-columns: 1fr 300px;
-        gap: 16px;
-        align-items: start;
-    }
-
-    @media(max-width:992px) {
-        .records-layout {
-            grid-template-columns: 1fr;
-        }
     }
 
     .main-card {
@@ -271,7 +258,6 @@ include('./includes/sidebar.php');
         color: var(--text-muted);
         border-bottom: 1px solid var(--border);
         padding: .65rem .6rem;
-        background: transparent;
     }
 
     .table tbody td {
@@ -318,6 +304,14 @@ include('./includes/sidebar.php');
         justify-content: center;
         font-size: .68rem;
         font-weight: 700;
+        overflow: hidden;
+    }
+
+    .pat-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
     }
 
     .pat-name {
@@ -348,40 +342,6 @@ include('./includes/sidebar.php');
         color: var(--text-muted);
         font-weight: 600;
         letter-spacing: .04em;
-    }
-
-    .badge {
-        font-family: 'DM Sans', sans-serif;
-        font-size: .63rem;
-        font-weight: 600;
-        border-radius: 6px;
-        padding: 3px 9px;
-        letter-spacing: .03em;
-    }
-
-    .bg-success {
-        background: var(--green-light) !important;
-        color: var(--green-dark) !important;
-    }
-
-    .bg-warning {
-        background: var(--amber-light) !important;
-        color: var(--amber-dark) !important;
-    }
-
-    .bg-danger {
-        background: var(--red-light) !important;
-        color: var(--red-dark) !important;
-    }
-
-    .bg-info {
-        background: var(--teal-light) !important;
-        color: var(--teal-dark) !important;
-    }
-
-    .bg-violet {
-        background: var(--violet-light) !important;
-        color: var(--violet-dark) !important;
     }
 
     .rec-type-chip {
@@ -415,10 +375,92 @@ include('./includes/sidebar.php');
         border: 1px solid #a7f3d0;
     }
 
-    .chip-surgery {
-        background: var(--red-light);
-        color: var(--red-dark);
-        border: 1px solid #fca5a5;
+    .chip-other {
+        background: var(--amber-light);
+        color: var(--amber-dark);
+        border: 1px solid #fde68a;
+    }
+
+    /* ── Status dropdown (identical to patients/appointments pages) ── */
+    .status-cell {
+        position: relative;
+    }
+
+    .badge-btn {
+        cursor: pointer;
+        border: none;
+        background: none;
+        padding: 0;
+        font-family: 'DM Sans', sans-serif;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: opacity .15s;
+    }
+
+    .badge-btn:hover {
+        opacity: .8;
+    }
+
+    .badge-caret {
+        font-size: .55rem;
+        opacity: .65;
+    }
+
+    .status-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-md);
+        z-index: 500;
+        min-width: 145px;
+        overflow: hidden;
+        animation: fadeUp .18s ease both;
+    }
+
+    .status-dropdown.open {
+        display: block;
+    }
+
+    .status-opt {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: .45rem .75rem;
+        font-size: .78rem;
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--text-body);
+        font-family: 'DM Sans', sans-serif;
+        transition: background .12s;
+    }
+
+    .status-opt:hover {
+        background: var(--surface);
+    }
+
+    .status-opt .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: inline-block;
+    }
+
+    .rec-badge {
+        font-family: 'DM Sans', sans-serif;
+        font-size: .63rem;
+        font-weight: 600;
+        border-radius: 6px;
+        padding: 3px 9px;
+        letter-spacing: .03em;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
     }
 
     .action-btns {
@@ -449,139 +491,245 @@ include('./includes/sidebar.php');
         border-color: #fca5a5;
     }
 
-    /* Sidebar widgets */
-    .widget-card {
-        background: var(--card);
-        border: 1px solid var(--border);
+    .tbl-wrap {
+        position: relative;
+        overflow-x: auto;
+    }
+
+    .tbl-loading {
+        display: none;
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, .7);
+        z-index: 5;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--text-muted);
+    }
+
+    .empty-state i {
+        font-size: 2.5rem;
+        display: block;
+        margin-bottom: .75rem;
+        opacity: .3;
+    }
+
+    .empty-state p {
+        font-size: .85rem;
+        margin: 0;
+    }
+
+    /* Modal */
+    .modal-content {
         border-radius: var(--radius);
-        box-shadow: var(--shadow);
-        padding: 1.25rem;
-        margin-bottom: 16px;
-        animation: fadeUp .32s .28s ease both;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow-lg);
+        font-family: 'DM Sans', sans-serif;
     }
 
-    .widget-card:last-child {
-        margin-bottom: 0;
+    .modal-header {
+        border-bottom: 1px solid var(--border);
+        padding: 1.1rem 1.4rem;
     }
 
-    .widget-title {
-        font-size: .68rem;
+    .modal-title {
+        font-size: .95rem;
+        font-weight: 700;
+        color: var(--text-dark);
+    }
+
+    .modal-body {
+        padding: 1.4rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid var(--border);
+        padding: .9rem 1.4rem;
+    }
+
+    .form-label {
+        font-size: .72rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: .1em;
+        letter-spacing: .07em;
         color: var(--text-muted);
-        margin-bottom: .9rem;
+        margin-bottom: .35rem;
+        display: block;
     }
 
-    /* Recent updates list */
-    .update-item {
-        display: flex;
-        align-items: flex-start;
-        gap: 10px;
-        padding: .55rem 0;
-        border-bottom: 1px solid var(--border);
-    }
-
-    .update-item:last-child {
-        border-bottom: none;
-    }
-
-    .update-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        margin-top: 4px;
-    }
-
-    .update-body {
-        flex: 1;
-    }
-
-    .update-text {
-        font-size: .79rem;
-        color: var(--text-body);
-        line-height: 1.45;
-    }
-
-    .update-text strong {
-        color: var(--text-dark);
-    }
-
-    .update-time {
-        font-size: .65rem;
-        color: var(--text-muted);
-        margin-top: 2px;
-    }
-
-    /* Record type breakdown */
-    .type-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: .4rem 0;
-        border-bottom: 1px solid var(--border);
-        font-size: .78rem;
-    }
-
-    .type-row:last-child {
-        border-bottom: none;
-    }
-
-    .type-label {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        color: var(--text-body);
-    }
-
-    .type-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-    }
-
-    .type-count {
-        font-weight: 700;
-        color: var(--text-dark);
-    }
-
-    .dropdown-menu {
+    .form-control,
+    .form-select {
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
-        box-shadow: var(--shadow-lg);
-        font-size: .82rem;
+        padding: .5rem .75rem;
+        font-size: .83rem;
+        font-family: 'DM Sans', sans-serif;
+        color: var(--text-dark);
+        background: var(--surface);
+        outline: none;
+        width: 100%;
+        transition: border-color .2s, background .2s;
     }
 
-    .dropdown-item {
+    .form-control:focus,
+    .form-select:focus {
+        border-color: var(--blue-400);
+        background: #fff;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, .08);
+    }
+
+    .btn-secondary-sm {
+        background: var(--surface);
         color: var(--text-body);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: .42rem 1rem;
         font-size: .8rem;
-        padding: .4rem 1rem;
+        font-weight: 600;
+        font-family: 'DM Sans', sans-serif;
+        cursor: pointer;
+        transition: background .15s;
     }
 
-    .dropdown-item:hover {
+    .btn-secondary-sm:hover {
+        background: var(--border);
+    }
+
+    .detail-row {
+        display: grid;
+        grid-template-columns: 140px 1fr;
+        gap: 6px 12px;
+        font-size: .83rem;
+        padding: .45rem 0;
+        border-bottom: 1px solid var(--border);
+        align-items: start;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+
+    .detail-label {
+        color: var(--text-muted);
+        font-weight: 600;
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .detail-value {
+        color: var(--text-dark);
+        font-weight: 500;
+    }
+
+    /* ── Live search dropdown (patient / doctor / appointment) ── */
+    .live-search-wrap {
+        position: relative;
+    }
+
+    .live-results {
+        display: none;
+        position: absolute;
+        top: calc(100% + 3px);
+        left: 0;
+        right: 0;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-md);
+        z-index: 600;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .live-results.open {
+        display: block;
+    }
+
+    .live-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: .5rem .85rem;
+        cursor: pointer;
+        font-size: .82rem;
+        border-bottom: 1px solid var(--border);
+        transition: background .1s;
+    }
+
+    .live-item:last-child {
+        border-bottom: none;
+    }
+
+    .live-item:hover {
+        background: var(--blue-50);
+    }
+
+    .live-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
         background: var(--blue-50);
         color: var(--blue-700);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: .62rem;
+        font-weight: 700;
+        flex-shrink: 0;
     }
 
-    .dropdown-header h6 {
-        font-size: .67rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .09em;
+    .live-name {
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+
+    .live-sub {
+        font-size: .7rem;
         color: var(--text-muted);
+    }
+
+    .selected-pill {
+        display: none;
+        background: var(--blue-50);
+        border: 1px solid var(--blue-200);
+        border-radius: var(--radius-sm);
+        padding: .45rem .75rem;
+        font-size: .82rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 6px;
+    }
+
+    .selected-pill.show {
+        display: flex;
+    }
+
+    .pill-clear {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: .85rem;
+        padding: 0 2px;
+        line-height: 1;
     }
 
     @keyframes fadeUp {
         from {
             opacity: 0;
-            transform: translateY(10px)
+            transform: translateY(10px);
         }
 
         to {
             opacity: 1;
-            transform: translateY(0)
+            transform: translateY(0);
         }
     }
 </style>
@@ -598,134 +746,767 @@ include('./includes/sidebar.php');
 
 <section class="section page-records">
 
-    <!-- Stat strip -->
     <div class="stat-strip">
         <div class="stat-card">
             <div class="sc-label">Total Records</div>
-            <div class="sc-num">4,821</div>
+            <div class="sc-num" id="statTotal">—</div>
             <div class="sc-sub">All time</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Updated Today</div>
-            <div class="sc-num">37</div>
+            <div class="sc-num" id="statToday">—</div>
             <div class="sc-sub">Records modified</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Lab Results</div>
-            <div class="sc-num">128</div>
+            <div class="sc-num" id="statLab">—</div>
             <div class="sc-sub">Pending review</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Prescriptions</div>
-            <div class="sc-num">94</div>
+            <div class="sc-num" id="statRx">—</div>
             <div class="sc-sub">Active this month</div>
         </div>
     </div>
 
-    <div class="records-layout">
-
-        <!-- Left — main table -->
-        <div class="main-card">
-            <div class="table-toolbar">
-                <h5>All Records <span>| <?php echo date('F j, Y'); ?></span></h5>
-                <div class="search-box">
-                    <i class="bi bi-search"></i>
-                    <input type="text" id="recSearch" placeholder="Search patient or diagnosis…" oninput="filterRecords()">
-                </div>
-                <select class="filter-select" id="recType" onchange="filterRecords()">
-                    <option value="">All Types</option>
-                    <option>Consultation</option>
-                    <option>Lab Result</option>
-                    <option>Imaging</option>
-                    <option>Prescription</option>
-                    <option>Surgery</option>
-                </select>
-                <button class="btn-primary-sm" onclick="openAddModal()">
-                    <i class="bi bi-plus-lg"></i>New Record
-                </button>
+    <div class="main-card">
+        <div class="table-toolbar">
+            <h5>All Records <span>| <?php echo date('F j, Y'); ?></span></h5>
+            <div class="search-box">
+                <i class="bi bi-search"></i>
+                <input type="text" id="recSearch" placeholder="Search patient or diagnosis…" oninput="debounceSearch()">
             </div>
-
-            <div style="overflow-x:auto;">
-                <table class="table" id="recTable">
-                    <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>Patient</th>
-                            <th>Type</th>
-                            <th>Diagnosis</th>
-                            <th>Doctor</th>
-                            <th>Date</th>
-                            <th>Status</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="recTbody">
-                        <tr data-patient="Maria Santos" data-type="Consultation">
-                            <td><a href="#" class="rec-id">#R-3041</a></td>
-                            <td>
-                                <div class="pat-cell">
-                                    <div class="pat-avatar" style="background:#dbeafe;color:#1d4ed8">MS</div>
-                                    <div>
-                                        <div class="pat-name">Maria Santos</div>
-                                        <div class="pat-sub">#P-1001</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td><span class="rec-type-chip chip-consultation">Consultation</span></td>
-                            <td class="diagnosis-cell">
-                                <div class="diag-text">Hypertension Stage 1</div>
-                                <div class="diag-icd">ICD: I10</div>
-                            </td>
-                            <td>Dr. Reyes</td>
-                            <td><?php echo date('M j, Y'); ?></td>
-                            <td><span class="badge bg-success">Finalized</span></td>
-                            <td>
-                                <div class="action-btns">
-                                    <button class="btn-act" title="View"><i class="bi bi-eye"></i></button>
-                                    <button class="btn-act" title="Print"><i class="bi bi-printer"></i></button>
-                                    <button class="btn-act" title="Edit"><i class="bi bi-pencil"></i></button>
-                                    <button class="btn-act del" title="Delete"><i class="bi bi-trash3"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="d-flex align-items-center justify-content-between mt-3" style="flex-wrap:wrap;gap:8px;">
-                <span style="font-size:.75rem;color:var(--text-muted);">Showing 7 of 4,821 records</span>
-                <div style="display:flex;gap:5px;">
-                    <button class="btn-act" style="border-radius:8px;padding:4px 12px;font-size:.78rem;">‹ Prev</button>
-                    <button class="btn-act" style="background:var(--blue-600);color:#fff;border-color:var(--blue-600);border-radius:8px;padding:4px 12px;font-size:.78rem;">1</button>
-                    <button class="btn-act" style="border-radius:8px;padding:4px 12px;font-size:.78rem;">2</button>
-                    <button class="btn-act" style="border-radius:8px;padding:4px 12px;font-size:.78rem;">3</button>
-                    <button class="btn-act" style="border-radius:8px;padding:4px 12px;font-size:.78rem;">Next ›</button>
-                </div>
-            </div>
+            <select class="filter-select" id="recType" onchange="loadRecords(1)">
+                <option value="">All Types</option>
+                <option>Consultation</option>
+                <option>Lab Result</option>
+                <option>Imaging</option>
+                <option>Prescription</option>
+                <option>Other</option>
+            </select>
+            <select class="filter-select" id="recStatus" onchange="loadRecords(1)">
+                <option value="">All Status</option>
+                <option>Draft</option>
+                <option>Finalized</option>
+            </select>
+            <button class="btn-primary-sm" onclick="openAddModal()">
+                <i class="bi bi-plus-lg"></i>New Record
+            </button>
         </div>
 
-    </div>
+        <div class="tbl-wrap">
+            <div class="tbl-loading" id="tblLoading" style="display:flex;">
+                <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Patient</th>
+                        <th>Type</th>
+                        <th>Diagnosis</th>
+                        <th>Doctor</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="recTbody"></tbody>
+            </table>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between mt-3" style="flex-wrap:wrap;gap:8px;">
+            <span style="font-size:.75rem;color:var(--text-muted);" id="paginationInfo"></span>
+            <div style="display:flex;gap:5px;" id="paginationBtns"></div>
+        </div>
     </div>
 
 </section>
 
-<script>
-    function filterRecords() {
-        const q = document.getElementById('recSearch').value.toLowerCase();
-        const type = document.getElementById('recType').value;
-        document.querySelectorAll('#recTbody tr').forEach(row => {
-            const pat = row.dataset.patient?.toLowerCase() || '';
-            const rt = row.dataset.type || '';
-            const matchQ = !q || pat.includes(q);
-            const matchT = !type || rt === type;
-            row.style.display = matchQ && matchT ? '' : 'none';
+<!-- ══════════════════════════════════
+     ADD / EDIT MODAL
+══════════════════════════════════ -->
+<div class="modal fade" id="recModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="recModalTitle">New Medical Record</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editId">
+                <div class="row g-3">
+
+                    <!-- ── PATIENT live search ── -->
+                    <div class="col-md-6">
+                        <label class="form-label">Patient</label>
+                        <div class="live-search-wrap">
+                            <div style="position:relative;">
+                                <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem;pointer-events:none;"></i>
+                                <input type="text" id="patientInput" class="form-control"
+                                    placeholder="Type patient name or code…"
+                                    style="padding-left:2rem;"
+                                    oninput="debounceField('patient')" autocomplete="off">
+                            </div>
+                            <div class="live-results" id="patientResults"></div>
+                            <div class="selected-pill" id="patientPill">
+                                <div>
+                                    <div style="font-weight:700;color:var(--text-dark);" id="patientPillName"></div>
+                                    <div style="font-size:.7rem;color:var(--text-muted);" id="patientPillSub"></div>
+                                </div>
+                                <button class="pill-clear" onclick="clearField('patient')"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                            <input type="hidden" id="fPatient">
+                        </div>
+                    </div>
+
+                    <!-- ── DOCTOR live search ── -->
+                    <div class="col-md-6">
+                        <label class="form-label">Doctor</label>
+                        <div class="live-search-wrap">
+                            <div style="position:relative;">
+                                <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem;pointer-events:none;"></i>
+                                <input type="text" id="doctorInput" class="form-control"
+                                    placeholder="Type doctor name…"
+                                    style="padding-left:2rem;"
+                                    oninput="debounceField('doctor')" autocomplete="off">
+                            </div>
+                            <div class="live-results" id="doctorResults"></div>
+                            <div class="selected-pill" id="doctorPill">
+                                <div>
+                                    <div style="font-weight:700;color:var(--text-dark);" id="doctorPillName"></div>
+                                    <div style="font-size:.7rem;color:var(--text-muted);" id="doctorPillSub"></div>
+                                </div>
+                                <button class="pill-clear" onclick="clearField('doctor')"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                            <input type="hidden" id="fDoctor">
+                        </div>
+                    </div>
+
+                    <!-- ── LINKED APPOINTMENT live search ── -->
+                    <div class="col-md-6">
+                        <label class="form-label">
+                            Linked Appointment
+                            <small style="text-transform:none;letter-spacing:0;font-weight:400;">(optional)</small>
+                        </label>
+                        <div class="live-search-wrap">
+                            <div style="position:relative;">
+                                <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem;pointer-events:none;"></i>
+                                <input type="text" id="apptInput" class="form-control"
+                                    placeholder="Type appointment code…"
+                                    style="padding-left:2rem;"
+                                    oninput="debounceField('appt')" autocomplete="off">
+                            </div>
+                            <div class="live-results" id="apptResults"></div>
+                            <div class="selected-pill" id="apptPill">
+                                <div>
+                                    <div style="font-weight:700;color:var(--text-dark);" id="apptPillName"></div>
+                                    <div style="font-size:.7rem;color:var(--text-muted);" id="apptPillSub"></div>
+                                </div>
+                                <button class="pill-clear" onclick="clearField('appt')"><i class="bi bi-x-lg"></i></button>
+                            </div>
+                            <input type="hidden" id="fAppointment">
+                        </div>
+                    </div>
+
+                    <!-- ── Record type ── -->
+                    <div class="col-md-6">
+                        <label class="form-label">Record Type</label>
+                        <select class="form-select" id="fType">
+                            <option>Consultation</option>
+                            <option>Lab Result</option>
+                            <option>Prescription</option>
+                            <option>Imaging</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-8">
+                        <label class="form-label">Diagnosis</label>
+                        <input type="text" class="form-control" id="fDiagnosis" placeholder="e.g. Hypertension Stage 1">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">ICD Code</label>
+                        <input type="text" class="form-control" id="fIcdCode" placeholder="e.g. I10">
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Prescription</label>
+                        <textarea class="form-control" id="fPrescription" rows="2" placeholder="Medications, dosage…"></textarea>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" id="fNotes" rows="2" placeholder="Additional notes…"></textarea>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" id="fStatus">
+                            <option>Draft</option>
+                            <option>Finalized</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn-primary-sm" onclick="saveRecord()">
+                    <i class="bi bi-check-lg"></i><span id="saveBtnLabel">Save Record</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════
+     VIEW MODAL
+══════════════════════════════════ -->
+<div class="modal fade" id="viewModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Record Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewModalBody"></div>
+            <div class="modal-footer">
+                <button class="btn-secondary-sm" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════
+     DELETE CONFIRM MODAL
+══════════════════════════════════ -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Record?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p style="font-size:.85rem;color:var(--text-body);margin:0;">
+                        This will permanently delete the medical record. Continue?
+                    </p>
+                    <input type="hidden" id="deleteId">
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-secondary-sm" data-bs-dismiss="modal">No</button>
+                    <button class="btn-primary-sm" style="background:var(--red);" onclick="confirmDelete()">
+                        <i class="bi bi-trash3"></i> Yes, Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const HANDLER = 'medical_records_handler.php';
+        let currentPage = 1;
+        let searchTimer = null;
+
+        // ── Status config (matches appointments/patients pages) ───────────
+        const STATUS_CONFIG = {
+            'Draft': {
+                dot: '#f59e0b',
+                bg: '#fef3c7',
+                color: '#92400e'
+            },
+            'Finalized': {
+                dot: '#10b981',
+                bg: '#d1fae5',
+                color: '#065f46'
+            },
+        };
+
+        // ── Close dropdowns & live results on outside click ───────────────
+        document.addEventListener('click', e => {
+            if (!e.target.closest('.status-cell'))
+                document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
+            if (!e.target.closest('.live-search-wrap'))
+                document.querySelectorAll('.live-results.open').forEach(el => el.classList.remove('open'));
         });
-    }
 
-    function openAddModal() {
-        alert('New Record modal — wire up your Bootstrap modal here.');
-    }
-</script>
+        // ── Init ──────────────────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', () => loadRecords(1));
 
-<?php include('./includes/footer.php'); ?>
+        // ════════════════════════════════════════════════════════════════
+        //  LIVE SEARCH — patient / doctor / appointment
+        // ════════════════════════════════════════════════════════════════
+        const fieldTimers = {};
+
+        function debounceField(field) {
+            clearTimeout(fieldTimers[field]);
+            fieldTimers[field] = setTimeout(() => runFieldSearch(field), 280);
+        }
+
+        function runFieldSearch(field) {
+            const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
+            const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
+            const q = document.getElementById(inputId).value.trim();
+            const box = document.getElementById(resultsId);
+
+            if (!q) {
+                box.classList.remove('open');
+                box.innerHTML = '';
+                return;
+            }
+
+            let url = '';
+            if (field === 'patient') url = `${HANDLER}?action=get_patients&q=${encodeURIComponent(q)}`;
+            if (field === 'doctor') url = `${HANDLER}?action=get_doctors&q=${encodeURIComponent(q)}`;
+            if (field === 'appt') {
+                const patId = document.getElementById('fPatient').value;
+                url = `${HANDLER}?action=get_appointments&q=${encodeURIComponent(q)}&patientId=${patId}`;
+            }
+
+            fetch(url)
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success || !res.data.length) {
+                        box.innerHTML = `<div style="padding:.6rem 1rem;font-size:.8rem;color:var(--text-muted);">No results found.</div>`;
+                        box.classList.add('open');
+                        return;
+                    }
+                    box.innerHTML = res.data.map(item => {
+                        if (field === 'patient') {
+                            return `<div class="live-item" onclick="selectField('patient',${item.id},'${esc(item.name)}','${esc(item.patientCode)}','${esc(item.patientCode)}')">
+                            <div class="live-avatar">${inits(item.name)}</div>
+                            <div><div class="live-name">${item.name}</div><div class="live-sub">${item.patientCode}</div></div>
+                        </div>`;
+                        }
+                        if (field === 'doctor') {
+                            return `<div class="live-item" onclick="selectField('doctor',${item.id},'${esc(item.name)}','${esc(item.specialization)}','')">
+                            <div class="live-avatar" style="background:var(--green-light);color:var(--green-dark);">${inits(item.name)}</div>
+                            <div><div class="live-name">${item.name}</div><div class="live-sub">${item.specialization}</div></div>
+                        </div>`;
+                        }
+                        // appointment
+                        return `<div class="live-item" onclick="selectField('appt',${item.id},'${esc(item.appointmentCode)}','${esc(item.doctorName+' · '+fmtDate(item.appointmentDate))}','')">
+                        <div class="live-avatar" style="background:var(--violet-light);color:var(--violet-dark);"><i class="bi bi-calendar2-check" style="font-size:.7rem;"></i></div>
+                        <div><div class="live-name">${item.appointmentCode}</div><div class="live-sub">${item.doctorName} · ${fmtDate(item.appointmentDate)}</div></div>
+                    </div>`;
+                    }).join('');
+                    box.classList.add('open');
+                });
+        }
+
+        function selectField(field, id, name, sub) {
+            const hiddenId = field === 'patient' ? 'fPatient' : field === 'doctor' ? 'fDoctor' : 'fAppointment';
+            const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
+            const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
+            const pillId = field === 'patient' ? 'patientPill' : field === 'doctor' ? 'doctorPill' : 'apptPill';
+            const nameId = field === 'patient' ? 'patientPillName' : field === 'doctor' ? 'doctorPillName' : 'apptPillName';
+            const subId = field === 'patient' ? 'patientPillSub' : field === 'doctor' ? 'doctorPillSub' : 'apptPillSub';
+
+            document.getElementById(hiddenId).value = id;
+            document.getElementById(inputId).value = '';
+            document.getElementById(resultsId).classList.remove('open');
+            document.getElementById(nameId).textContent = name;
+            document.getElementById(subId).textContent = sub;
+            document.getElementById(pillId).classList.add('show');
+
+            // If patient selected, clear appointment since it's patient-scoped
+            if (field === 'patient') clearField('appt');
+        }
+
+        function clearField(field) {
+            const hiddenId = field === 'patient' ? 'fPatient' : field === 'doctor' ? 'fDoctor' : 'fAppointment';
+            const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
+            const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
+            const pillId = field === 'patient' ? 'patientPill' : field === 'doctor' ? 'doctorPill' : 'apptPill';
+
+            document.getElementById(hiddenId).value = '';
+            document.getElementById(inputId).value = '';
+            document.getElementById(resultsId).classList.remove('open');
+            document.getElementById(pillId).classList.remove('show');
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  STATUS DROPDOWN (table rows)
+        // ════════════════════════════════════════════════════════════════
+        function statusDropdown(id, current) {
+            const cfg = STATUS_CONFIG[current] || {
+                dot: '#9ca3af',
+                bg: '#f3f4f6',
+                color: '#374151'
+            };
+            const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => `
+            <div class="status-opt" onclick="pickRecStatus(this,'${label}',${id})">
+                <span class="dot" style="background:${c.dot};"></span>${label}
+            </div>`).join('');
+
+            return `<div class="status-cell">
+            <button class="badge-btn" onclick="toggleStatusDrop(this)">
+                <span class="rec-badge" style="background:${cfg.bg};color:${cfg.color};">
+                    <span style="width:7px;height:7px;border-radius:50%;background:${cfg.dot};display:inline-block;flex-shrink:0;"></span>
+                    ${current}
+                </span>
+                <span class="badge-caret">▾</span>
+            </button>
+            <div class="status-dropdown">${opts}</div>
+        </div>`;
+        }
+
+        function toggleStatusDrop(btn) {
+            const dd = btn.nextElementSibling;
+            const isOpen = dd.classList.contains('open');
+            document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
+            if (!isOpen) dd.classList.add('open');
+        }
+
+        function pickRecStatus(optEl, newStatus, id) {
+            const cfg = STATUS_CONFIG[newStatus];
+            const dd = optEl.closest('.status-dropdown');
+            const badge = dd.previousElementSibling.querySelector('.rec-badge');
+
+            badge.style.background = cfg.bg;
+            badge.style.color = cfg.color;
+            badge.querySelector('span').style.background = cfg.dot;
+            // update text node (second child after the dot span)
+            badge.childNodes[1].textContent = ' ' + newStatus;
+            dd.classList.remove('open');
+
+            const fd = new FormData();
+            fd.append('id', id);
+            fd.append('status', newStatus);
+
+            fetch(`${HANDLER}?action=update_status`, {
+                    method: 'POST',
+                    body: fd
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        renderStats(res.stats);
+                        showToast('Status updated to "' + newStatus + '"', 'success');
+                    } else {
+                        loadRecords(currentPage);
+                    }
+                })
+                .catch(() => loadRecords(currentPage));
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  LOAD & RENDER
+        // ════════════════════════════════════════════════════════════════
+        function loadRecords(page) {
+            currentPage = page || 1;
+            const search = encodeURIComponent(document.getElementById('recSearch').value.trim());
+            const type = encodeURIComponent(document.getElementById('recType').value);
+            const status = encodeURIComponent(document.getElementById('recStatus').value);
+            const url = `${HANDLER}?action=list&search=${search}&type=${type}&status=${status}&page=${currentPage}`;
+
+            document.getElementById('tblLoading').style.display = 'flex';
+
+            fetch(url)
+                .then(r => r.json())
+                .then(res => {
+                    document.getElementById('tblLoading').style.display = 'none';
+                    if (!res.success) return;
+                    renderRows(res.rows);
+                    renderStats(res.stats);
+                    renderPagination(res.total, res.page, res.limit);
+                })
+                .catch(() => document.getElementById('tblLoading').style.display = 'none');
+        }
+
+        function debounceSearch() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => loadRecords(1), 350);
+        }
+
+        const avatarColors = [
+            ['#dbeafe', '#1d4ed8'],
+            ['#d1fae5', '#065f46'],
+            ['#fef3c7', '#92400e'],
+            ['#ede9fe', '#5b21b6'],
+            ['#cffafe', '#155e75'],
+            ['#fee2e2', '#991b1b'],
+        ];
+
+        function inits(name) {
+            return (name || '').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+        }
+
+        function typeChip(t) {
+            const map = {
+                'Consultation': 'chip-consultation',
+                'Lab Result': 'chip-lab',
+                'Imaging': 'chip-imaging',
+                'Prescription': 'chip-prescription',
+                'Other': 'chip-other',
+            };
+            return `<span class="rec-type-chip ${map[t]||'chip-other'}">${t}</span>`;
+        }
+
+        function fmtDate(d) {
+            if (!d) return '—';
+            return new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        function esc(str) {
+            return String(str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        function renderRows(rows) {
+            const tbody = document.getElementById('recTbody');
+            if (!rows.length) {
+                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+                <i class="bi bi-folder-x"></i><p>No records found for the selected filters.</p>
+            </div></td></tr>`;
+                return;
+            }
+            tbody.innerHTML = rows.map((r, i) => {
+                const [bg, fg] = avatarColors[i % avatarColors.length];
+                const avatarHtml = r.patPhoto ? `<img src="${r.patPhoto}" alt="">` : inits(r.patientName);
+                return `<tr>
+                <td><a href="#" class="rec-id">${r.recordCode}</a></td>
+                <td><div class="pat-cell">
+                    <div class="pat-avatar" style="background:${bg};color:${fg}">${avatarHtml}</div>
+                    <div>
+                        <div class="pat-name">${r.patientName}</div>
+                        <div class="pat-sub">${r.patientCode}</div>
+                    </div>
+                </div></td>
+                <td>${typeChip(r.recordType)}</td>
+                <td class="diagnosis-cell">
+                    <div class="diag-text">${r.diagnosis||'—'}</div>
+                    ${r.icdCode ? `<div class="diag-icd">ICD: ${r.icdCode}</div>` : ''}
+                </td>
+                <td>${r.doctorName}</td>
+                <td>${fmtDate(r.createdAt?.slice(0,10))}</td>
+                <td>${statusDropdown(r.id, r.status)}</td>
+                <td><div class="action-btns">
+                    <button class="btn-act" title="View"   onclick="viewRecord(${r.id})"><i class="bi bi-eye"></i></button>
+                    <button class="btn-act" title="Edit"   onclick="editRecord(${r.id})"><i class="bi bi-pencil"></i></button>
+            </tr>`;
+            }).join('');
+        }
+
+        function renderStats(s) {
+            document.getElementById('statTotal').textContent = s.total ?? '—';
+            document.getElementById('statToday').textContent = s.today ?? '—';
+            document.getElementById('statLab').textContent = s.labPending ?? '—';
+            document.getElementById('statRx').textContent = s.prescriptions ?? '—';
+        }
+
+        function renderPagination(total, page, limit) {
+            const pages = Math.ceil(total / limit);
+            const start = (page - 1) * limit + 1,
+                end = Math.min(page * limit, total);
+            document.getElementById('paginationInfo').textContent =
+                total ? `Showing ${start}–${end} of ${total} records` : 'No records';
+            const wrap = document.getElementById('paginationBtns');
+            wrap.innerHTML = '';
+            if (pages <= 1) return;
+            const btn = (label, p, active = false) => {
+                const b = document.createElement('button');
+                b.className = 'btn-act';
+                b.innerHTML = label;
+                b.style.cssText = `border-radius:8px;padding:4px 12px;font-size:.78rem;${active?'background:var(--blue-600);color:#fff;border-color:var(--blue-600);':''}`;
+                if (p) b.onclick = () => loadRecords(p);
+                else b.disabled = true;
+                return b;
+            };
+            wrap.appendChild(btn('‹ Prev', page > 1 ? page - 1 : null));
+            for (let i = 1; i <= pages; i++) wrap.appendChild(btn(i, i, i === page));
+            wrap.appendChild(btn('Next ›', page < pages ? page + 1 : null));
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  ADD / EDIT / SAVE
+        // ════════════════════════════════════════════════════════════════
+        function resetModal() {
+            ['patient', 'doctor', 'appt'].forEach(f => clearField(f));
+            document.getElementById('fType').value = 'Consultation';
+            document.getElementById('fDiagnosis').value = '';
+            document.getElementById('fIcdCode').value = '';
+            document.getElementById('fPrescription').value = '';
+            document.getElementById('fNotes').value = '';
+            document.getElementById('fStatus').value = 'Draft';
+            document.getElementById('editId').value = '';
+        }
+
+        function openAddModal() {
+            resetModal();
+            document.getElementById('recModalTitle').textContent = 'New Medical Record';
+            document.getElementById('saveBtnLabel').textContent = 'Save Record';
+            new bootstrap.Modal(document.getElementById('recModal')).show();
+        }
+
+        function editRecord(id) {
+            fetch(`${HANDLER}?action=get&id=${id}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success) return alert('Could not load record.');
+                    const d = res.data;
+                    resetModal();
+                    document.getElementById('recModalTitle').textContent = 'Edit Medical Record';
+                    document.getElementById('saveBtnLabel').textContent = 'Update Record';
+                    document.getElementById('editId').value = d.id;
+                    document.getElementById('fType').value = d.recordType;
+                    document.getElementById('fDiagnosis').value = d.diagnosis || '';
+                    document.getElementById('fIcdCode').value = d.icdCode || '';
+                    document.getElementById('fPrescription').value = d.prescription || '';
+                    document.getElementById('fNotes').value = d.notes || '';
+                    document.getElementById('fStatus').value = d.status;
+
+                    // Pre-fill patient pill
+                    if (d.patientId) {
+                        document.getElementById('fPatient').value = d.patientId;
+                        document.getElementById('patientPillName').textContent = d.patientName || '—';
+                        document.getElementById('patientPillSub').textContent = d.patientCode || '';
+                        document.getElementById('patientPill').classList.add('show');
+                    }
+
+                    // Pre-fill doctor pill
+                    if (d.doctorId) {
+                        document.getElementById('fDoctor').value = d.doctorId;
+                        document.getElementById('doctorPillName').textContent = d.doctorName || '—';
+                        document.getElementById('doctorPillSub').textContent = d.specialization || '';
+                        document.getElementById('doctorPill').classList.add('show');
+                    }
+
+                    // Pre-fill appointment pill
+                    if (d.appointmentId) {
+                        document.getElementById('fAppointment').value = d.appointmentId;
+                        document.getElementById('apptPillName').textContent = d.appointmentCode || '—';
+                        document.getElementById('apptPillSub').textContent = d.doctorName + ' · ' + fmtDate(d.appointmentDate);
+                        document.getElementById('apptPill').classList.add('show');
+                    }
+
+                    new bootstrap.Modal(document.getElementById('recModal')).show();
+                });
+        }
+
+        function saveRecord() {
+            const id = document.getElementById('editId').value;
+            const payload = {
+                id: id || undefined,
+                patientId: document.getElementById('fPatient').value,
+                doctorId: document.getElementById('fDoctor').value,
+                appointmentId: document.getElementById('fAppointment').value || null,
+                recordType: document.getElementById('fType').value,
+                diagnosis: document.getElementById('fDiagnosis').value,
+                icdCode: document.getElementById('fIcdCode').value,
+                prescription: document.getElementById('fPrescription').value,
+                notes: document.getElementById('fNotes').value,
+                status: document.getElementById('fStatus').value,
+            };
+
+            if (!payload.patientId || !payload.doctorId) {
+                alert('Patient and Doctor are required.');
+                return;
+            }
+
+            fetch(`${HANDLER}?action=${id ? 'edit' : 'add'}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload),
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        bootstrap.Modal.getInstance(document.getElementById('recModal')).hide();
+                        loadRecords(currentPage);
+                        showToast(id ? 'Record updated!' : 'Record saved!', 'success');
+                    } else {
+                        alert('Failed to save. Please try again.');
+                    }
+                });
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        //  VIEW / PRINT / DELETE
+        // ════════════════════════════════════════════════════════════════
+        function viewRecord(id, print = false) {
+            fetch(`${HANDLER}?action=get&id=${id}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success) return alert('Could not load record.');
+                    const d = res.data;
+                    const cfg = STATUS_CONFIG[d.status] || {
+                        bg: '#f3f4f6',
+                        color: '#374151',
+                        dot: '#9ca3af'
+                    };
+                    document.getElementById('viewModalBody').innerHTML = `
+                    <div class="detail-row"><span class="detail-label">Code</span>          <span class="detail-value">${d.recordCode}</span></div>
+                    <div class="detail-row"><span class="detail-label">Patient</span>        <span class="detail-value">${d.patientName} (${d.patientCode})</span></div>
+                    <div class="detail-row"><span class="detail-label">Doctor</span>         <span class="detail-value">${d.doctorName}</span></div>
+                    <div class="detail-row"><span class="detail-label">Specialization</span> <span class="detail-value">${d.specialization||'—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Type</span>           <span class="detail-value">${typeChip(d.recordType)}</span></div>
+                    <div class="detail-row"><span class="detail-label">Diagnosis</span>      <span class="detail-value">${d.diagnosis||'—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">ICD Code</span>       <span class="detail-value">${d.icdCode||'—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Prescription</span>   <span class="detail-value" style="white-space:pre-line">${d.prescription||'—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Notes</span>          <span class="detail-value" style="white-space:pre-line">${d.notes||'—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Status</span>
+                        <span class="detail-value">
+                            <span style="background:${cfg.bg};color:${cfg.color};font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;">
+                                <span style="width:7px;height:7px;border-radius:50%;background:${cfg.dot};display:inline-block;"></span>${d.status}
+                            </span>
+                        </span>
+                    </div>
+                    <div class="detail-row"><span class="detail-label">Created</span>        <span class="detail-value">${fmtDate(d.createdAt?.slice(0,10))}</span></div>
+                `;
+                    const modal = new bootstrap.Modal(document.getElementById('viewModal'));
+                    modal.show();
+                    if (print) {
+                        document.getElementById('viewModal').addEventListener('shown.bs.modal', () => window.print(), {
+                            once: true
+                        });
+                    }
+                });
+        }
+
+        function printRecord() {
+            window.print();
+        }
+
+        function openDelete(id) {
+            document.getElementById('deleteId').value = id;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        }
+
+        function confirmDelete() {
+            const id = document.getElementById('deleteId').value;
+            const fd = new FormData();
+            fd.append('id', id);
+            fetch(`${HANDLER}?action=delete`, {
+                    method: 'POST',
+                    body: fd
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                        loadRecords(currentPage);
+                        showToast('Record deleted.', 'success');
+                    } else {
+                        alert('Failed to delete. Please try again.');
+                    }
+                });
+        }
+
+        // ── Toast ─────────────────────────────────────────────────────────
+        function showToast(msg, type = 'success') {
+            const colors = {
+                success: '#065f46',
+                error: '#991b1b',
+                info: '#155e75'
+            };
+            const el = document.createElement('div');
+            el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;background:${colors[type]||colors.success};color:#fff;border-radius:10px;padding:.65rem 1.1rem;font-size:.82rem;font-family:'DM Sans',sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.1);display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease both;`;
+            el.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${msg}`;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 3500);
+        }
+    </script>
+
+    <?php include('./includes/footer.php'); ?>

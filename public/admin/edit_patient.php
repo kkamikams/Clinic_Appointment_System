@@ -1,4 +1,5 @@
 <?php
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
@@ -6,16 +7,16 @@ require_once('../../app/config/config.php');
 
 $id = (int)($_GET['id'] ?? 0);
 if (!$id) {
-    header('Location: patients.php');
+    header('Location: patients');
     exit;
 }
 
-$stmt = $conn->prepare("SELECT * FROM patients WHERE id = ?");
+$stmt = $conn->prepare("SELECT * FROM patients WHERE id=?");
 $stmt->bind_param('i', $id);
 $stmt->execute();
 $p = $stmt->get_result()->fetch_assoc();
 if (!$p) {
-    header('Location: patients.php');
+    header('Location: patients');
     exit;
 }
 
@@ -82,6 +83,7 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         font-weight: 600;
     }
 
+    /* ── Layout ── */
     .add-layout {
         display: grid;
         grid-template-columns: 260px 1fr;
@@ -95,6 +97,12 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         }
     }
 
+    .side-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+
     .form-card {
         background: var(--card);
         border: 1px solid var(--border);
@@ -106,6 +114,10 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
 
     .side-card {
         animation-delay: .05s;
+    }
+
+    .cond-card {
+        animation-delay: .08s;
     }
 
     .main-form-card {
@@ -131,6 +143,7 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         background: var(--border);
     }
 
+    /* ── Side profile card ── */
     .profile-banner {
         height: 80px;
         background: linear-gradient(135deg, var(--blue-600), var(--blue-700));
@@ -153,6 +166,8 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         font-weight: 700;
         margin: -36px auto 0;
         position: relative;
+        letter-spacing: -.04em;
+        user-select: none;
     }
 
     .profile-name {
@@ -183,15 +198,11 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         padding: 2px 10px;
     }
 
-    .side-meta {
-        margin-top: 1rem;
-    }
-
+    /* ── Radio options (condition card) ── */
     .radio-options {
         display: flex;
         flex-direction: column;
         gap: 8px;
-        margin-top: .5rem;
     }
 
     .radio-option {
@@ -231,6 +242,7 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         flex-shrink: 0;
     }
 
+    /* ── Form fields ── */
     .form-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -360,6 +372,7 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         box-shadow: 0 2px 8px rgba(37, 99, 235, .28);
     }
 
+    /* ── Toast ── */
     .toast-wrap {
         position: fixed;
         bottom: 24px;
@@ -395,12 +408,12 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
     @keyframes fadeUp {
         from {
             opacity: 0;
-            transform: translateY(10px)
+            transform: translateY(10px);
         }
 
         to {
             opacity: 1;
-            transform: translateY(0)
+            transform: translateY(0);
         }
     }
 </style>
@@ -419,39 +432,35 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
 <section class="section page-edit">
     <div class="add-layout">
 
-        <!-- ── Side Card ── -->
-        <div class="form-card side-card" style="padding-top:0;overflow:hidden;">
-            <div class="profile-banner"></div>
-            <div style="padding:0 1.25rem 1.5rem;text-align:center;">
-                <div class="profile-avatar" id="sideAvatar">
-                    <?= strtoupper(substr($p['firstName'], 0, 1) . substr($p['lastName'], 0, 1)) ?>
+        <!-- ── Left column ── -->
+        <div class="side-column">
+
+            <!-- Profile preview card (no photo upload, no status) -->
+            <div class="form-card side-card" style="padding-top:0;overflow:hidden;">
+                <div class="profile-banner"></div>
+                <div style="padding:0 1.25rem 1.5rem;text-align:center;">
+                    <div class="profile-avatar" id="sideAvatar">
+                        <?= strtoupper(substr($p['firstName'], 0, 1) . substr($p['lastName'], 0, 1)) ?>
+                    </div>
+                    <div class="profile-name" id="sideName"><?= htmlspecialchars($fullname) ?></div>
+                    <div class="profile-sub" id="sideSub">
+                        <?= $p['dateOfBirth'] ? htmlspecialchars($p['dateOfBirth']) . ($age ? ' · ' . $age . ' yrs' : '') : '—' ?>
+                    </div>
+                    <div class="profile-code"><?= htmlspecialchars($p['patientCode']) ?></div>
                 </div>
-                <div class="profile-name" id="sideName"><?= htmlspecialchars($fullname) ?></div>
-                <div class="profile-sub" id="sideSub">
-                    <?= $p['dateOfBirth'] ? htmlspecialchars($p['dateOfBirth']) . ($age ? ' · ' . $age . ' yrs' : '') : '—' ?>
-                </div>
-                <div class="profile-code"><?= htmlspecialchars($p['patientCode']) ?></div>
             </div>
 
-            <div style="padding:0 1.25rem 1.5rem;">
-                <div class="section-label">Patient Status</div>
-                <div class="radio-options">
-                    <?php foreach (['Active' => 'var(--green)', 'Discharged' => 'var(--gray)', 'Inactive' => 'var(--red)'] as $val => $col): ?>
-                        <label class="radio-option <?= $p['status'] === $val ? 'selected' : '' ?>">
-                            <input type="radio" name="status" value="<?= $val ?>"
-                                <?= $p['status'] === $val ? 'checked' : '' ?>
-                                onchange="selectRadio(this)">
-                            <span class="status-dot" style="background:<?= $col ?>"></span> <?= $val ?>
-                        </label>
-                    <?php endforeach; ?>
-                </div>
-
-                <div class="form-divider"></div>
-
+            <!-- Patient Condition card (separate, like edit_doctor employment status) -->
+            <div class="form-card cond-card">
                 <div class="section-label">Patient Condition</div>
                 <div class="radio-options">
                     <?php
-                    $condColors = ['Stable' => 'var(--green)', 'Critical' => 'var(--red)', 'Under Observation' => 'var(--amber)', 'Recovering' => 'var(--blue-500)'];
+                    $condColors = [
+                        'Stable'            => 'var(--green)',
+                        'Critical'          => 'var(--red)',
+                        'Under Observation' => 'var(--amber)',
+                        'Recovering'        => 'var(--blue-500)',
+                    ];
                     foreach ($condColors as $val => $col): ?>
                         <label class="radio-option <?= $p['patientCondition'] === $val ? 'selected' : '' ?>">
                             <input type="radio" name="condition" value="<?= $val ?>"
@@ -462,9 +471,11 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                     <?php endforeach; ?>
                 </div>
             </div>
-        </div>
 
-        <!-- ── Main Form ── -->
+        </div>
+        <!-- ── End left column ── -->
+
+        <!-- ── Main Form Card ── -->
         <div class="form-card main-form-card">
             <form id="editForm" onsubmit="savePatient(event)">
                 <input type="hidden" name="id" value="<?= $p['id'] ?>">
@@ -473,35 +484,47 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 <div class="form-grid cols-3">
                     <div class="field">
                         <label>First Name <span class="req">*</span></label>
-                        <input type="text" name="first_name" value="<?= htmlspecialchars($p['firstName']) ?>" required oninput="updateSide()">
+                        <input type="text" name="first_name"
+                            value="<?= htmlspecialchars($p['firstName']) ?>"
+                            required oninput="updateSide()">
                     </div>
                     <div class="field">
                         <label>Middle Name</label>
-                        <input type="text" name="middle_name" value="<?= htmlspecialchars($p['middleName'] ?? '') ?>">
+                        <input type="text" name="middle_name"
+                            value="<?= htmlspecialchars($p['middleName'] ?? '') ?>">
                     </div>
                     <div class="field">
                         <label>Last Name <span class="req">*</span></label>
-                        <input type="text" name="last_name" value="<?= htmlspecialchars($p['lastName']) ?>" required oninput="updateSide()">
+                        <input type="text" name="last_name"
+                            value="<?= htmlspecialchars($p['lastName']) ?>"
+                            required oninput="updateSide()">
                     </div>
                 </div>
+
                 <div class="form-grid" style="margin-top:1rem;">
                     <div class="field">
                         <label>Date of Birth</label>
-                        <input type="date" name="dob" value="<?= htmlspecialchars($p['dateOfBirth'] ?? '') ?>" oninput="updateSide()">
+                        <input type="date" name="dob"
+                            value="<?= htmlspecialchars($p['dateOfBirth'] ?? '') ?>"
+                            oninput="updateSide()">
                     </div>
                     <div class="field">
                         <label>Gender <span class="req">*</span></label>
                         <select name="gender" required>
-                            <option <?= $p['gender'] === 'Male' ? 'selected' : '' ?>>Male</option>
+                            <option value="">Select gender</option>
+                            <option <?= $p['gender'] === 'Male'   ? 'selected' : '' ?>>Male</option>
                             <option <?= $p['gender'] === 'Female' ? 'selected' : '' ?>>Female</option>
-                            <option <?= $p['gender'] === 'Other' ? 'selected' : '' ?>>Other</option>
+                            <option <?= $p['gender'] === 'Other'  ? 'selected' : '' ?>>Other</option>
                         </select>
                     </div>
                 </div>
+
                 <div class="form-grid cols-1" style="margin-top:1rem;">
                     <div class="field">
                         <label>Address</label>
-                        <input type="text" name="address" value="<?= htmlspecialchars($p['address'] ?? '') ?>" placeholder="Street, Barangay, City, Province">
+                        <input type="text" name="address"
+                            value="<?= htmlspecialchars($p['address'] ?? '') ?>"
+                            placeholder="Street, Barangay, City, Province">
                     </div>
                 </div>
 
@@ -510,12 +533,14 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 <div class="section-label">Contact Information</div>
                 <div class="form-grid">
                     <div class="field">
-                        <label>Contact Number</label>
-                        <input type="tel" name="contact" value="<?= htmlspecialchars($p['contactNumber'] ?? '') ?>">
+                        <label>Contact Number <span class="req">*</span></label>
+                        <input type="tel" name="contact"
+                            value="<?= htmlspecialchars($p['contactNumber'] ?? '') ?>" required>
                     </div>
                     <div class="field">
                         <label>Email Address</label>
-                        <input type="email" name="email" value="<?= htmlspecialchars($p['emailAddress'] ?? '') ?>">
+                        <input type="email" name="email"
+                            value="<?= htmlspecialchars($p['emailAddress'] ?? '') ?>">
                     </div>
                 </div>
 
@@ -524,8 +549,17 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 <div class="section-label">Medical Information</div>
                 <div class="form-grid">
                     <div class="field">
+                        <label>Patient Status</label>
+                        <select name="status">
+                            <option <?= $p['status'] === 'Active'     ? 'selected' : '' ?>>Active</option>
+                            <option <?= $p['status'] === 'Discharged' ? 'selected' : '' ?>>Discharged</option>
+                            <option <?= $p['status'] === 'Inactive'   ? 'selected' : '' ?>>Inactive</option>
+                        </select>
+                    </div>
+                    <div class="field">
                         <label>Follow-up Date</label>
-                        <input type="date" name="follow_up_date" value="<?= htmlspecialchars($p['followUpDate'] ?? '') ?>">
+                        <input type="date" name="follow_up_date"
+                            value="<?= htmlspecialchars($p['followUpDate'] ?? '') ?>">
                     </div>
                 </div>
 
@@ -545,6 +579,8 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 </div>
             </form>
         </div>
+        <!-- ── End Main Form Card ── -->
+
     </div>
 </section>
 
@@ -562,8 +598,13 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         const first = document.querySelector('[name="first_name"]').value;
         const last = document.querySelector('[name="last_name"]').value;
         const dob = document.querySelector('[name="dob"]').value;
-        document.getElementById('sideName').textContent = (first + ' ' + last).trim() || '—';
-        document.getElementById('sideAvatar').textContent = ((first[0] || '') + (last[0] || '')).toUpperCase() || '?';
+
+        document.getElementById('sideName').textContent =
+            (first + ' ' + last).trim() || '—';
+
+        const av = document.getElementById('sideAvatar');
+        av.textContent = ((first[0] || '') + (last[0] || '')).toUpperCase() || '?';
+
         if (dob) {
             const age = Math.floor((Date.now() - new Date(dob)) / 31557600000);
             document.getElementById('sideSub').textContent = dob + ' · ' + age + ' yrs';
@@ -573,8 +614,8 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
     function savePatient(e) {
         e.preventDefault();
         const data = new FormData(e.target);
-        data.append('status', document.querySelector('input[name="status"]:checked')?.value || 'Active');
-        data.append('condition', document.querySelector('input[name="condition"]:checked')?.value || 'Stable');
+        data.set('condition', document.querySelector('input[name="condition"]:checked')?.value || 'Stable');
+
         fetch('update_patient.php', {
                 method: 'POST',
                 body: data
@@ -584,7 +625,9 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 if (res.success) {
                     showToast('<i class="bi bi-check-lg"></i> Changes saved successfully.', 'success');
                     setTimeout(() => window.location.href = 'patients', 1500);
-                } else showToast('<i class="bi bi-exclamation-octagon"></i> ' + res.message, 'error');
+                } else {
+                    showToast('<i class="bi bi-exclamation-octagon"></i> ' + res.message, 'error');
+                }
             })
             .catch(() => showToast('Network error.', 'error'));
     }
@@ -597,4 +640,5 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         setTimeout(() => el.remove(), 3500);
     }
 </script>
+
 <?php include('./includes/footer.php'); ?>

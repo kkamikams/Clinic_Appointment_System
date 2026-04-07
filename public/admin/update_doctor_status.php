@@ -1,33 +1,38 @@
 <?php
+
+/**
+ * update_doctor_status.php
+ * Called from doctors.php when admin clicks the status badge dropdown.
+ * Updates doctor.status and logs to recentActivity.
+ */
+
+include('../../app/middleware/admin.php');
 require_once('../../app/config/config.php');
+
 header('Content-Type: application/json');
 
 $id     = (int)($_POST['id']     ?? 0);
-$status = trim($_POST['status']  ?? '');
+$status = $_POST['status'] ?? '';
 
 $allowed = ['On Duty', 'Break', 'Off Duty'];
 if (!$id || !in_array($status, $allowed)) {
-    echo json_encode(['success' => false, 'message' => 'Invalid input.']);
+    echo json_encode(['success' => false, 'message' => 'Invalid input']);
     exit;
 }
 
-$stmt = $conn->prepare("UPDATE doctors SET status = ? WHERE id = ?");
-$stmt->bind_param('si', $status, $id);
+$safeStatus = $conn->real_escape_string($status);
+$conn->query("UPDATE doctors SET status='$safeStatus', updatedAt=NOW() WHERE id=$id");
 
-if ($stmt->execute()) {
-    // Log activity
-    $desc    = "Doctor status changed to: $status (ID: $id)";
-    $type    = 'Status Update';
-    $refType = 'Doctor';
-    $log = $conn->prepare(
-        "INSERT INTO recentActivity (activityType, description, referenceId, referenceType) VALUES (?,?,?,?)"
+if ($conn->affected_rows >= 0) {
+    $doc = $conn->query("SELECT CONCAT('Dr. ',firstName,' ',lastName) AS n FROM doctors WHERE id=$id")->fetch_row()[0] ?? '';
+    $stmt = $conn->prepare(
+        "INSERT INTO recentActivity (activityType, description, referenceId, referenceType) VALUES ('doctor_status',?,?,'Doctor')"
     );
-    $log->bind_param('ssis', $type, $desc, $id, $refType);
-    $log->execute();
-    $log->close();
+    $desc = "$doc status changed to $status";
+    $stmt->bind_param('si', $desc, $id);
+    $stmt->execute();
 
     echo json_encode(['success' => true]);
 } else {
-    echo json_encode(['success' => false, 'message' => $stmt->error]);
+    echo json_encode(['success' => false, 'message' => $conn->error]);
 }
-$stmt->close();

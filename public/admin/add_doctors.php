@@ -1,10 +1,10 @@
 <?php
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 ?>
-
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
 
@@ -77,7 +77,6 @@ require_once('../../app/config/config.php');
         }
     }
 
-    /* Left column stacks its cards vertically */
     .side-column {
         display: flex;
         flex-direction: column;
@@ -95,10 +94,6 @@ require_once('../../app/config/config.php');
 
     .side-card {
         animation-delay: .05s;
-    }
-
-    .emp-card {
-        animation-delay: .08s;
     }
 
     .main-form-card {
@@ -124,72 +119,40 @@ require_once('../../app/config/config.php');
         background: var(--border);
     }
 
-    .avatar-uploader {
+    /* ── Initials avatar ── */
+    .initials-preview-wrap {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 1rem;
+        gap: .55rem;
+        margin-bottom: 1.4rem;
     }
 
-    .avatar-preview {
-        width: 100px;
-        height: 100px;
+    .initials-circle {
+        width: 80px;
+        height: 80px;
         border-radius: 50%;
         background: var(--blue-100);
-        border: 3px dashed var(--blue-200);
+        color: var(--blue-700);
+        font-size: 1.7rem;
+        font-weight: 700;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2rem;
-        font-weight: 700;
-        color: var(--blue-500);
-        cursor: pointer;
-        transition: all .2s;
-        position: relative;
-        overflow: hidden;
+        border: 3px solid var(--blue-200);
+        letter-spacing: -.04em;
+        transition: background .2s, color .2s;
+        user-select: none;
     }
 
-    .avatar-preview:hover {
-        border-color: var(--blue-400);
-        background: var(--blue-50);
-    }
-
-    .avatar-preview img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 50%;
-        position: absolute;
-        inset: 0;
-    }
-
-    .avatar-hint {
-        font-size: .73rem;
+    .initials-hint {
+        font-size: .68rem;
         color: var(--text-muted);
         text-align: center;
-        line-height: 1.5;
+        line-height: 1.4;
     }
 
-    .btn-upload {
-        background: var(--blue-50);
-        border: 1px solid var(--blue-200);
-        border-radius: var(--radius-sm);
-        padding: .4rem 1rem;
-        font-size: .78rem;
-        font-weight: 600;
-        font-family: 'DM Sans', sans-serif;
-        color: var(--blue-600);
-        cursor: pointer;
-        transition: all .15s;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .btn-upload:hover {
-        background: var(--blue-100);
-    }
-
+    /* ── Employment status ── */
     .status-options {
         display: flex;
         flex-direction: column;
@@ -233,6 +196,7 @@ require_once('../../app/config/config.php');
         flex-shrink: 0;
     }
 
+    /* ── Form grid ── */
     .form-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
@@ -320,6 +284,7 @@ require_once('../../app/config/config.php');
         min-height: 80px;
     }
 
+    /* ── Day chips ── */
     .days-grid {
         display: flex;
         flex-wrap: wrap;
@@ -414,6 +379,7 @@ require_once('../../app/config/config.php');
         box-shadow: 0 2px 8px rgba(37, 99, 235, .28);
     }
 
+    /* ── Toast ── */
     .toast-wrap {
         position: fixed;
         bottom: 24px;
@@ -453,12 +419,12 @@ require_once('../../app/config/config.php');
     @keyframes fadeUp {
         from {
             opacity: 0;
-            transform: translateY(10px)
+            transform: translateY(10px);
         }
 
         to {
             opacity: 1;
-            transform: translateY(0)
+            transform: translateY(0);
         }
     }
 </style>
@@ -477,26 +443,18 @@ require_once('../../app/config/config.php');
 <section class="section page-add-doctor">
     <div class="add-layout">
 
-        <!-- Left Column -->
+        <!-- ── Left column ────────────────────────────── -->
         <div class="side-column">
 
-            <!-- Photo Card -->
+            <!-- Initials + Employment Status Card -->
             <div class="form-card side-card">
-                <div class="section-label">Photo</div>
-                <div class="avatar-uploader">
-                    <div class="avatar-preview" id="avatarPreview" onclick="document.getElementById('avatarInput').click()">
-                        <span id="avatarInitials">?</span>
-                    </div>
-                    <div class="avatar-hint">Click the circle to upload a photo.<br>JPG, PNG — max 2 MB</div>
-                    <button type="button" class="btn-upload" onclick="document.getElementById('avatarInput').click()">
-                        <i class="bi bi-upload"></i> Upload Photo
-                    </button>
-                    <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="previewAvatar(event)">
-                </div>
-            </div>
 
-            <!-- Employment Status Card (separate container) -->
-            <div class="form-card emp-card">
+                <!-- Live initials preview -->
+                <div class="initials-preview-wrap">
+                    <div class="initials-circle" id="initialsCircle">?</div>
+                    <div id="welcomeText" style="font-size:.9rem;font-weight:600;color:var(--text-body);text-align:center;">Welcome, Dr.</div>
+                </div>
+
                 <div class="section-label">Employment Status</div>
                 <div class="status-options">
                     <label class="status-option selected">
@@ -515,21 +473,23 @@ require_once('../../app/config/config.php');
             </div>
 
         </div>
-        <!-- End Left Column -->
+        <!-- ── End left column ──────────────────────── -->
 
-        <!-- Main Form Card -->
+        <!-- ── Main Form Card ────────────────────────── -->
         <div class="form-card main-form-card">
 
             <div class="section-label">Personal Information</div>
             <div class="form-grid">
                 <div class="field" id="field-firstname">
                     <label>First Name <span class="req">*</span></label>
-                    <input type="text" id="firstname" placeholder="e.g. Jose" oninput="clearError('field-firstname'); updateInitials()">
+                    <input type="text" id="firstname" placeholder="e.g. Jose"
+                        oninput="clearError('field-firstname'); updateInitials()">
                     <span class="err-msg">First name is required.</span>
                 </div>
                 <div class="field" id="field-lastname">
                     <label>Last Name <span class="req">*</span></label>
-                    <input type="text" id="lastname" placeholder="e.g. Reyes" oninput="clearError('field-lastname'); updateInitials()">
+                    <input type="text" id="lastname" placeholder="e.g. Reyes"
+                        oninput="clearError('field-lastname'); updateInitials()">
                     <span class="err-msg">Last name is required.</span>
                 </div>
                 <div class="field">
@@ -552,7 +512,8 @@ require_once('../../app/config/config.php');
                 </div>
                 <div class="field" id="field-license">
                     <label>PRC License No. <span class="req">*</span></label>
-                    <input type="text" id="license" placeholder="e.g. 0123456" oninput="clearError('field-license')">
+                    <input type="text" id="license" placeholder="e.g. 0123456"
+                        oninput="clearError('field-license')">
                     <span class="err-msg">License number is required.</span>
                 </div>
             </div>
@@ -593,7 +554,8 @@ require_once('../../app/config/config.php');
             <div class="form-grid">
                 <div class="field" id="field-contact">
                     <label>Contact Number <span class="req">*</span></label>
-                    <input type="tel" id="contact" placeholder="e.g. 09171234567" oninput="clearError('field-contact')">
+                    <input type="tel" id="contact" placeholder="e.g. 09171234567"
+                        oninput="clearError('field-contact')">
                     <span class="err-msg">Contact number is required.</span>
                 </div>
                 <div class="field">
@@ -650,6 +612,7 @@ require_once('../../app/config/config.php');
                 </button>
             </div>
         </div>
+        <!-- ── End Main Form Card ───────────────────── -->
 
     </div>
 </section>
@@ -657,24 +620,14 @@ require_once('../../app/config/config.php');
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
-    function previewAvatar(e) {
-        const file = e.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = ev => {
-            document.getElementById('avatarPreview').innerHTML = '<img src="' + ev.target.result + '" alt="Avatar">';
-        };
-        reader.readAsDataURL(file);
-    }
-
+    // ── Initials live update ──────────────────────────────
     function updateInitials() {
         const fn = document.getElementById('firstname').value.trim();
         const ln = document.getElementById('lastname').value.trim();
-        const prev = document.getElementById('avatarPreview');
-        if (!prev.querySelector('img'))
-            document.getElementById('avatarInitials').textContent = ((fn[0] || '') + (ln[0] || '')).toUpperCase() || '?';
+        document.getElementById('initialsCircle').textContent = ((fn[0] || '') + (ln[0] || '')).toUpperCase() || '?';
+        document.querySelector('.initials-hint').textContent = fn ? 'Welcome, Dr. ' + fn + '!' : 'Welcome, Dr.';
     }
-
+    // ── Employment status radio highlight ─────────────────
     function updateEmpStatus(radio) {
         document.querySelectorAll('input[name="empStatus"]').forEach(r => {
             r.closest('.status-option').classList.remove('selected');
@@ -682,12 +635,14 @@ require_once('../../app/config/config.php');
         radio.closest('.status-option').classList.add('selected');
     }
 
+    // ── Day chip toggle ───────────────────────────────────
     function toggleDay(label) {
         setTimeout(() => {
             label.classList.toggle('active', label.querySelector('input[type="checkbox"]').checked);
         }, 0);
     }
 
+    // ── Field validation helpers ──────────────────────────
     function clearError(fieldId) {
         document.getElementById(fieldId)?.classList.remove('has-error');
     }
@@ -717,7 +672,7 @@ require_once('../../app/config/config.php');
             {
                 id: 'contact',
                 field: 'field-contact'
-            }
+            },
         ].forEach(({
             id,
             field
@@ -730,6 +685,7 @@ require_once('../../app/config/config.php');
         return valid;
     }
 
+    // ── Form submit ───────────────────────────────────────
     function submitForm() {
         if (!validateForm()) {
             showToast('Please fill in all required fields.', 'warn');
@@ -762,9 +718,6 @@ require_once('../../app/config/config.php');
         formData.append('empStatus', document.querySelector('input[name="empStatus"]:checked')?.value || 'Active');
         days.forEach(d => formData.append('days[]', d));
 
-        const photoFile = document.getElementById('avatarInput').files[0];
-        if (photoFile) formData.append('photo', photoFile);
-
         fetch('/Clinic_Appointment_System/public/admin/save_doctor.php', {
                 method: 'POST',
                 body: formData
@@ -781,6 +734,7 @@ require_once('../../app/config/config.php');
             .catch(() => showToast('Network error. Please try again.', 'error'));
     }
 
+    // ── Toast ─────────────────────────────────────────────
     function showToast(msg, type = 'success') {
         const el = document.createElement('div');
         el.className = 'toast-msg ' + type;

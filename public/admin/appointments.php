@@ -1,7 +1,9 @@
 <?php
+session_start();
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
+require_once('../../app/config/config.php');
 ?>
 
 <style>
@@ -70,7 +72,6 @@ include('./includes/sidebar.php');
         font-weight: 600;
     }
 
-    /* ── Stat Strip ── */
     .stat-strip {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -143,7 +144,6 @@ include('./includes/sidebar.php');
         margin-top: .25rem;
     }
 
-    /* ── Main Card ── */
     .main-card {
         background: var(--card);
         border: 1px solid var(--border);
@@ -224,9 +224,11 @@ include('./includes/sidebar.php');
         cursor: pointer;
     }
 
-    /* Date picker toolbar item */
     .date-picker-wrap {
         position: relative;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
 
     .date-picker-wrap i {
@@ -257,6 +259,27 @@ include('./includes/sidebar.php');
         background: #fff;
     }
 
+    .btn-all-dates {
+        background: var(--surface);
+        color: var(--text-body);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: .42rem .75rem;
+        font-size: .75rem;
+        font-weight: 600;
+        font-family: 'DM Sans', sans-serif;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all .15s;
+    }
+
+    .btn-all-dates:hover,
+    .btn-all-dates.active {
+        background: var(--blue-50);
+        color: var(--blue-600);
+        border-color: var(--blue-200);
+    }
+
     .btn-primary-sm {
         background: var(--blue-600);
         color: #fff;
@@ -279,7 +302,6 @@ include('./includes/sidebar.php');
         box-shadow: 0 2px 8px rgba(37, 99, 235, .25);
     }
 
-    /* ── Table ── */
     .table {
         width: 100%;
         border-collapse: collapse;
@@ -371,38 +393,84 @@ include('./includes/sidebar.php');
         font-size: .75rem;
     }
 
-    .badge {
+    /* ── Status dropdown (matches patients page) ── */
+    .status-cell {
+        position: relative;
+    }
+
+    .badge-btn {
+        cursor: pointer;
+        border: none;
+        background: none;
+        padding: 0;
+        font-family: 'DM Sans', sans-serif;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: opacity .15s;
+    }
+
+    .badge-btn:hover {
+        opacity: .8;
+    }
+
+    .badge-caret {
+        font-size: .55rem;
+        opacity: .65;
+    }
+
+    .status-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-md);
+        z-index: 500;
+        min-width: 155px;
+        overflow: hidden;
+        animation: fadeUp .18s ease both;
+    }
+
+    .status-dropdown.open {
+        display: block;
+    }
+
+    .status-opt {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: .45rem .75rem;
+        font-size: .78rem;
+        font-weight: 600;
+        cursor: pointer;
+        color: var(--text-body);
+        font-family: 'DM Sans', sans-serif;
+        transition: background .12s;
+    }
+
+    .status-opt:hover {
+        background: var(--surface);
+    }
+
+    .status-opt .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+        display: inline-block;
+    }
+
+    /* Static badge used inside the button */
+    .appt-badge {
         font-family: 'DM Sans', sans-serif;
         font-size: .63rem;
         font-weight: 600;
         border-radius: 6px;
         padding: 3px 9px;
         letter-spacing: .03em;
-    }
-
-    .bg-success {
-        background: var(--green-light) !important;
-        color: var(--green-dark) !important;
-    }
-
-    .bg-warning {
-        background: var(--amber-light) !important;
-        color: var(--amber-dark) !important;
-    }
-
-    .bg-danger {
-        background: var(--red-light) !important;
-        color: var(--red-dark) !important;
-    }
-
-    .bg-info {
-        background: var(--teal-light) !important;
-        color: var(--teal-dark) !important;
-    }
-
-    .bg-violet {
-        background: var(--violet-light) !important;
-        color: var(--violet-dark) !important;
     }
 
     .channel-chip {
@@ -443,7 +511,6 @@ include('./includes/sidebar.php');
         border-color: #fca5a5;
     }
 
-    /* ── Loading overlay ── */
     .tbl-loading {
         display: none;
         position: absolute;
@@ -459,7 +526,6 @@ include('./includes/sidebar.php');
         overflow-x: auto;
     }
 
-    /* ── Empty state ── */
     .empty-state {
         text-align: center;
         padding: 3rem 1rem;
@@ -478,7 +544,6 @@ include('./includes/sidebar.php');
         margin: 0;
     }
 
-    /* ── Modal ── */
     .modal-content {
         border-radius: var(--radius);
         border: 1px solid var(--border);
@@ -554,7 +619,6 @@ include('./includes/sidebar.php');
         background: var(--border);
     }
 
-    /* View modal details */
     .detail-row {
         display: grid;
         grid-template-columns: 140px 1fr;
@@ -607,10 +671,9 @@ include('./includes/sidebar.php');
 
 <section class="section page-appointments">
 
-    <!-- Stat strip -->
     <div class="stat-strip">
         <div class="stat-card">
-            <div class="sc-label">Today's Total</div>
+            <div class="sc-label">Total</div>
             <div class="sc-num" id="statTotal">—</div>
             <div class="sc-sub" id="statTotalSub">Loading…</div>
         </div>
@@ -627,28 +690,26 @@ include('./includes/sidebar.php');
         <div class="stat-card">
             <div class="sc-label">Cancelled</div>
             <div class="sc-num" id="statCancelled">—</div>
-            <div class="sc-sub">Selected date</div>
+            <div class="sc-sub">Selected filter</div>
         </div>
     </div>
 
-    <!-- Table card -->
     <div class="main-card">
         <div class="table-toolbar">
             <h5>Appointment List <span id="toolbarDate">| <?php echo date('F j, Y'); ?></span></h5>
 
-            <!-- Date picker -->
-            <div class="date-picker-wrap">
-                <i class="bi bi-calendar3"></i>
-                <input type="date" id="apptDate" value="<?php echo date('Y-m-d'); ?>" onchange="loadAppointments(1)">
+            <div style="display:flex;align-items:center;gap:6px;">
+                <div class="date-picker-wrap">
+                    <i class="bi bi-calendar3"></i>
+                    <input type="date" id="apptDate" value="<?php echo date('Y-m-d'); ?>" onchange="onDateChange()">
+                </div>
+                <button class="btn-all-dates" id="btnAllDates" onclick="toggleAllDates()">All Dates</button>
             </div>
 
-            <!-- Search -->
             <div class="search-box">
                 <i class="bi bi-search"></i>
                 <input type="text" id="apptSearch" placeholder="Search patient or doctor…" oninput="debounceSearch()">
             </div>
-
-            <!-- Status filter -->
             <select class="filter-select" id="apptStatus" onchange="loadAppointments(1)">
                 <option value="">All Status</option>
                 <option>Completed</option>
@@ -656,12 +717,9 @@ include('./includes/sidebar.php');
                 <option>Pending</option>
                 <option>Cancelled</option>
             </select>
-
-            <!-- Doctor filter (populated dynamically) -->
             <select class="filter-select" id="apptDoctor" onchange="loadAppointments(1)">
                 <option value="">All Doctors</option>
             </select>
-
             <button class="btn-primary-sm" onclick="openAddModal()">
                 <i class="bi bi-plus-lg"></i>New Appointment
             </button>
@@ -689,7 +747,6 @@ include('./includes/sidebar.php');
             </table>
         </div>
 
-        <!-- Pagination -->
         <div class="d-flex align-items-center justify-content-between mt-3" style="flex-wrap:wrap;gap:8px;" id="paginationWrap">
             <span style="font-size:.75rem;color:var(--text-muted);" id="paginationInfo"></span>
             <div style="display:flex;gap:5px;" id="paginationBtns"></div>
@@ -698,9 +755,9 @@ include('./includes/sidebar.php');
 
 </section>
 
-<!-- ══════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════════════════════════
      ADD / EDIT MODAL
-══════════════════════════════════════════════════ -->
+═══════════════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="apptModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -711,25 +768,83 @@ include('./includes/sidebar.php');
             <div class="modal-body">
                 <input type="hidden" id="editId">
                 <div class="row g-3">
+
+                    <!-- ── PATIENT COLUMN ─────────────────────────── -->
                     <div class="col-md-6">
                         <label class="form-label">Patient</label>
-                        <select class="form-select" id="fPatient" required>
-                            <option value="">Select patient…</option>
-                        </select>
+                        <div id="patientSection">
+
+                            <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px;">
+                                <button type="button" id="tabExisting" onclick="switchPatientTab('existing')"
+                                    style="flex:1;padding:.42rem .75rem;font-size:.78rem;font-weight:600;font-family:'DM Sans',sans-serif;border:none;cursor:pointer;background:var(--blue-600);color:#fff;transition:all .15s;">
+                                    <i class="bi bi-search"></i> Search Existing
+                                </button>
+                                <button type="button" id="tabNew" onclick="switchPatientTab('new')"
+                                    style="flex:1;padding:.42rem .75rem;font-size:.78rem;font-weight:600;font-family:'DM Sans',sans-serif;border:none;cursor:pointer;background:var(--surface);color:var(--text-body);transition:all .15s;">
+                                    <i class="bi bi-person-plus"></i> New Patient
+                                </button>
+                            </div>
+
+                            <div id="containerExisting" style="display:flex;flex-direction:column;gap:8px;">
+                                <div style="position:relative;">
+                                    <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem;pointer-events:none;"></i>
+                                    <input type="text" id="patientSearchInput" class="form-control"
+                                        placeholder="Type name or patient code…"
+                                        style="padding-left:2rem;"
+                                        oninput="debouncePatientSearch()" autocomplete="off">
+                                </div>
+                                <div id="patientSearchResults"
+                                    style="display:none;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;max-height:180px;overflow-y:auto;"></div>
+                                <div id="selectedPatientCard"
+                                    style="display:none;background:var(--blue-50);border:1px solid var(--blue-200);border-radius:var(--radius-sm);padding:.6rem .85rem;font-size:.82rem;">
+                                    <div style="display:flex;align-items:center;justify-content:space-between;">
+                                        <div>
+                                            <div style="font-weight:700;color:var(--text-dark);" id="selPatName">—</div>
+                                            <div style="color:var(--text-muted);font-size:.72rem;" id="selPatMeta">—</div>
+                                        </div>
+                                        <button type="button" onclick="clearSelectedPatient()"
+                                            style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.85rem;padding:2px 6px;">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="fPatient">
+                            </div>
+
+                            <div id="containerNew" style="display:none;flex-direction:column;gap:6px;">
+                                <input type="text" class="form-control" id="fNewPatientName" placeholder="Full name *">
+                                <label class="form-label" style="margin-bottom:0;margin-top:4px;">Date of Birth</label>
+                                <input type="date" class="form-control" id="fNewPatientDOB">
+                                <input type="tel" class="form-control" id="fNewPatientContact" placeholder="Contact number">
+                                <input type="email" class="form-control" id="fNewPatientEmail" placeholder="Email address">
+                                <select class="form-select" id="fNewPatientGender">
+                                    <option value="">Select gender</option>
+                                    <option>Male</option>
+                                    <option>Female</option>
+                                    <option>Other</option>
+                                </select>
+                            </div>
+
+                        </div>
                     </div>
+                    <!-- ── END PATIENT COLUMN ─────────────────────── -->
+
                     <div class="col-md-6">
                         <label class="form-label">Doctor</label>
-                        <select class="form-select" id="fDoctor" required>
+                        <select class="form-select" id="fDoctor" required onchange="loadAdminSlots()">
                             <option value="">Select doctor…</option>
                         </select>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Date</label>
-                        <input type="date" class="form-control" id="fDate" required>
+                        <input type="date" class="form-control" id="fDate" required onchange="loadAdminSlots()">
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Time</label>
-                        <input type="time" class="form-control" id="fTime" required>
+                        <input type="hidden" id="fTime">
+                        <div id="adminSlotsContainer">
+                            <div style="font-size:.78rem;color:var(--text-muted);">Select a doctor and date first.</div>
+                        </div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Channel</label>
@@ -765,9 +880,9 @@ include('./includes/sidebar.php');
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════
+<!-- ══════════════════════════════════════════════════════════════════
      VIEW MODAL
-══════════════════════════════════════════════════ -->
+═══════════════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="viewModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -775,9 +890,7 @@ include('./includes/sidebar.php');
                 <h5 class="modal-title">Appointment Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body" id="viewModalBody">
-                <!-- filled dynamically -->
-            </div>
+            <div class="modal-body" id="viewModalBody"></div>
             <div class="modal-footer">
                 <button class="btn-secondary-sm" data-bs-dismiss="modal">Close</button>
             </div>
@@ -785,9 +898,9 @@ include('./includes/sidebar.php');
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════
-     CONFIRM CANCEL MODAL
-══════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════════════════════════════
+     CANCEL MODAL
+═══════════════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="cancelModal" tabindex="-1">
     <div class="modal-dialog modal-sm">
         <div class="modal-content">
@@ -796,7 +909,9 @@ include('./includes/sidebar.php');
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <p style="font-size:.85rem;color:var(--text-body);margin:0;">This will mark the appointment as <strong>Cancelled</strong>. Continue?</p>
+                <p style="font-size:.85rem;color:var(--text-body);margin:0;">
+                    This will mark the appointment as <strong>Cancelled</strong>. Continue?
+                </p>
                 <input type="hidden" id="cancelId">
             </div>
             <div class="modal-footer">
@@ -810,25 +925,155 @@ include('./includes/sidebar.php');
 </div>
 
 <script>
-    // ────────────────────────────────────────────────────────────
-    // Config
-    // ────────────────────────────────────────────────────────────
     const HANDLER = 'appointments_handler.php';
     let currentPage = 1;
     let searchTimer = null;
+    let showAllDates = false;
 
-    // ────────────────────────────────────────────────────────────
-    // Init
-    // ────────────────────────────────────────────────────────────
+    // ── Status config (single source of truth) ────────────────────────
+    const STATUS_CONFIG = {
+        'Pending': {
+            dot: '#f59e0b',
+            bg: '#fef3c7',
+            color: '#92400e'
+        },
+        'In Progress': {
+            dot: '#06b6d4',
+            bg: '#cffafe',
+            color: '#155e75'
+        },
+        'Completed': {
+            dot: '#10b981',
+            bg: '#d1fae5',
+            color: '#065f46'
+        },
+        'Cancelled': {
+            dot: '#ef4444',
+            bg: '#fee2e2',
+            color: '#991b1b'
+        },
+    };
+
     document.addEventListener('DOMContentLoaded', () => {
         loadDoctors();
-        loadPatientsForForm();
         loadAppointments(1);
     });
 
-    // ────────────────────────────────────────────────────────────
-    // Load doctors dropdown (toolbar + form)
-    // ────────────────────────────────────────────────────────────
+    // ── Close dropdowns when clicking outside ─────────────────────────
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.status-cell'))
+            document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
+    });
+
+    // ── Toggle dropdown open/close ────────────────────────────────────
+    function toggleStatusDrop(btn) {
+        const dd = btn.nextElementSibling;
+        const isOpen = dd.classList.contains('open');
+        document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
+        if (!isOpen) dd.classList.add('open');
+    }
+
+    // ── Pick a status from the dropdown ──────────────────────────────
+    function pickApptStatus(optEl, newStatus, id) {
+        const cfg = STATUS_CONFIG[newStatus];
+        const dd = optEl.closest('.status-dropdown');
+        const btn = dd.previousElementSibling;
+        const badge = btn.querySelector('.appt-badge');
+
+        // Update badge instantly
+        badge.style.background = cfg.bg;
+        badge.style.color = cfg.color;
+        badge.textContent = newStatus;
+        dd.classList.remove('open');
+
+        // Save to server
+        const fd = new FormData();
+        fd.append('id', id);
+        fd.append('status', newStatus);
+
+        fetch(`${HANDLER}?action=update_status`, {
+                method: 'POST',
+                body: fd
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    renderStats(res.stats, showAllDates);
+                    showToast('Status updated to "' + newStatus + '"', 'success');
+                } else {
+                    loadAppointments(currentPage);
+                }
+            })
+            .catch(() => loadAppointments(currentPage));
+    }
+
+    // ── Build the status dropdown cell HTML ───────────────────────────
+    function statusDropdown(id, current) {
+        const cfg = STATUS_CONFIG[current] || {
+            dot: '#9ca3af',
+            bg: '#f3f4f6',
+            color: '#374151'
+        };
+        const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => `
+            <div class="status-opt" onclick="pickApptStatus(this,'${label}',${id})">
+                <span class="dot" style="background:${c.dot};"></span>
+                ${label}
+            </div>
+        `).join('');
+
+        return `
+            <div class="status-cell">
+                <button class="badge-btn" onclick="toggleStatusDrop(this)">
+                    <span class="appt-badge"
+                        style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;letter-spacing:.03em;">
+                        ${current}
+                    </span>
+                    <span class="badge-caret">▾</span>
+                </button>
+                <div class="status-dropdown">
+                    ${opts}
+                </div>
+            </div>
+        `;
+    }
+
+    // ── All Dates toggle ──────────────────────────────────────────────
+    function toggleAllDates() {
+        showAllDates = !showAllDates;
+        const btn = document.getElementById('btnAllDates');
+        const dateInput = document.getElementById('apptDate');
+
+        if (showAllDates) {
+            btn.classList.add('active');
+            dateInput.style.opacity = '0.4';
+            dateInput.disabled = true;
+            document.getElementById('toolbarDate').textContent = '| All Dates';
+        } else {
+            btn.classList.remove('active');
+            dateInput.style.opacity = '1';
+            dateInput.disabled = false;
+            const d = new Date(dateInput.value + 'T00:00:00');
+            document.getElementById('toolbarDate').textContent =
+                '| ' + d.toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+        }
+        loadAppointments(1);
+    }
+
+    function onDateChange() {
+        if (showAllDates) {
+            showAllDates = false;
+            document.getElementById('btnAllDates').classList.remove('active');
+            document.getElementById('apptDate').style.opacity = '1';
+            document.getElementById('apptDate').disabled = false;
+        }
+        loadAppointments(1);
+    }
+
+    // ── Doctors ───────────────────────────────────────────────────────
     function loadDoctors() {
         fetch(`${HANDLER}?action=get_doctors`)
             .then(r => r.json())
@@ -845,54 +1090,117 @@ include('./includes/sidebar.php');
             });
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Load patients for form dropdown
-    // ────────────────────────────────────────────────────────────
-    function loadPatientsForForm() {
-        fetch(`${HANDLER}?action=get_patients&q=`)
+    // ── Patient tab switcher ──────────────────────────────────────────
+    function switchPatientTab(tab) {
+        const isExisting = tab === 'existing';
+        document.getElementById('tabExisting').style.background = isExisting ? 'var(--blue-600)' : 'var(--surface)';
+        document.getElementById('tabExisting').style.color = isExisting ? '#fff' : 'var(--text-body)';
+        document.getElementById('tabNew').style.background = isExisting ? 'var(--surface)' : 'var(--blue-600)';
+        document.getElementById('tabNew').style.color = isExisting ? 'var(--text-body)' : '#fff';
+        document.getElementById('containerExisting').style.display = isExisting ? 'flex' : 'none';
+        document.getElementById('containerNew').style.display = isExisting ? 'none' : 'flex';
+        if (isExisting) clearNewPatientFields();
+        else clearSelectedPatient();
+    }
+
+    // ── Existing patient live search ──────────────────────────────────
+    let patientSearchTimer = null;
+
+    function debouncePatientSearch() {
+        clearTimeout(patientSearchTimer);
+        patientSearchTimer = setTimeout(runPatientSearch, 300);
+    }
+
+    function runPatientSearch() {
+        const q = document.getElementById('patientSearchInput').value.trim();
+        const results = document.getElementById('patientSearchResults');
+        if (!q) {
+            results.style.display = 'none';
+            return;
+        }
+
+        fetch(`${HANDLER}?action=get_patients&q=${encodeURIComponent(q)}`)
             .then(r => r.json())
             .then(res => {
-                if (!res.success) return;
-                const sel = document.getElementById('fPatient');
-                res.data.forEach(p => {
-                    sel.insertAdjacentHTML('beforeend',
-                        `<option value="${p.id}">${p.name} (${p.patientCode})</option>`);
-                });
+                if (!res.success || !res.data.length) {
+                    results.innerHTML = `<div style="padding:.6rem 1rem;font-size:.8rem;color:var(--text-muted);">No patients found.</div>`;
+                    results.style.display = 'block';
+                    return;
+                }
+                results.innerHTML = res.data.map(p => `
+                    <div onclick="selectPatient(${p.id},'${escHtml(p.name)}','${escHtml(p.patientCode)}','${escHtml(p.contact||'')}','${escHtml(p.dob||'')}')"
+                        style="padding:.55rem 1rem;font-size:.82rem;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;"
+                        onmouseover="this.style.background='var(--blue-50)'" onmouseout="this.style.background='#fff'">
+                        <div style="width:30px;height:30px;border-radius:50%;background:var(--blue-50);color:var(--blue-700);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;">
+                            ${initials(p.name)}
+                        </div>
+                        <div>
+                            <div style="font-weight:600;color:var(--text-dark);">${p.name}</div>
+                            <div style="font-size:.7rem;color:var(--text-muted);">${p.patientCode}${p.dob ? ' · ' + fmtDate(p.dob) : ''}${p.contact ? ' · ' + p.contact : ''}</div>
+                        </div>
+                    </div>
+                `).join('');
+                results.style.display = 'block';
             });
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Load / refresh appointments table
-    // ────────────────────────────────────────────────────────────
+    function selectPatient(id, name, code, contact, dob) {
+        document.getElementById('fPatient').value = id;
+        document.getElementById('patientSearchInput').value = '';
+        document.getElementById('patientSearchResults').style.display = 'none';
+        document.getElementById('selPatName').textContent = name;
+        document.getElementById('selPatMeta').textContent =
+            `${code}${dob ? ' · DOB: ' + fmtDate(dob) : ''}${contact ? ' · ' + contact : ''}`;
+        document.getElementById('selectedPatientCard').style.display = 'block';
+    }
+
+    function clearSelectedPatient() {
+        document.getElementById('fPatient').value = '';
+        document.getElementById('patientSearchInput').value = '';
+        document.getElementById('patientSearchResults').style.display = 'none';
+        document.getElementById('selectedPatientCard').style.display = 'none';
+    }
+
+    function clearNewPatientFields() {
+        ['fNewPatientName', 'fNewPatientDOB', 'fNewPatientContact', 'fNewPatientEmail'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        const g = document.getElementById('fNewPatientGender');
+        if (g) g.value = '';
+    }
+
+    function escHtml(str) {
+        return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    // ── Load appointments ─────────────────────────────────────────────
     function loadAppointments(page) {
         currentPage = page || 1;
-
-        const date = document.getElementById('apptDate').value;
+        const date = showAllDates ? '' : document.getElementById('apptDate').value;
         const search = encodeURIComponent(document.getElementById('apptSearch').value.trim());
         const status = encodeURIComponent(document.getElementById('apptStatus').value);
         const doctor = encodeURIComponent(document.getElementById('apptDoctor').value);
 
-        // update toolbar date label
-        const d = new Date(date + 'T00:00:00');
-        document.getElementById('toolbarDate').textContent =
-            '| ' + d.toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-            });
+        if (!showAllDates && date) {
+            const d = new Date(date + 'T00:00:00');
+            document.getElementById('toolbarDate').textContent =
+                '| ' + d.toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+        }
 
-        // show loader
         document.getElementById('tblLoading').style.display = 'flex';
 
-        const url = `${HANDLER}?action=list&date=${date}&search=${search}&status=${status}&doctor=${doctor}&page=${currentPage}`;
-
-        fetch(url)
+        fetch(`${HANDLER}?action=list&date=${date}&search=${search}&status=${status}&doctor=${doctor}&page=${currentPage}`)
             .then(r => r.json())
             .then(res => {
                 document.getElementById('tblLoading').style.display = 'none';
                 if (!res.success) return;
                 renderRows(res.rows);
-                renderStats(res.stats);
+                renderStats(res.stats, showAllDates);
                 renderPagination(res.total, res.page, res.limit);
             })
             .catch(() => {
@@ -900,9 +1208,6 @@ include('./includes/sidebar.php');
             });
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Render table rows
-    // ────────────────────────────────────────────────────────────
     const avatarColors = [
         ['#dbeafe', '#1d4ed8'],
         ['#d1fae5', '#065f46'],
@@ -916,27 +1221,16 @@ include('./includes/sidebar.php');
         return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
     }
 
-    function statusBadge(s) {
-        const map = {
-            'Completed': 'bg-success',
-            'In Progress': 'bg-info',
-            'Pending': 'bg-warning',
-            'Cancelled': 'bg-danger',
-        };
-        return `<span class="badge ${map[s]||'bg-secondary'}">${s}</span>`;
-    }
-
     function fmtTime(t) {
         if (!t) return '—';
         const [h, m] = t.split(':');
         const hr = parseInt(h);
-        return `${hr > 12 ? hr-12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+        return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
     }
 
     function fmtDate(d) {
         if (!d) return '—';
-        const dt = new Date(d + 'T00:00:00');
-        return dt.toLocaleDateString('en-US', {
+        return new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
             year: 'numeric'
@@ -946,68 +1240,48 @@ include('./includes/sidebar.php');
     function renderRows(rows) {
         const tbody = document.getElementById('apptTbody');
         if (!rows.length) {
-            tbody.innerHTML = `<tr><td colspan="9">
-            <div class="empty-state">
+            tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
                 <i class="bi bi-calendar-x"></i>
                 <p>No appointments found for the selected filters.</p>
-            </div>
-        </td></tr>`;
+            </div></td></tr>`;
             return;
         }
-
         tbody.innerHTML = rows.map((r, i) => {
             const [bg, fg] = avatarColors[i % avatarColors.length];
-            const ini = initials(r.patientName);
             const avatarHtml = r.patPhoto ?
                 `<img src="${r.patPhoto}" alt="">` :
-                ini;
-
+                initials(r.patientName || '??');
             return `<tr>
-            <td><a href="#" class="appt-id">${r.appointmentCode}</a></td>
-            <td>
-                <div class="pat-cell">
+                <td><a href="#" class="appt-id">${r.appointmentCode}</a></td>
+                <td><div class="pat-cell">
                     <div class="pat-avatar" style="background:${bg};color:${fg}">${avatarHtml}</div>
-                    <span class="pat-name">${r.patientName}</span>
-                </div>
-            </td>
-            <td>${r.doctorName}</td>
-            <td>${r.specialization || '—'}</td>
-            <td>${fmtDate(r.appointmentDate)}</td>
-            <td>
-                <div class="time-cell">
-                    <i class="bi bi-clock"></i>${fmtTime(r.appointmentTime)}
-                </div>
-            </td>
-            <td><span class="channel-chip">${r.channel}</span></td>
-            <td>${statusBadge(r.status)}</td>
-            <td>
-                <div class="action-btns">
+                    <span class="pat-name">${r.patientName || '—'}</span>
+                </div></td>
+                <td>${r.doctorName || '—'}</td>
+                <td>${r.specialization || '—'}</td>
+                <td>${fmtDate(r.appointmentDate)}</td>
+                <td><div class="time-cell"><i class="bi bi-clock"></i>${fmtTime(r.appointmentTime)}</div></td>
+                <td><span class="channel-chip">${r.channel}</span></td>
+                <td>${statusDropdown(r.id, r.status)}</td>
+                <td><div class="action-btns">
                     <button class="btn-act" title="View"   onclick="viewAppt(${r.id})"><i class="bi bi-eye"></i></button>
                     <button class="btn-act" title="Edit"   onclick="editAppt(${r.id})"><i class="bi bi-pencil"></i></button>
                     <button class="btn-act del" title="Cancel" onclick="openCancel(${r.id})"><i class="bi bi-x-lg"></i></button>
-                </div>
-            </td>
-        </tr>`;
+                </div></td>
+            </tr>`;
         }).join('');
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Render stats
-    // ────────────────────────────────────────────────────────────
-    function renderStats(s) {
+    function renderStats(s, allDates) {
         document.getElementById('statTotal').textContent = s.total;
         document.getElementById('statCompleted').textContent = s['Completed'] || 0;
         document.getElementById('statPending').textContent = s['Pending'] || 0;
         document.getElementById('statCancelled').textContent = s['Cancelled'] || 0;
-
         const rate = s.total ? Math.round((s['Completed'] / s.total) * 100) : 0;
-        document.getElementById('statTotalSub').textContent = 'Appointments today';
+        document.getElementById('statTotalSub').textContent = allDates ? 'All appointments' : 'Appointments on selected date';
         document.getElementById('statCompletedSub').textContent = `${rate}% completion rate`;
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Pagination
-    // ────────────────────────────────────────────────────────────
     function renderPagination(total, page, limit) {
         const pages = Math.ceil(total / limit);
         const start = (page - 1) * limit + 1;
@@ -1018,54 +1292,48 @@ include('./includes/sidebar.php');
 
         const wrap = document.getElementById('paginationBtns');
         wrap.innerHTML = '';
-
         if (pages <= 1) return;
 
         const btn = (label, p, active = false) => {
             const b = document.createElement('button');
             b.className = 'btn-act';
             b.innerHTML = label;
-            b.style.cssText = `border-radius:8px;padding:4px 12px;font-size:.78rem;${active?'background:var(--blue-600);color:#fff;border-color:var(--blue-600);':''}`;
+            b.style.cssText = `border-radius:8px;padding:4px 12px;font-size:.78rem;${active ? 'background:var(--blue-600);color:#fff;border-color:var(--blue-600);' : ''}`;
             if (p) b.onclick = () => loadAppointments(p);
             else b.disabled = true;
             return b;
         };
 
         wrap.appendChild(btn('‹ Prev', page > 1 ? page - 1 : null));
-        for (let i = 1; i <= pages; i++) {
-            wrap.appendChild(btn(i, i, i === page));
-        }
+        for (let i = 1; i <= pages; i++) wrap.appendChild(btn(i, i, i === page));
         wrap.appendChild(btn('Next ›', page < pages ? page + 1 : null));
     }
 
-    // ────────────────────────────────────────────────────────────
-    // Debounce search
-    // ────────────────────────────────────────────────────────────
     function debounceSearch() {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(() => loadAppointments(1), 350);
     }
 
-    // ────────────────────────────────────────────────────────────
-    // ADD modal
-    // ────────────────────────────────────────────────────────────
+    // ── Open Add Modal ────────────────────────────────────────────────
     function openAddModal() {
         document.getElementById('apptModalTitle').textContent = 'New Appointment';
         document.getElementById('saveBtnLabel').textContent = 'Save Appointment';
         document.getElementById('editId').value = '';
-        document.getElementById('fPatient').value = '';
         document.getElementById('fDoctor').value = '';
-        document.getElementById('fDate').value = document.getElementById('apptDate').value;
+        document.getElementById('fDate').value = document.getElementById('apptDate').value || '';
         document.getElementById('fTime').value = '';
         document.getElementById('fChannel').value = 'Walk-in';
         document.getElementById('fStatus').value = 'Pending';
         document.getElementById('fRemarks').value = '';
+        document.getElementById('adminSlotsContainer').innerHTML =
+            '<div style="font-size:.78rem;color:var(--text-muted);">Select a doctor and date first.</div>';
+        switchPatientTab('existing');
+        clearSelectedPatient();
+        clearNewPatientFields();
         new bootstrap.Modal(document.getElementById('apptModal')).show();
     }
 
-    // ────────────────────────────────────────────────────────────
-    // EDIT modal
-    // ────────────────────────────────────────────────────────────
+    // ── Edit ──────────────────────────────────────────────────────────
     function editAppt(id) {
         fetch(`${HANDLER}?action=get&id=${id}`)
             .then(r => r.json())
@@ -1075,25 +1343,55 @@ include('./includes/sidebar.php');
                 document.getElementById('apptModalTitle').textContent = 'Edit Appointment';
                 document.getElementById('saveBtnLabel').textContent = 'Update Appointment';
                 document.getElementById('editId').value = d.id;
-                document.getElementById('fPatient').value = d.patientId;
-                document.getElementById('fDoctor').value = d.doctorId;
                 document.getElementById('fDate').value = d.appointmentDate;
-                document.getElementById('fTime').value = d.appointmentTime.slice(0, 5);
+                document.getElementById('fDoctor').value = d.doctorId;
                 document.getElementById('fChannel').value = d.channel;
                 document.getElementById('fStatus').value = d.status;
                 document.getElementById('fRemarks').value = d.remarks || '';
+
+                switchPatientTab('existing');
+                if (d.patientId) {
+                    document.getElementById('fPatient').value = d.patientId;
+                    document.getElementById('selPatName').textContent = d.patientName || '—';
+                    document.getElementById('selPatMeta').textContent = '';
+                    document.getElementById('selectedPatientCard').style.display = 'block';
+                }
+
+                loadAdminSlots();
+                setTimeout(() => {
+                    const existing = d.appointmentTime.slice(0, 5);
+                    document.querySelectorAll('#adminSlotsContainer button').forEach(b => {
+                        if (b.dataset.val === existing) selectAdminSlot(existing, b);
+                    });
+                }, 800);
+
                 new bootstrap.Modal(document.getElementById('apptModal')).show();
             });
     }
 
-    // ────────────────────────────────────────────────────────────
-    // SAVE (add or edit)
-    // ────────────────────────────────────────────────────────────
+    // ── Save ──────────────────────────────────────────────────────────
     function saveAppointment() {
         const id = document.getElementById('editId').value;
+        const isNew = document.getElementById('containerNew').style.display !== 'none';
+        const newName = document.getElementById('fNewPatientName')?.value.trim();
+
+        if (isNew && !newName) {
+            alert('Please enter the new patient name.');
+            return;
+        }
+        if (!isNew && !document.getElementById('fPatient').value) {
+            alert('Please search and select a patient.');
+            return;
+        }
+
         const payload = {
             id: id || undefined,
-            patientId: document.getElementById('fPatient').value,
+            patientId: isNew ? '' : document.getElementById('fPatient').value,
+            patientName: isNew ? newName : '',
+            patientDOB: isNew ? document.getElementById('fNewPatientDOB').value : '',
+            patientContact: isNew ? document.getElementById('fNewPatientContact').value.trim() : '',
+            patientEmail: isNew ? document.getElementById('fNewPatientEmail').value.trim() : '',
+            patientGender: isNew ? document.getElementById('fNewPatientGender').value : '',
             doctorId: document.getElementById('fDoctor').value,
             appointmentDate: document.getElementById('fDate').value,
             appointmentTime: document.getElementById('fTime').value,
@@ -1102,14 +1400,12 @@ include('./includes/sidebar.php');
             remarks: document.getElementById('fRemarks').value,
         };
 
-        if (!payload.patientId || !payload.doctorId || !payload.appointmentDate || !payload.appointmentTime) {
+        if (!payload.doctorId || !payload.appointmentDate || !payload.appointmentTime) {
             alert('Please fill in all required fields.');
             return;
         }
 
-        const action = id ? 'edit' : 'add';
-
-        fetch(`${HANDLER}?action=${action}`, {
+        fetch(`${HANDLER}?action=${id ? 'edit' : 'add'}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1120,40 +1416,102 @@ include('./includes/sidebar.php');
             .then(res => {
                 if (res.success) {
                     bootstrap.Modal.getInstance(document.getElementById('apptModal')).hide();
-                    loadAppointments(currentPage);
+                    if (showAllDates) {
+                        showAllDates = false;
+                        document.getElementById('btnAllDates').classList.remove('active');
+                        document.getElementById('apptDate').disabled = false;
+                        document.getElementById('apptDate').style.opacity = '1';
+                    }
+                    document.getElementById('apptDate').value = payload.appointmentDate;
+                    loadAppointments(1);
+                    showToast('Appointment saved successfully!', 'success');
                 } else {
                     alert('Failed to save. Please try again.');
                 }
             });
     }
 
-    // ────────────────────────────────────────────────────────────
-    // VIEW modal
-    // ────────────────────────────────────────────────────────────
+    // ── View ──────────────────────────────────────────────────────────
     function viewAppt(id) {
         fetch(`${HANDLER}?action=get&id=${id}`)
             .then(r => r.json())
             .then(res => {
                 if (!res.success) return alert('Could not load appointment.');
                 const d = res.data;
+                const cfg = STATUS_CONFIG[d.status] || {
+                    bg: '#f3f4f6',
+                    color: '#374151'
+                };
                 document.getElementById('viewModalBody').innerHTML = `
-                <div class="detail-row"><span class="detail-label">Code</span>       <span class="detail-value">${d.appointmentCode}</span></div>
-                <div class="detail-row"><span class="detail-label">Patient</span>    <span class="detail-value">${d.patientName}</span></div>
-                <div class="detail-row"><span class="detail-label">Doctor</span>     <span class="detail-value">${d.doctorName}</span></div>
-                <div class="detail-row"><span class="detail-label">Specialization</span><span class="detail-value">${d.specialization||'—'}</span></div>
-                <div class="detail-row"><span class="detail-label">Date</span>       <span class="detail-value">${fmtDate(d.appointmentDate)}</span></div>
-                <div class="detail-row"><span class="detail-label">Time</span>       <span class="detail-value">${fmtTime(d.appointmentTime)}</span></div>
-                <div class="detail-row"><span class="detail-label">Channel</span>    <span class="detail-value">${d.channel}</span></div>
-                <div class="detail-row"><span class="detail-label">Status</span>     <span class="detail-value">${statusBadge(d.status)}</span></div>
-                <div class="detail-row"><span class="detail-label">Remarks</span>    <span class="detail-value">${d.remarks||'—'}</span></div>
-            `;
+                    <div class="detail-row"><span class="detail-label">Code</span><span class="detail-value">${d.appointmentCode}</span></div>
+                    <div class="detail-row"><span class="detail-label">Patient</span><span class="detail-value">${d.patientName || '—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Doctor</span><span class="detail-value">${d.doctorName || '—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Specialization</span><span class="detail-value">${d.specialization || '—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Date</span><span class="detail-value">${fmtDate(d.appointmentDate)}</span></div>
+                    <div class="detail-row"><span class="detail-label">Time</span><span class="detail-value">${fmtTime(d.appointmentTime)}</span></div>
+                    <div class="detail-row"><span class="detail-label">Channel</span><span class="detail-value">${d.channel}</span></div>
+                    <div class="detail-row"><span class="detail-label">Status</span>
+                        <span class="detail-value">
+                            <span style="background:${cfg.bg};color:${cfg.color};font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;letter-spacing:.03em;font-family:'DM Sans',sans-serif;">
+                                ${d.status}
+                            </span>
+                        </span>
+                    </div>
+                    <div class="detail-row"><span class="detail-label">Remarks</span><span class="detail-value">${d.remarks || '—'}</span></div>
+                `;
                 new bootstrap.Modal(document.getElementById('viewModal')).show();
             });
     }
 
-    // ────────────────────────────────────────────────────────────
-    // CANCEL
-    // ────────────────────────────────────────────────────────────
+    // ── Slots ─────────────────────────────────────────────────────────
+    function loadAdminSlots() {
+        const docId = document.getElementById('fDoctor').value;
+        const date = document.getElementById('fDate').value;
+        const container = document.getElementById('adminSlotsContainer');
+
+        if (!docId || !date) {
+            container.innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">Select a doctor and date first.</div>';
+            document.getElementById('fTime').value = '';
+            return;
+        }
+
+        container.innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">Loading slots…</div>';
+
+        fetch(`${HANDLER}?action=get_slots&doctorId=${docId}&date=${date}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.slots.length) {
+                    container.innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">No slots available for this day.</div>';
+                    return;
+                }
+                let html = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">';
+                res.slots.forEach(slot => {
+                    html += `<button type="button" data-val="${slot.value}"
+                        style="border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-body);cursor:pointer;"
+                        ${!slot.available ? 'disabled style="opacity:.45;cursor:not-allowed;"' : ''}
+                        onclick="selectAdminSlot('${slot.value}', this)">${slot.label}</button>`;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            })
+            .catch(() => {
+                container.innerHTML = '<div style="font-size:.78rem;color:var(--red);">Failed to load slots.</div>';
+            });
+    }
+
+    function selectAdminSlot(value, btn) {
+        document.querySelectorAll('#adminSlotsContainer button').forEach(b => {
+            b.style.background = 'var(--surface)';
+            b.style.color = 'var(--text-body)';
+            b.style.borderColor = 'var(--border)';
+        });
+        btn.style.background = 'var(--blue-600)';
+        btn.style.color = '#fff';
+        btn.style.borderColor = 'var(--blue-600)';
+        document.getElementById('fTime').value = value;
+    }
+
+    // ── Cancel ────────────────────────────────────────────────────────
     function openCancel(id) {
         document.getElementById('cancelId').value = id;
         new bootstrap.Modal(document.getElementById('cancelModal')).show();
@@ -1163,7 +1521,6 @@ include('./includes/sidebar.php');
         const id = document.getElementById('cancelId').value;
         const fd = new FormData();
         fd.append('id', id);
-
         fetch(`${HANDLER}?action=cancel`, {
                 method: 'POST',
                 body: fd
@@ -1177,6 +1534,20 @@ include('./includes/sidebar.php');
                     alert('Failed to cancel. Please try again.');
                 }
             });
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────
+    function showToast(msg, type = 'success') {
+        const colors = {
+            success: '#065f46',
+            error: '#991b1b',
+            info: '#155e75'
+        };
+        const el = document.createElement('div');
+        el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;background:${colors[type] || colors.success};color:#fff;border-radius:10px;padding:.65rem 1.1rem;font-size:.82rem;font-family:'DM Sans',sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.1);display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease both;`;
+        el.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${msg}`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3500);
     }
 </script>
 

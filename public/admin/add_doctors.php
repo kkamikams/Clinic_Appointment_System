@@ -443,10 +443,8 @@ require_once('../../app/config/config.php');
 <section class="section page-add-doctor">
     <div class="add-layout">
 
-        <!-- ── Left column ────────────────────────────── -->
         <div class="side-column">
 
-            <!-- Initials + Employment Status Card -->
             <div class="form-card side-card">
 
                 <!-- Live initials preview -->
@@ -473,9 +471,7 @@ require_once('../../app/config/config.php');
             </div>
 
         </div>
-        <!-- ── End left column ──────────────────────── -->
 
-        <!-- ── Main Form Card ────────────────────────── -->
         <div class="form-card main-form-card">
 
             <div class="section-label">Personal Information</div>
@@ -612,7 +608,6 @@ require_once('../../app/config/config.php');
                 </button>
             </div>
         </div>
-        <!-- ── End Main Form Card ───────────────────── -->
 
     </div>
 </section>
@@ -620,14 +615,13 @@ require_once('../../app/config/config.php');
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
-    // ── Initials live update ──────────────────────────────
     function updateInitials() {
         const fn = document.getElementById('firstname').value.trim();
         const ln = document.getElementById('lastname').value.trim();
         document.getElementById('initialsCircle').textContent = ((fn[0] || '') + (ln[0] || '')).toUpperCase() || '?';
-        document.querySelector('.initials-hint').textContent = fn ? 'Welcome, Dr. ' + fn + '!' : 'Welcome, Dr.';
+        document.getElementById('welcomeText').textContent = fn ? 'Welcome, Dr. ' + fn + '!' : 'Welcome, Dr.';
     }
-    // ── Employment status radio highlight ─────────────────
+
     function updateEmpStatus(radio) {
         document.querySelectorAll('input[name="empStatus"]').forEach(r => {
             r.closest('.status-option').classList.remove('selected');
@@ -635,14 +629,12 @@ require_once('../../app/config/config.php');
         radio.closest('.status-option').classList.add('selected');
     }
 
-    // ── Day chip toggle ───────────────────────────────────
     function toggleDay(label) {
         setTimeout(() => {
             label.classList.toggle('active', label.querySelector('input[type="checkbox"]').checked);
         }, 0);
     }
 
-    // ── Field validation helpers ──────────────────────────
     function clearError(fieldId) {
         document.getElementById(fieldId)?.classList.remove('has-error');
     }
@@ -685,7 +677,6 @@ require_once('../../app/config/config.php');
         return valid;
     }
 
-    // ── Form submit ───────────────────────────────────────
     function submitForm() {
         if (!validateForm()) {
             showToast('Please fill in all required fields.', 'warn');
@@ -718,7 +709,7 @@ require_once('../../app/config/config.php');
         formData.append('empStatus', document.querySelector('input[name="empStatus"]:checked')?.value || 'Active');
         days.forEach(d => formData.append('days[]', d));
 
-        fetch('/Clinic_Appointment_System/public/admin/save_doctor.php', {
+        fetch('/Clinic_Appointment_System/app/controllers/save_doctor.php', {
                 method: 'POST',
                 body: formData
             })
@@ -734,7 +725,6 @@ require_once('../../app/config/config.php');
             .catch(() => showToast('Network error. Please try again.', 'error'));
     }
 
-    // ── Toast ─────────────────────────────────────────────
     function showToast(msg, type = 'success') {
         const el = document.createElement('div');
         el.className = 'toast-msg ' + type;

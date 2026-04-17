@@ -1,15 +1,27 @@
 <?php
 session_start();
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: /Clinic_Appointment_System/public/login.php');
+    exit();
+}
+
+if ($_SESSION['userRole'] !== 'user') {
+    $_SESSION['message'] = 'You do not have permission to access this page.';
+    $_SESSION['code'] = 'error';
+    header('Location: /Clinic_Appointment_System/public/admin/index');
+    exit();
+}
+
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 
-// ── Get logged-in user's patientId (linked via emailAddress or userId) ──
-$userId   = $_SESSION['user_id'] ?? 0;
-$userEmail = $_SESSION['email'] ?? '';
 
-// Try to find a matching patient record for this user
+$userEmail = $_SESSION['email'] ?? '';
+$userId = $_SESSION['user_id'] ?? null;
+
 $patientRow = null;
 if ($userId) {
     $stmt = $conn->prepare("SELECT * FROM patients WHERE emailAddress = ? AND status != 'Inactive' LIMIT 1");
@@ -22,7 +34,7 @@ $patientName = $patientRow ? trim($patientRow['firstName'] . ' ' . $patientRow['
 
 $today = date('Y-m-d');
 
-// ── Stats for this patient ─────────────────────────────────────────
+
 if ($patientId) {
     $totalAppts    = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId")->fetch_row()[0];
     $upcomingAppts = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND appointmentDate >= '$today' AND status IN ('Pending','In Progress')")->fetch_row()[0];
@@ -54,7 +66,7 @@ if ($patientId) {
         ORDER BY mr.createdAt DESC LIMIT 3
     ")->fetch_all(MYSQLI_ASSOC);
 
-    // Chart: last 6 months appointment trend
+    // Chart
     $chartMonths = [];
     for ($i = 5; $i >= 0; $i--) {
         $m = date('Y-m', strtotime("-$i months"));
@@ -70,7 +82,6 @@ if ($patientId) {
     for ($i = 5; $i >= 0; $i--) $chartMonths[] = ['label' => date('M', strtotime("-$i months")), 'count' => 0];
 }
 
-// ── Available doctors today ────────────────────────────────────────
 $availDoctors = $conn->query("
     SELECT d.id, d.firstName, d.lastName, d.specialization, d.department, d.status,
            COUNT(DISTINCT a.id) AS todayLoad, d.patientCapacity
@@ -154,73 +165,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
     .pagetitle .breadcrumb-item.active {
         color: var(--blue-600);
         font-weight: 600;
-    }
-
-    /* ── Welcome Banner ── */
-    .welcome-banner {
-        background: linear-gradient(135deg, var(--blue-600) 0%, var(--blue-700) 100%);
-        border-radius: var(--radius);
-        padding: 1.5rem 1.75rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1.25rem;
-        animation: fadeUp .3s ease both;
-        flex-wrap: wrap;
-        gap: 1rem;
-    }
-
-    .welcome-banner .wb-text h2 {
-        font-size: 1.35rem;
-        font-weight: 700;
-        color: #fff;
-        margin: 0;
-        letter-spacing: -.02em;
-    }
-
-    .welcome-banner .wb-text p {
-        font-size: .82rem;
-        color: rgba(255, 255, 255, .75);
-        margin: .25rem 0 0;
-    }
-
-    .wb-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-    }
-
-    .wb-btn {
-        background: rgba(255, 255, 255, .18);
-        color: #fff;
-        border: 1px solid rgba(255, 255, 255, .3);
-        border-radius: var(--radius-sm);
-        padding: .45rem 1.1rem;
-        font-size: .82rem;
-        font-weight: 600;
-        font-family: 'DM Sans', sans-serif;
-        cursor: pointer;
-        text-decoration: none;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        transition: background .15s;
-        white-space: nowrap;
-    }
-
-    .wb-btn:hover {
-        background: rgba(255, 255, 255, .28);
-        color: #fff;
-    }
-
-    .wb-btn.solid {
-        background: #fff;
-        color: var(--blue-700);
-    }
-
-    .wb-btn.solid:hover {
-        background: #f0f9ff;
-        color: var(--blue-700);
     }
 
     /* ── Next appointment highlight ── */
@@ -462,7 +406,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         color: #374151 !important;
     }
 
-    /* ── Doctor cards ── */
     .doctor-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
@@ -540,7 +483,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         color: var(--red-dark);
     }
 
-    /* ── Record type chip ── */
     .rec-chip {
         font-size: .63rem;
         font-weight: 600;
@@ -578,7 +520,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         border: 1px solid #fde68a;
     }
 
-    /* ── Book appointment CTA ── */
     .book-cta {
         background: linear-gradient(135deg, var(--blue-50), #fff);
         border: 1px solid var(--blue-200);
@@ -623,7 +564,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         color: #fff;
     }
 
-    /* ── No data ── */
     .no-data {
         text-align: center;
         padding: 1.5rem;
@@ -638,7 +578,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         opacity: .3;
     }
 
-    /* ── filter/dropdown ── */
     .filter .icon i {
         color: var(--text-muted);
         font-size: .9rem;
@@ -666,20 +605,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         color: var(--blue-700);
     }
 
-    /* ── No patient linked notice ── */
-    .notice-card {
-        background: var(--amber-light);
-        border: 1px solid #fcd34d;
-        border-radius: var(--radius);
-        padding: 1.1rem 1.4rem;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        margin-bottom: 1rem;
-        font-size: .84rem;
-        color: var(--amber-dark);
-    }
-
     @keyframes fadeUp {
         from {
             opacity: 0;
@@ -705,28 +630,8 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
 
 <section class="section dashboard">
 
-    <?php if (!$patientId): ?>
-        <div class="notice-card">
-            <i class="bi bi-exclamation-triangle-fill" style="font-size:1.2rem;flex-shrink:0"></i>
-            <div>Your account is not yet linked to a patient record. <a href="book_appointment.php" style="color:var(--amber-dark);font-weight:600">Book an appointment</a> to get started, or contact admin to link your account.</div>
-        </div>
-    <?php endif; ?>
-
-    <!-- Welcome Banner -->
-    <div class="welcome-banner">
-        <div class="wb-text">
-            <h2>Welcome back, <?= htmlspecialchars(explode(' ', $patientName)[0]) ?>! 👋</h2>
-            <p>Here's your health overview for today, <?= date('l, F j, Y') ?></p>
-        </div>
-        <div class="wb-actions">
-            <a href="book_appointment.php" class="wb-btn solid"><i class="bi bi-calendar-plus"></i> Book Appointment</a>
-            <a href="my_appointments.php" class="wb-btn"><i class="bi bi-calendar2-check"></i> My Appointments</a>
-            <a href="medical_records.php" class="wb-btn"><i class="bi bi-file-medical"></i> My Records</a>
-        </div>
-    </div>
-
     <?php if ($nextAppt): ?>
-        <!-- Next Appointment highlight -->
+
         <div class="next-appt-card">
             <div class="na-icon"><i class="bi bi-calendar-check"></i></div>
             <div>
@@ -749,7 +654,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         </div>
     <?php endif; ?>
 
-    <!-- Stat strip -->
     <div class="stat-strip">
         <a href="my_appointments.php" class="stat-card">
             <div class="sc-label">Total Appointments</div>
@@ -775,11 +679,9 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
 
     <div class="row g-3">
 
-        <!-- ═══ Left side ═══ -->
         <div class="col-lg-8">
             <div class="row g-3">
 
-                <!-- Appointment trend chart -->
                 <div class="col-12">
                     <div class="card">
                         <div class="filter">
@@ -861,7 +763,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                     </div>
                 </div>
 
-                <!-- Recent appointments table -->
                 <div class="col-12">
                     <div class="card">
                         <div class="filter">
@@ -920,7 +821,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                     </div>
                 </div>
 
-                <!-- Recent medical records -->
                 <div class="col-12">
                     <div class="card">
                         <div class="filter">
@@ -983,10 +883,8 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
             </div>
         </div>
 
-        <!-- ═══ Right side ═══ -->
         <div class="col-lg-4">
 
-            <!-- Book CTA -->
             <div class="card mb-3">
                 <div class="card-body book-cta">
                     <i class="bi bi-calendar-plus"></i>
@@ -996,7 +894,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 </div>
             </div>
 
-            <!-- Available doctors today -->
             <div class="card mb-3">
                 <div class="filter">
                     <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
@@ -1039,7 +936,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 </div>
             </div>
 
-            <!-- Quick links -->
             <div class="card mb-3">
                 <div class="card-body">
                     <h5 class="card-title">Quick Links</h5>

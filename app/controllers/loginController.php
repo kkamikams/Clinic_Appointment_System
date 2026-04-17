@@ -1,6 +1,6 @@
 <?php session_start();
 $root = dirname(__DIR__);
-include_once('../../app/config/config.php');
+include_once($root . "/config/config.php");
 
 function generate_uuid()
 {
@@ -19,10 +19,8 @@ function generate_uuid()
 if (isset($_POST['loginButton'])) {
     $username = $_POST['username'];
     $password = $_POST['password'];
-    $loginQuery = "SELECT `id`, `firstName`, `lastName`, `emailAddress`, `role` 
-               FROM `users` 
-               WHERE `username` = ? AND `password` = ? 
-               LIMIT 1";
+
+    $loginQuery = "SELECT `id`, `firstName`, `lastName`, `emailAddress`, `username`, `password`, `role` FROM `users` WHERE username = ? AND password = ? LIMIT 1";
     $stmt = $conn->prepare($loginQuery);
 
     if ($stmt) {
@@ -84,7 +82,6 @@ if (isset($_POST['registerButton'])) {
     $role = 'user';
     $uuid = generate_uuid();
 
-    //validate email format
     if (!filter_var($emailAddress, FILTER_VALIDATE_EMAIL)) {
         $_SESSION['message'] = "Invalid email format";
         $_SESSION['code'] = "error";
@@ -115,7 +112,6 @@ if (isset($_POST['registerButton'])) {
         exit();
     }
 
-    //insert user data into database
     $query = "INSERT INTO `users`(`uuid`, `firstName`, `middleName`, `lastName`, `emailAddress`, `username`, `password`, `street`, `barangay`, `city`, `role`) VALUES ('$uuid','$firstName','$middleName','$lastName','$emailAddress','$username','$password','$street','$barangay','$city','$role')";
     if (mysqli_query($conn, $query)) {
         $_SESSION['message'] = "Registration successful. Please login.";

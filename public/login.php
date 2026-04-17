@@ -40,7 +40,6 @@
   * License: https://bootstrapmade.com/license/
   ======================================================== -->
 
-  <!-- Queue Clinic – Custom Styles -->
   <style>
     body {
       font-family: 'DM Sans', sans-serif !important;
@@ -75,7 +74,6 @@
       margin-top: 3px;
     }
 
-    /* ── Card ── */
     .card {
       border: 1px solid #eaecf4 !important;
       border-radius: 16px !important;
@@ -86,7 +84,6 @@
       padding: 1.75rem 1.75rem 1.5rem !important;
     }
 
-    /* ── Title & subtitle ── */
     .card-title {
       font-family: 'DM Sans', sans-serif !important;
       font-weight: 700 !important;
@@ -99,7 +96,6 @@
       font-size: .82rem;
     }
 
-    /* ── Labels ── */
     .form-label {
       font-size: .78rem !important;
       font-weight: 600 !important;
@@ -107,7 +103,6 @@
       margin-bottom: .3rem !important;
     }
 
-    /* ── Inputs ── */
     .form-control {
       font-family: 'DM Sans', sans-serif !important;
       font-size: .84rem !important;
@@ -129,7 +124,6 @@
       color: #c4c9d4 !important;
     }
 
-    /* ── Input group (@ prefix) ── */
     .input-group-text {
       border: 1.5px solid #eaecf4 !important;
       border-right: none !important;
@@ -149,7 +143,6 @@
       background: #fff !important;
     }
 
-    /* ── Checkbox ── */
     .form-check-input:checked {
       background-color: #2563eb !important;
       border-color: #2563eb !important;
@@ -160,7 +153,6 @@
       color: #4b5563 !important;
     }
 
-    /* ── Primary button ── */
     .btn-primary {
       font-family: 'DM Sans', sans-serif !important;
       font-weight: 700 !important;
@@ -184,7 +176,6 @@
       transform: translateY(0) !important;
     }
 
-    /* ── Footer link ── */
     .card-body p.small {
       color: #9ca3af !important;
     }
@@ -217,7 +208,6 @@
           <div class="row justify-content-center">
             <div class="col-lg-4 col-md-6 d-flex flex-column align-items-center justify-content-center">
 
-              <!-- Queue Clinic Brand -->
               <div class="queue-brand">
                 <div class="brand-name">Queue</div>
                 <div class="brand-sub">Clinic Management</div>
@@ -258,7 +248,7 @@
                       <button class="btn btn-primary w-100" type="submit" name="loginButton">Login</button>
                     </div>
                     <div class="col-12">
-                      <!-- Fixed: was "pregister", now matches the controller redirect route "registration" -->
+
                       <p class="small mb-0">Don't have account? <a href="registration">Create an account</a></p>
                     </div>
                   </form>
@@ -273,11 +263,11 @@
       </section>
 
     </div>
-  </main><!-- End #main -->
+  </main>
 
   <a href="#" class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
 
-  <!-- Vendor JS Files -->
+
   <script src="assets/vendor/apexcharts/apexcharts.min.js"></script>
   <script src="assets/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
   <script src="assets/vendor/chart.js/chart.umd.js"></script>
@@ -288,7 +278,6 @@
   <script src="assets/vendor/php-email-form/validate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-  <!-- Template Main JS File -->
   <script src="assets/js/main.js"></script>
 
   <?php

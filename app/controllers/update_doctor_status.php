@@ -1,11 +1,5 @@
 <?php
 
-/**
- * update_doctor_status.php
- * Called from doctors.php when admin clicks the status badge dropdown.
- * Updates doctor.status and logs to recentActivity.
- */
-
 include('../../app/middleware/admin.php');
 require_once('../../app/config/config.php');
 

@@ -393,7 +393,6 @@ require_once('../../app/config/config.php');
         font-size: .75rem;
     }
 
-    /* ── Status dropdown (matches patients page) ── */
     .status-cell {
         position: relative;
     }
@@ -755,9 +754,6 @@ require_once('../../app/config/config.php');
 
 </section>
 
-<!-- ══════════════════════════════════════════════════════════════════
-     ADD / EDIT MODAL
-═══════════════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="apptModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -769,7 +765,6 @@ require_once('../../app/config/config.php');
                 <input type="hidden" id="editId">
                 <div class="row g-3">
 
-                    <!-- ── PATIENT COLUMN ─────────────────────────── -->
                     <div class="col-md-6">
                         <label class="form-label">Patient</label>
                         <div id="patientSection">
@@ -827,7 +822,6 @@ require_once('../../app/config/config.php');
 
                         </div>
                     </div>
-                    <!-- ── END PATIENT COLUMN ─────────────────────── -->
 
                     <div class="col-md-6">
                         <label class="form-label">Doctor</label>
@@ -880,9 +874,6 @@ require_once('../../app/config/config.php');
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════
-     VIEW MODAL
-═══════════════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="viewModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -898,9 +889,6 @@ require_once('../../app/config/config.php');
     </div>
 </div>
 
-<!-- ══════════════════════════════════════════════════════════════════
-     CANCEL MODAL
-═══════════════════════════════════════════════════════════════════ -->
 <div class="modal fade" id="cancelModal" tabindex="-1">
     <div class="modal-dialog modal-sm">
         <div class="modal-content">
@@ -925,12 +913,11 @@ require_once('../../app/config/config.php');
 </div>
 
 <script>
-    const HANDLER = 'appointments_handler.php';
+    const HANDLER = '../../app/controllers/appointments_handler.php';
     let currentPage = 1;
     let searchTimer = null;
     let showAllDates = false;
 
-    // ── Status config (single source of truth) ────────────────────────
     const STATUS_CONFIG = {
         'Pending': {
             dot: '#f59e0b',
@@ -956,16 +943,19 @@ require_once('../../app/config/config.php');
 
     document.addEventListener('DOMContentLoaded', () => {
         loadDoctors();
+        showAllDates = true;
+        document.getElementById('btnAllDates').classList.add('active');
+        document.getElementById('apptDate').style.opacity = '0.4';
+        document.getElementById('apptDate').disabled = true;
+        document.getElementById('toolbarDate').textContent = '| All Dates';
         loadAppointments(1);
     });
 
-    // ── Close dropdowns when clicking outside ─────────────────────────
     document.addEventListener('click', e => {
         if (!e.target.closest('.status-cell'))
             document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
     });
 
-    // ── Toggle dropdown open/close ────────────────────────────────────
     function toggleStatusDrop(btn) {
         const dd = btn.nextElementSibling;
         const isOpen = dd.classList.contains('open');
@@ -973,20 +963,17 @@ require_once('../../app/config/config.php');
         if (!isOpen) dd.classList.add('open');
     }
 
-    // ── Pick a status from the dropdown ──────────────────────────────
     function pickApptStatus(optEl, newStatus, id) {
         const cfg = STATUS_CONFIG[newStatus];
         const dd = optEl.closest('.status-dropdown');
         const btn = dd.previousElementSibling;
         const badge = btn.querySelector('.appt-badge');
 
-        // Update badge instantly
         badge.style.background = cfg.bg;
         badge.style.color = cfg.color;
         badge.textContent = newStatus;
         dd.classList.remove('open');
 
-        // Save to server
         const fd = new FormData();
         fd.append('id', id);
         fd.append('status', newStatus);
@@ -1007,7 +994,6 @@ require_once('../../app/config/config.php');
             .catch(() => loadAppointments(currentPage));
     }
 
-    // ── Build the status dropdown cell HTML ───────────────────────────
     function statusDropdown(id, current) {
         const cfg = STATUS_CONFIG[current] || {
             dot: '#9ca3af',
@@ -1037,7 +1023,6 @@ require_once('../../app/config/config.php');
         `;
     }
 
-    // ── All Dates toggle ──────────────────────────────────────────────
     function toggleAllDates() {
         showAllDates = !showAllDates;
         const btn = document.getElementById('btnAllDates');
@@ -1073,7 +1058,6 @@ require_once('../../app/config/config.php');
         loadAppointments(1);
     }
 
-    // ── Doctors ───────────────────────────────────────────────────────
     function loadDoctors() {
         fetch(`${HANDLER}?action=get_doctors`)
             .then(r => r.json())
@@ -1090,7 +1074,6 @@ require_once('../../app/config/config.php');
             });
     }
 
-    // ── Patient tab switcher ──────────────────────────────────────────
     function switchPatientTab(tab) {
         const isExisting = tab === 'existing';
         document.getElementById('tabExisting').style.background = isExisting ? 'var(--blue-600)' : 'var(--surface)';
@@ -1103,7 +1086,6 @@ require_once('../../app/config/config.php');
         else clearSelectedPatient();
     }
 
-    // ── Existing patient live search ──────────────────────────────────
     let patientSearchTimer = null;
 
     function debouncePatientSearch() {
@@ -1174,7 +1156,6 @@ require_once('../../app/config/config.php');
         return String(str).replace(/'/g, "\\'").replace(/"/g, '&quot;');
     }
 
-    // ── Load appointments ─────────────────────────────────────────────
     function loadAppointments(page) {
         currentPage = page || 1;
         const date = showAllDates ? '' : document.getElementById('apptDate').value;
@@ -1264,10 +1245,9 @@ require_once('../../app/config/config.php');
                 <td><span class="channel-chip">${r.channel}</span></td>
                 <td>${statusDropdown(r.id, r.status)}</td>
                 <td><div class="action-btns">
-                    <button class="btn-act" title="View"   onclick="viewAppt(${r.id})"><i class="bi bi-eye"></i></button>
-                    <button class="btn-act" title="Edit"   onclick="editAppt(${r.id})"><i class="bi bi-pencil"></i></button>
-                    <button class="btn-act del" title="Cancel" onclick="openCancel(${r.id})"><i class="bi bi-x-lg"></i></button>
-                </div></td>
+    <button class="btn-act" title="View"   onclick="viewAppt(${r.id})"><i class="bi bi-eye"></i></button>
+    <button class="btn-act" title="Edit"   onclick="editAppt(${r.id})"><i class="bi bi-pencil"></i></button>
+</div></td>
             </tr>`;
         }).join('');
     }
@@ -1314,13 +1294,12 @@ require_once('../../app/config/config.php');
         searchTimer = setTimeout(() => loadAppointments(1), 350);
     }
 
-    // ── Open Add Modal ────────────────────────────────────────────────
     function openAddModal() {
         document.getElementById('apptModalTitle').textContent = 'New Appointment';
         document.getElementById('saveBtnLabel').textContent = 'Save Appointment';
         document.getElementById('editId').value = '';
         document.getElementById('fDoctor').value = '';
-        document.getElementById('fDate').value = document.getElementById('apptDate').value || '';
+        document.getElementById('fDate').min = new Date().toISOString().split('T')[0];
         document.getElementById('fTime').value = '';
         document.getElementById('fChannel').value = 'Walk-in';
         document.getElementById('fStatus').value = 'Pending';
@@ -1333,7 +1312,6 @@ require_once('../../app/config/config.php');
         new bootstrap.Modal(document.getElementById('apptModal')).show();
     }
 
-    // ── Edit ──────────────────────────────────────────────────────────
     function editAppt(id) {
         fetch(`${HANDLER}?action=get&id=${id}`)
             .then(r => r.json())
@@ -1369,7 +1347,6 @@ require_once('../../app/config/config.php');
             });
     }
 
-    // ── Save ──────────────────────────────────────────────────────────
     function saveAppointment() {
         const id = document.getElementById('editId').value;
         const isNew = document.getElementById('containerNew').style.display !== 'none';
@@ -1431,7 +1408,6 @@ require_once('../../app/config/config.php');
             });
     }
 
-    // ── View ──────────────────────────────────────────────────────────
     function viewAppt(id) {
         fetch(`${HANDLER}?action=get&id=${id}`)
             .then(r => r.json())
@@ -1442,6 +1418,7 @@ require_once('../../app/config/config.php');
                     bg: '#f3f4f6',
                     color: '#374151'
                 };
+
                 document.getElementById('viewModalBody').innerHTML = `
                     <div class="detail-row"><span class="detail-label">Code</span><span class="detail-value">${d.appointmentCode}</span></div>
                     <div class="detail-row"><span class="detail-label">Patient</span><span class="detail-value">${d.patientName || '—'}</span></div>
@@ -1458,12 +1435,65 @@ require_once('../../app/config/config.php');
                         </span>
                     </div>
                     <div class="detail-row"><span class="detail-label">Remarks</span><span class="detail-value">${d.remarks || '—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Medical Record</span><span class="detail-value" id="apptLinkedRecord"><span style="font-size:.8rem;color:var(--text-muted);">Loading…</span></span></div>
                 `;
+
+                // Load linked medical record
+                fetch(`${HANDLER}?action=get_linked_record&apptId=${id}`)
+                    .then(r => r.json())
+                    .then(res => {
+                        const container = document.getElementById('apptLinkedRecord');
+                        if (!container) return;
+                        if (!res.data) {
+                            container.innerHTML = `
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span style="font-size:.8rem;color:var(--text-muted);">No medical record linked.</span>
+                                    <a href="medical_records" style="font-size:.78rem;color:var(--blue-600);font-weight:600;text-decoration:none;">
+                                        <i class="bi bi-plus-lg"></i> Create one
+                                    </a>
+                                </div>`;
+                        } else {
+                            const r = res.data;
+                            const recCfg = {
+                                'Draft': {
+                                    bg: '#fef3c7',
+                                    color: '#92400e',
+                                    dot: '#f59e0b'
+                                },
+                                'Finalized': {
+                                    bg: '#d1fae5',
+                                    color: '#065f46',
+                                    dot: '#10b981'
+                                },
+                            } [r.status] || {
+                                bg: '#f3f4f6',
+                                color: '#374151',
+                                dot: '#9ca3af'
+                            };
+                            container.innerHTML = `
+                                <div style="background:var(--blue-50);border:1px solid var(--blue-100);border-radius:10px;padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                    <div>
+                                        <div style="font-size:.75rem;font-weight:700;color:var(--blue-700);">${r.recordCode}</div>
+                                        <div style="font-size:.82rem;color:var(--text-dark);font-weight:600;margin-top:2px;">${r.diagnosis || '—'}</div>
+                                        <div style="font-size:.7rem;color:var(--text-muted);margin-top:2px;">${r.recordType} &nbsp;·&nbsp;
+                                            <span style="background:${recCfg.bg};color:${recCfg.color};font-size:.63rem;font-weight:600;border-radius:5px;padding:2px 7px;">
+                                                <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${recCfg.dot};margin-right:3px;vertical-align:middle;"></span>${r.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <a href="medical_records" style="border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-size:.75rem;color:var(--text-muted);text-decoration:none;transition:all .15s;"
+                                       onmouseover="this.style.background='var(--blue-50)';this.style.color='var(--blue-600)'"
+                                       onmouseout="this.style.background='none';this.style.color='var(--text-muted)'">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                </div>`;
+                        }
+                    });
+
                 new bootstrap.Modal(document.getElementById('viewModal')).show();
             });
     }
 
-    // ── Slots ─────────────────────────────────────────────────────────
     function loadAdminSlots() {
         const docId = document.getElementById('fDoctor').value;
         const date = document.getElementById('fDate').value;
@@ -1487,9 +1517,9 @@ require_once('../../app/config/config.php');
                 let html = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">';
                 res.slots.forEach(slot => {
                     html += `<button type="button" data-val="${slot.value}"
-                        style="border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-body);cursor:pointer;"
-                        ${!slot.available ? 'disabled style="opacity:.45;cursor:not-allowed;"' : ''}
-                        onclick="selectAdminSlot('${slot.value}', this)">${slot.label}</button>`;
+    style="border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-body);cursor:pointer;${!slot.available ? 'text-decoration:line-through;opacity:.5;cursor:not-allowed;color:var(--text-muted);' : ''}"
+    ${!slot.available ? 'disabled' : ''}
+    onclick="selectAdminSlot('${slot.value}', this)">${slot.label}</button>`;
                 });
                 html += '</div>';
                 container.innerHTML = html;
@@ -1511,7 +1541,6 @@ require_once('../../app/config/config.php');
         document.getElementById('fTime').value = value;
     }
 
-    // ── Cancel ────────────────────────────────────────────────────────
     function openCancel(id) {
         document.getElementById('cancelId').value = id;
         new bootstrap.Modal(document.getElementById('cancelModal')).show();
@@ -1536,7 +1565,6 @@ require_once('../../app/config/config.php');
             });
     }
 
-    // ── Toast ─────────────────────────────────────────────────────────
     function showToast(msg, type = 'success') {
         const colors = {
             success: '#065f46',

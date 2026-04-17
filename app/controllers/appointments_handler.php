@@ -1,19 +1,12 @@
 <?php
 
-/**
- * appointments_handler.php
- * CRUD handler for appointments.php
- * Connected to: patients, doctors, appointments, recentActivity tables
- */
-
-include('../../app/middleware/admin.php');
-require_once('../../app/config/config.php');
+include('../middleware/admin.php');
+require_once('../config/config.php');
 
 header('Content-Type: application/json');
 $action = $_GET['action'] ?? '';
 $limit  = 10;
 
-// ── Helper ───────────────────────────────────────────────────────
 function logActivity($conn, $type, $desc, $refId = null, $refType = null)
 {
     $stmt = $conn->prepare(
@@ -23,16 +16,37 @@ function logActivity($conn, $type, $desc, $refId = null, $refType = null)
     $stmt->execute();
 }
 
-function generateCode($conn)
+function generateCode($conn, $date = null)
 {
-    $last = $conn->query("SELECT appointmentCode FROM appointments ORDER BY id DESC LIMIT 1")->fetch_row();
-    $num  = $last ? ((int) substr($last[0], 2)) + 1 : 1001;
-    return 'A-' . $num;
+    $date   = $date ?? date('Y-m-d');
+    $prefix = 'APT-' . str_replace('-', '', $date) . '-';
+    $count  = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentCode LIKE '{$prefix}%'")->fetch_row()[0];
+    return $prefix . str_pad((int)$count + 1, 4, '0', STR_PAD_LEFT);
 }
 
 switch ($action) {
 
-    // ── LIST ────────────────────────────────────────────────────────
+    case 'get_linked_record':
+        $apptId = (int)($_GET['apptId'] ?? 0);
+        $row = $conn->query("
+        SELECT m.id,
+               m.recordCode,
+               m.recordType,
+               m.diagnosis,
+               m.icdCode,
+               m.status,
+               m.createdAt
+        FROM medicalRecords m
+        WHERE m.appointmentId = $apptId
+        LIMIT 1
+    ")->fetch_assoc();
+
+        echo json_encode([
+            'success' => true,
+            'data'    => $row ?: null
+        ]);
+        break;
+
     case 'list':
         $date   = $conn->real_escape_string($_GET['date']   ?? '');
         $search = '%' . $conn->real_escape_string($_GET['search'] ?? '') . '%';
@@ -95,7 +109,6 @@ switch ($action) {
         ]);
         break;
 
-    // ── GET SINGLE ──────────────────────────────────────────────────
     case 'get':
         $id  = (int) ($_GET['id'] ?? 0);
         $row = $conn->query("
@@ -112,7 +125,6 @@ switch ($action) {
         echo json_encode(['success' => !!$row, 'data' => $row]);
         break;
 
-    // ── ADD ─────────────────────────────────────────────────────────
     case 'add':
         $body            = json_decode(file_get_contents('php://input'), true);
         $doctorId        = (int) ($body['doctorId'] ?? 0);
@@ -121,7 +133,7 @@ switch ($action) {
         $channel         = $conn->real_escape_string($body['channel'] ?? 'Walk-in');
         $status          = $conn->real_escape_string($body['status']  ?? 'Pending');
         $remarks         = $conn->real_escape_string($body['remarks'] ?? '');
-        $code            = generateCode($conn);
+        $code = generateCode($conn, $appointmentDate);
 
         $patientId = (int) ($body['patientId'] ?? 0);
         if (!$patientId && !empty($body['patientName'])) {
@@ -168,7 +180,6 @@ switch ($action) {
         }
         break;
 
-    // ── EDIT ─────────────────────────────────────────────────────────
     case 'edit':
         $body            = json_decode(file_get_contents('php://input'), true);
         $id              = (int) ($body['id']              ?? 0);
@@ -200,7 +211,6 @@ switch ($action) {
         }
         break;
 
-    // ── CANCEL ───────────────────────────────────────────────────────
     case 'cancel':
         $id = (int) ($_POST['id'] ?? 0);
         if (!$id) {
@@ -213,7 +223,6 @@ switch ($action) {
         echo json_encode(['success' => true]);
         break;
 
-    // ── UPDATE STATUS (inline dropdown) ──────────────────────────────
     case 'update_status':
         $id      = (int) ($_POST['id']     ?? 0);
         $status  = $conn->real_escape_string($_POST['status'] ?? '');
@@ -228,7 +237,6 @@ switch ($action) {
         $appt = $conn->query("SELECT appointmentCode FROM appointments WHERE id=$id")->fetch_row()[0] ?? '';
         logActivity($conn, 'appointment_update', "Appointment $appt status changed to $status", $id, 'Appointment');
 
-        // Return fresh global stats
         $statRes = $conn->query("
             SELECT status, COUNT(*) AS cnt FROM appointments GROUP BY status
         ")->fetch_all(MYSQLI_ASSOC);
@@ -244,7 +252,6 @@ switch ($action) {
         echo json_encode(['success' => true, 'stats' => $stats]);
         break;
 
-    // ── GET DOCTORS ──────────────────────────────────────────────────
     case 'get_doctors':
         $rows = $conn->query("
             SELECT id, CONCAT('Dr. ', firstName, ' ', lastName) AS name, specialization
@@ -254,7 +261,6 @@ switch ($action) {
         echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
-    // ── GET PATIENTS ─────────────────────────────────────────────────
     case 'get_patients':
         $q    = '%' . $conn->real_escape_string($_GET['q'] ?? '') . '%';
         $rows = $conn->query("
@@ -267,7 +273,6 @@ switch ($action) {
         echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
-    // ── GET SLOTS ────────────────────────────────────────────────────
     case 'get_slots':
         $doctorId = (int) ($_GET['doctorId'] ?? 0);
         $date     = $conn->real_escape_string($_GET['date'] ?? '');

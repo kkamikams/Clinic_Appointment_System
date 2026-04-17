@@ -432,10 +432,8 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
 <section class="section page-edit">
     <div class="add-layout">
 
-        <!-- ── Left column ── -->
         <div class="side-column">
 
-            <!-- Profile preview card (no photo upload, no status) -->
             <div class="form-card side-card" style="padding-top:0;overflow:hidden;">
                 <div class="profile-banner"></div>
                 <div style="padding:0 1.25rem 1.5rem;text-align:center;">
@@ -450,7 +448,6 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 </div>
             </div>
 
-            <!-- Patient Condition card (separate, like edit_doctor employment status) -->
             <div class="form-card cond-card">
                 <div class="section-label">Patient Condition</div>
                 <div class="radio-options">
@@ -473,9 +470,7 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
             </div>
 
         </div>
-        <!-- ── End left column ── -->
 
-        <!-- ── Main Form Card ── -->
         <div class="form-card main-form-card">
             <form id="editForm" onsubmit="savePatient(event)">
                 <input type="hidden" name="id" value="<?= $p['id'] ?>">
@@ -579,7 +574,6 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 </div>
             </form>
         </div>
-        <!-- ── End Main Form Card ── -->
 
     </div>
 </section>
@@ -616,7 +610,7 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         const data = new FormData(e.target);
         data.set('condition', document.querySelector('input[name="condition"]:checked')?.value || 'Stable');
 
-        fetch('update_patient.php', {
+        fetch('/Clinic_Appointment_System/app/controllers/update_patient.php', {
                 method: 'POST',
                 body: data
             })

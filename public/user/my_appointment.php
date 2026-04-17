@@ -5,9 +5,16 @@ include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 
-$userEmail = $_SESSION['email'] ?? '';
+$userId = $_SESSION['authUser']['user_id'] ?? 0;
+$userEmail = '';
+if ($userId) {
+    $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
+    $uStmt->bind_param('i', $userId);
+    $uStmt->execute();
+    $uRow = $uStmt->get_result()->fetch_assoc();
+    $userEmail = $uRow['emailAddress'] ?? '';
+}
 
-// Link user to patient
 $patientRow = null;
 if ($userEmail) {
     $stmt = $conn->prepare("SELECT * FROM patients WHERE emailAddress=? AND status!='Inactive' LIMIT 1");
@@ -17,7 +24,6 @@ if ($userEmail) {
 }
 $patientId = $patientRow['id'] ?? 0;
 
-// Stats
 $today = date('Y-m-d');
 if ($patientId) {
     $statTotal     = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId")->fetch_row()[0];
@@ -25,7 +31,6 @@ if ($patientId) {
     $statCompleted = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND status='Completed'")->fetch_row()[0];
     $statCancelled = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND status='Cancelled'")->fetch_row()[0];
 
-    // All appointments
     $appointments = $conn->query("
         SELECT a.*, CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
                d.specialization, d.department
@@ -39,7 +44,6 @@ if ($patientId) {
     $appointments = [];
 }
 
-// Status filter from URL
 $filterStatus = $_GET['status'] ?? '';
 ?>
 <style>
@@ -373,30 +377,25 @@ $filterStatus = $_GET['status'] ?? '';
         border: 1px solid var(--blue-100);
     }
 
-    .btn-cancel-appt {
+    .btn-act {
         background: none;
         border: 1px solid var(--border);
         border-radius: 7px;
-        padding: 4px 10px;
+        padding: 4px 9px;
         font-size: .75rem;
         cursor: pointer;
         color: var(--text-muted);
         transition: all .15s;
-        font-family: 'DM Sans', sans-serif;
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        font-family: 'DM Sans', sans-serif;
     }
 
-    .btn-cancel-appt:hover {
-        background: var(--red-light);
-        color: var(--red-dark);
-        border-color: #fca5a5;
-    }
-
-    .btn-cancel-appt:disabled {
-        opacity: .4;
-        cursor: not-allowed;
+    .btn-act:hover {
+        background: var(--blue-50);
+        color: var(--blue-600);
+        border-color: var(--blue-200);
     }
 
     .empty-state {
@@ -445,82 +444,69 @@ $filterStatus = $_GET['status'] ?? '';
         margin-bottom: 1rem;
     }
 
-    /* Cancel confirm modal */
-    .cancel-modal-overlay {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(15, 23, 42, .5);
-        z-index: 9999;
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-        backdrop-filter: blur(3px);
-    }
-
-    .cancel-modal-overlay.show {
-        display: flex;
-    }
-
-    .cancel-modal {
-        background: #fff;
+    /* Modal */
+    .modal-content {
         border-radius: var(--radius);
-        padding: 1.75rem;
-        width: 100%;
-        max-width: 400px;
-        box-shadow: 0 24px 60px rgba(0, 0, 0, .18);
-        animation: fadeUp .2s ease both;
+        border: 1px solid var(--border);
+        font-family: 'DM Sans', sans-serif;
     }
 
-    .cancel-modal h5 {
-        font-size: 1rem;
+    .modal-header {
+        border-bottom: 1px solid var(--border);
+        padding: 1.1rem 1.5rem;
+    }
+
+    .modal-footer {
+        border-top: 1px solid var(--border);
+        padding: .85rem 1.5rem;
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-title {
         font-weight: 700;
+        font-size: 1rem;
         color: var(--text-dark);
-        margin-bottom: .5rem;
     }
 
-    .cancel-modal p {
-        font-size: .84rem;
+    .detail-group {
+        margin-bottom: 1rem;
+    }
+
+    .detail-label {
+        font-size: .64rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+        color: var(--text-muted);
+        margin-bottom: 3px;
+    }
+
+    .detail-value {
+        font-size: .875rem;
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+
+    .btn-modal-close {
+        background: #fff;
         color: var(--text-body);
-        margin-bottom: 1.25rem;
-    }
-
-    .cancel-modal-footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: 8px;
-    }
-
-    .btn-no {
-        background: var(--surface);
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         padding: .45rem 1.2rem;
-        font-size: .83rem;
+        font-size: .84rem;
         font-weight: 600;
         font-family: 'DM Sans', sans-serif;
         cursor: pointer;
-        color: var(--text-body);
-    }
-
-    .btn-yes-cancel {
-        background: var(--red);
-        color: #fff;
-        border: none;
-        border-radius: var(--radius-sm);
-        padding: .45rem 1.2rem;
-        font-size: .83rem;
-        font-weight: 600;
-        font-family: 'DM Sans', sans-serif;
-        cursor: pointer;
-        display: flex;
+        display: inline-flex;
         align-items: center;
         gap: 6px;
-        transition: background .15s;
     }
 
-    .btn-yes-cancel:hover {
-        background: var(--red-dark);
+    .btn-modal-close:hover {
+        background: var(--surface);
     }
 
     @keyframes fadeUp {
@@ -548,17 +534,15 @@ $filterStatus = $_GET['status'] ?? '';
 
 <section class="section page-myappt">
 
-    <!-- Alerts -->
     <div id="successAlert" class="alert-success-custom" style="display:none">
         <i class="bi bi-check-circle-fill"></i>
-        <div id="successMsg">Appointment cancelled successfully.</div>
+        <div id="successMsg"></div>
     </div>
     <div id="errorAlert" class="alert-error-custom" style="display:none">
         <i class="bi bi-x-circle-fill"></i>
-        <div id="errorMsg">Something went wrong. Please try again.</div>
+        <div id="errorMsg"></div>
     </div>
 
-    <!-- Stat cards -->
     <div class="stat-strip">
         <a href="my_appointments" class="stat-card">
             <div class="sc-label">Total</div>
@@ -582,7 +566,6 @@ $filterStatus = $_GET['status'] ?? '';
         </a>
     </div>
 
-    <!-- Table card -->
     <div class="main-card">
         <div class="table-toolbar">
             <h5>All Appointments <span>| <?= date('F j, Y') ?></span></h5>
@@ -592,11 +575,11 @@ $filterStatus = $_GET['status'] ?? '';
             </div>
             <select class="filter-select" id="statusFilter" onchange="filterTable()">
                 <option value="">All Status</option>
-                <option value="Pending" <?= $filterStatus === 'Pending' ? 'selected' : '' ?>>Pending</option>
-                <option value="In Progress" <?= $filterStatus === 'In Progress' ? 'selected' : '' ?>>In Progress</option>
-                <option value="Completed" <?= $filterStatus === 'Completed' ? 'selected' : '' ?>>Completed</option>
-                <option value="Cancelled" <?= $filterStatus === 'Cancelled' ? 'selected' : '' ?>>Cancelled</option>
-                <option value="upcoming" <?= $filterStatus === 'upcoming' ? 'selected' : '' ?>>Upcoming</option>
+                <option value="Pending" <?= $filterStatus === 'Pending'      ? 'selected' : '' ?>>Pending</option>
+                <option value="In Progress" <?= $filterStatus === 'In Progress'  ? 'selected' : '' ?>>In Progress</option>
+                <option value="Completed" <?= $filterStatus === 'Completed'    ? 'selected' : '' ?>>Completed</option>
+                <option value="Cancelled" <?= $filterStatus === 'Cancelled'    ? 'selected' : '' ?>>Cancelled</option>
+                <option value="upcoming" <?= $filterStatus === 'upcoming'     ? 'selected' : '' ?>>Upcoming</option>
             </select>
             <a href="book_appointment" class="btn-book"><i class="bi bi-plus-lg"></i> Book New</a>
         </div>
@@ -605,7 +588,8 @@ $filterStatus = $_GET['status'] ?? '';
             <table class="table" id="apptTable">
                 <thead>
                     <tr>
-                        <th>#</th>
+                        <th># Code</th>
+                        <th>Patient</th>
                         <th>Doctor</th>
                         <th>Department</th>
                         <th>Date</th>
@@ -618,7 +602,7 @@ $filterStatus = $_GET['status'] ?? '';
                 <tbody id="apptTbody">
                     <?php if (empty($appointments)): ?>
                         <tr>
-                            <td colspan="8">
+                            <td colspan="9">
                                 <div class="empty-state">
                                     <i class="bi bi-calendar-x"></i>
                                     <p>No appointments found.<br>
@@ -631,8 +615,6 @@ $filterStatus = $_GET['status'] ?? '';
                         <?php foreach ($appointments as $appt):
                             $statusMap = ['Completed' => 'bg-success', 'In Progress' => 'bg-info', 'Pending' => 'bg-warning', 'Cancelled' => 'bg-danger'];
                             $sCls = $statusMap[$appt['status']] ?? 'bg-secondary';
-                            $isPast = $appt['appointmentDate'] < $today;
-                            $canCancel = !in_array($appt['status'], ['Cancelled', 'Completed']) && !$isPast;
                             $isUpcoming = $appt['appointmentDate'] >= $today && in_array($appt['status'], ['Pending', 'In Progress']);
                         ?>
                             <tr data-code="<?= strtolower($appt['appointmentCode']) ?>"
@@ -640,6 +622,7 @@ $filterStatus = $_GET['status'] ?? '';
                                 data-status="<?= $appt['status'] ?>"
                                 data-upcoming="<?= $isUpcoming ? '1' : '0' ?>">
                                 <td><span class="appt-code"><?= htmlspecialchars($appt['appointmentCode']) ?></span></td>
+                                <td style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= htmlspecialchars($patientRow['firstName'] . ' ' . $patientRow['lastName']) ?></td>
                                 <td>
                                     <div class="doc-name"><?= htmlspecialchars($appt['doctorName']) ?></div>
                                     <div class="doc-spec"><?= htmlspecialchars($appt['specialization']) ?></div>
@@ -649,13 +632,24 @@ $filterStatus = $_GET['status'] ?? '';
                                 <td style="font-size:.82rem"><?= date('g:i A', strtotime($appt['appointmentTime'])) ?></td>
                                 <td><span class="channel-chip"><?= htmlspecialchars($appt['channel']) ?></span></td>
                                 <td><span class="badge <?= $sCls ?>"><?= htmlspecialchars($appt['status']) ?></span></td>
-                                <td>
-                                    <?php if ($canCancel): ?>
-                                        <button class="btn-cancel-appt" onclick="openCancelModal(<?= $appt['id'] ?>, '<?= htmlspecialchars($appt['appointmentCode']) ?>')">
-                                            <i class="bi bi-x-lg"></i> Cancel
+                                <td style="display:flex;gap:5px;align-items:center;">
+                                    <button class="btn-act" onclick="openViewAppt(
+        '<?= htmlspecialchars($appt['appointmentCode']) ?>',
+        '<?= htmlspecialchars($appt['doctorName']) ?>',
+        '<?= htmlspecialchars($appt['specialization']) ?>',
+        '<?= htmlspecialchars($appt['department'] ?? '—') ?>',
+        '<?= date('F j, Y', strtotime($appt['appointmentDate'])) ?>',
+        '<?= date('g:i A', strtotime($appt['appointmentTime'])) ?>',
+        '<?= htmlspecialchars($appt['status']) ?>',
+        '<?= htmlspecialchars($appt['channel']) ?>'
+    )"><i class="bi bi-eye"></i></button>
+
+                                    <?php if ($isUpcoming): ?>
+                                        <button class="btn-act"
+                                            style="color:var(--red);border-color:#fca5a5;"
+                                            onclick="doCancel(<?= $appt['id'] ?>, '<?= $appt['appointmentCode'] ?>')">
+                                            <i class="bi bi-x-lg"></i>
                                         </button>
-                                    <?php else: ?>
-                                        <span style="font-size:.75rem;color:var(--text-muted)">—</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -665,30 +659,78 @@ $filterStatus = $_GET['status'] ?? '';
             </table>
         </div>
 
-        <!-- Pagination info -->
         <div style="margin-top:.75rem;font-size:.75rem;color:var(--text-muted)" id="tableInfo"></div>
     </div>
 
 </section>
 
-<!-- Cancel Confirm Modal -->
-<div class="cancel-modal-overlay" id="cancelModal">
-    <div class="cancel-modal">
-        <h5><i class="bi bi-exclamation-triangle-fill" style="color:var(--amber);margin-right:6px"></i>Cancel Appointment?</h5>
-        <p>Are you sure you want to cancel <strong id="cancelCode"></strong>? This action cannot be undone.</p>
-        <div class="cancel-modal-footer">
-            <button class="btn-no" onclick="closeCancelModal()">No, Keep It</button>
-            <button class="btn-yes-cancel" id="confirmCancelBtn" onclick="confirmCancel()">
-                <i class="bi bi-x-lg"></i> Yes, Cancel
-            </button>
+<div class="modal fade" id="viewApptModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-calendar-check me-2" style="color:var(--blue-500)"></i>Appointment Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="detail-group">
+                            <div class="detail-label">Appointment Code</div>
+                            <div class="detail-value" id="mappt-code">—</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-group">
+                            <div class="detail-label">Date</div>
+                            <div class="detail-value" id="mappt-date">—</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-group">
+                            <div class="detail-label">Time</div>
+                            <div class="detail-value" id="mappt-time">—</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-group">
+                            <div class="detail-label">Status</div>
+                            <div class="detail-value" id="mappt-status">—</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-group">
+                            <div class="detail-label">Channel</div>
+                            <div class="detail-value" id="mappt-channel">—</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="detail-group">
+                            <div class="detail-label">Department</div>
+                            <div class="detail-value" id="mappt-dept">—</div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="detail-group">
+                            <div class="detail-label">Attending Physician</div>
+                            <div class="detail-value" id="mappt-doctor">—</div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="detail-group">
+                            <div class="detail-label">Specialization</div>
+                            <div class="detail-value" id="mappt-spec">—</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-modal-close" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> Close</button>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    let cancelTargetId = null;
-
-    // Apply URL status filter on load
     document.addEventListener('DOMContentLoaded', () => {
         const urlStatus = '<?= htmlspecialchars($filterStatus) ?>';
         if (urlStatus) {
@@ -697,6 +739,18 @@ $filterStatus = $_GET['status'] ?? '';
         }
         updateTableInfo();
     });
+
+    function openViewAppt(code, doctor, spec, dept, date, time, status, channel) {
+        document.getElementById('mappt-code').textContent = code;
+        document.getElementById('mappt-doctor').textContent = doctor;
+        document.getElementById('mappt-spec').textContent = spec;
+        document.getElementById('mappt-dept').textContent = dept;
+        document.getElementById('mappt-date').textContent = date;
+        document.getElementById('mappt-time').textContent = time;
+        document.getElementById('mappt-status').textContent = status;
+        document.getElementById('mappt-channel').textContent = channel;
+        new bootstrap.Modal(document.getElementById('viewApptModal')).show();
+    }
 
     function filterTable() {
         const q = document.getElementById('apptSearch').value.toLowerCase();
@@ -726,86 +780,31 @@ $filterStatus = $_GET['status'] ?? '';
             total ? `Showing ${shown} of ${total} appointments` : '';
     }
 
-    function openCancelModal(id, code) {
-        cancelTargetId = id;
-        document.getElementById('cancelCode').textContent = code;
-        document.getElementById('cancelModal').classList.add('show');
-    }
-
-    function closeCancelModal() {
-        cancelTargetId = null;
-        document.getElementById('cancelModal').classList.remove('show');
-    }
-
-    function confirmCancel() {
-        if (!cancelTargetId) return;
-        const btn = document.getElementById('confirmCancelBtn');
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Cancelling…';
-
+    function doCancel(id, code) {
+        if (!confirm(`Cancel appointment ${code}? This cannot be undone.`)) return;
         const fd = new FormData();
-        fd.append('id', cancelTargetId);
-
-        fetch('bookapp_handler.php?action=cancel_appointment', {
+        fd.append('id', id);
+        fetch('../../app/controllers/bookapp_handler.php?action=cancel_appointment', {
                 method: 'POST',
                 body: fd
             })
             .then(r => r.json())
             .then(res => {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-x-lg"></i> Yes, Cancel';
-                closeCancelModal();
                 if (res.success) {
-                    showAlert('success', 'Appointment cancelled successfully.');
-                    // Update the row badge without reloading
-                    const row = document.querySelector(`button[onclick*="${cancelTargetId}"]`)?.closest('tr');
-                    if (row) {
-                        row.querySelector('.badge').className = 'badge bg-danger';
-                        row.querySelector('.badge').textContent = 'Cancelled';
-                        row.querySelector('.btn-cancel-appt').disabled = true;
-                        row.querySelector('.btn-cancel-appt').style.opacity = '.4';
-                        row.dataset.status = 'Cancelled';
-                        row.dataset.upcoming = '0';
-                    }
-                    // Update cancelled stat
-                    const cancelCard = document.querySelector('.stat-card:nth-child(4) .sc-num');
-                    if (cancelCard) cancelCard.textContent = parseInt(cancelCard.textContent) + 1;
-                    const upCard = document.querySelector('.stat-card:nth-child(2) .sc-num');
-                    if (upCard && parseInt(upCard.textContent) > 0) upCard.textContent = parseInt(upCard.textContent) - 1;
+                    document.getElementById('successMsg').textContent = `Appointment ${code} cancelled successfully.`;
+                    document.getElementById('successAlert').style.display = 'flex';
+                    setTimeout(() => location.reload(), 1500);
                 } else {
-                    showAlert('error', res.message || 'Failed to cancel. Please try again.');
+                    document.getElementById('errorMsg').textContent = res.message || 'Could not cancel. Please try again.';
+                    document.getElementById('errorAlert').style.display = 'flex';
+                    setTimeout(() => document.getElementById('errorAlert').style.display = 'none', 4000);
                 }
             })
             .catch(() => {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-x-lg"></i> Yes, Cancel';
-                closeCancelModal();
-                showAlert('error', 'Network error. Please try again.');
+                document.getElementById('errorMsg').textContent = 'Network error. Please try again.';
+                document.getElementById('errorAlert').style.display = 'flex';
             });
     }
-
-    function showAlert(type, msg) {
-        document.getElementById('successAlert').style.display = 'none';
-        document.getElementById('errorAlert').style.display = 'none';
-        if (type === 'success') {
-            document.getElementById('successMsg').textContent = msg;
-            document.getElementById('successAlert').style.display = 'flex';
-            setTimeout(() => document.getElementById('successAlert').style.display = 'none', 5000);
-        } else {
-            document.getElementById('errorMsg').textContent = msg;
-            document.getElementById('errorAlert').style.display = 'flex';
-            setTimeout(() => document.getElementById('errorAlert').style.display = 'none', 5000);
-        }
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
-    }
-
-    // Close modal on overlay click
-    document.getElementById('cancelModal').addEventListener('click', function(e) {
-        if (e.target === this) closeCancelModal();
-    });
 </script>
 
 <?php include('./includes/footer.php'); ?>

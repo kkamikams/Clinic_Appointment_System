@@ -29,27 +29,22 @@ if (!$firstName || !$lastName || !$gender || !$license || !$specialization || !$
     exit;
 }
 
-// Generate doctor code
 $lastRow = $conn->query("SELECT doctorCode FROM doctors ORDER BY id DESC LIMIT 1");
 $lastCode = $lastRow ? $lastRow->fetch_row() : null;
 $nextNum  = $lastCode ? ((int)filter_var($lastCode[0], FILTER_SANITIZE_NUMBER_INT) + 1) : 1;
 
-// Make sure the generated code doesn't already exist
 while ($conn->query("SELECT id FROM doctors WHERE doctorCode = 'D-" . str_pad($nextNum, 3, '0', STR_PAD_LEFT) . "'")->num_rows > 0) {
     $nextNum++;
 }
 $doctorCode = 'D-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);;
 
-// Handle photo upload
-// Use an absolute path to the web root so the file always lands in the right place
-// __FILE__ = /your/project/admin/save_doctor.php  →  go up to web root
-$webRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/');          // e.g. /var/www/html
-$uploadDir = $webRoot . '/uploads/doctors/';                // absolute disk path
+
+$webRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/');
+$uploadDir = $webRoot . '/uploads/doctors/';
 
 $photoUrl = null;
 if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
 
-    // Create the folder if it doesn't exist yet
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
@@ -65,16 +60,15 @@ if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD
     $filename = $doctorCode . '_' . time() . '.' . $ext;
 
     if (move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $filename)) {
-        // Store only the web-accessible relative path (from web root)
-        $photoUrl = 'uploads/doctors/' . $filename;
+        $photoUrl = '/uploads/doctors/' . $filename;
     } else {
-        // move_uploaded_file failed — likely a permissions issue on the folder
+
         echo json_encode(['success' => false, 'message' => 'Failed to save photo. Check folder permissions.']);
         exit;
     }
 }
 
-// Insert doctor
+
 $stmt = $conn->prepare("
     INSERT INTO doctors
         (doctorCode, firstName, middleName, lastName, gender, dateOfBirth,
@@ -83,7 +77,7 @@ $stmt = $conn->prepare("
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 ");
 $stmt->bind_param(
-    'ssssssssssiissssss',
+    'sssssssssiisssssss',
     $doctorCode,
     $firstName,
     $middleName,
@@ -111,7 +105,7 @@ if (!$stmt->execute()) {
 $doctorId = $conn->insert_id;
 $stmt->close();
 
-// Insert schedules
+
 if (!empty($days)) {
     $sched = $conn->prepare(
         "INSERT IGNORE INTO doctorSchedules (doctorId, dayOfWeek, shiftStart, shiftEnd) VALUES (?,?,?,?)"
@@ -124,7 +118,6 @@ if (!empty($days)) {
     $sched->close();
 }
 
-// Log activity
 $desc    = "New doctor added: Dr. $firstName $lastName ($doctorCode)";
 $type    = 'Doctor Added';
 $refType = 'Doctor';

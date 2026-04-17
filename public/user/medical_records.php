@@ -5,9 +5,16 @@ include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 
-$userEmail = $_SESSION['email'] ?? '';
+$userId = $_SESSION['authUser']['user_id'] ?? 0;
+$userEmail = '';
+if ($userId) {
+    $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
+    $uStmt->bind_param('i', $userId);
+    $uStmt->execute();
+    $uRow = $uStmt->get_result()->fetch_assoc();
+    $userEmail = $uRow['emailAddress'] ?? '';
+}
 
-// Link user to patient
 $patientRow = null;
 if ($userEmail) {
     $stmt = $conn->prepare("SELECT * FROM patients WHERE emailAddress=? AND status!='Inactive' LIMIT 1");
@@ -670,10 +677,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                     '<?= htmlspecialchars(addslashes($rec['diagnosis'] ?? '—')) ?>',
                     '<?= htmlspecialchars(addslashes($rec['prescription'] ?? '—')) ?>',
                     '<?= htmlspecialchars(addslashes($rec['notes'] ?? '—')) ?>'
-                )"><i class="bi bi-eye"></i> View</button>
-                                        <button class="btn-act dl" onclick="fakeDownload('<?= htmlspecialchars($rec['recordCode']) ?>')">
-                                            <i class="bi bi-download"></i> Download
-                                        </button>
+                )">View</button>
                                     </div>
                                 </td>
                             </tr>
@@ -694,7 +698,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
     </div>
 </section>
 
-<!-- VIEW RECORD MODAL -->
 <div class="modal fade" id="viewRecordModal" tabindex="-1">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -750,60 +753,57 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
             </div>
             <div class="modal-footer">
                 <button class="btn-modal-close" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> Close</button>
-                <button class="btn-dl-sm" id="modalDlBtn"><i class="bi bi-download"></i> Download PDF</button>
             </div>
         </div>
     </div>
-</div>
 
-<div id="dlToast" class="dl-toast" style="display:none">
-    <i class="bi bi-check-circle-fill"></i><span id="dlToastMsg">Downloaded successfully!</span>
-</div>
+    <div id="dlToast" class="dl-toast" style="display:none">
+        <i class="bi bi-check-circle-fill"></i><span id="dlToastMsg">Downloaded successfully!</span>
+    </div>
 
-<script>
-    function filterRecords() {
-        const q = document.getElementById('recSearch').value.toLowerCase();
-        const dept = document.getElementById('deptFilter').value;
-        let vis = 0;
-        document.querySelectorAll('#recTbody tr[data-doctor]').forEach(row => {
-            const doc = row.dataset.doctor || '';
-            const diag = row.dataset.diag || '';
-            const d = row.dataset.dept || '';
-            const show = (!q || doc.includes(q) || diag.includes(q)) && (!dept || d === dept);
-            row.style.display = show ? '' : 'none';
-            if (show) vis++;
-        });
-        document.getElementById('emptyState').style.display = vis === 0 ? '' : 'none';
-        const total = document.querySelectorAll('#recTbody tr[data-doctor]').length;
-        document.getElementById('showingLabel').textContent = `Showing ${vis} of ${total} records`;
-    }
+    <script>
+        function filterRecords() {
+            const q = document.getElementById('recSearch').value.toLowerCase();
+            const dept = document.getElementById('deptFilter').value;
+            let vis = 0;
+            document.querySelectorAll('#recTbody tr[data-doctor]').forEach(row => {
+                const doc = row.dataset.doctor || '';
+                const diag = row.dataset.diag || '';
+                const d = row.dataset.dept || '';
+                const show = (!q || doc.includes(q) || diag.includes(q)) && (!dept || d === dept);
+                row.style.display = show ? '' : 'none';
+                if (show) vis++;
+            });
+            document.getElementById('emptyState').style.display = vis === 0 ? '' : 'none';
+            const total = document.querySelectorAll('#recTbody tr[data-doctor]').length;
+            document.getElementById('showingLabel').textContent = `Showing ${vis} of ${total} records`;
+        }
 
-    function openViewRecord(id, doctor, dept, date, diag, rx, notes) {
-        document.getElementById('mrec-id').textContent = id;
-        document.getElementById('mrec-doctor').textContent = doctor;
-        document.getElementById('mrec-dept').textContent = dept;
-        document.getElementById('mrec-date').textContent = date;
-        document.getElementById('mrec-diag').textContent = diag;
-        document.getElementById('mrec-notes').textContent = notes;
-        const lines = rx.split(/[\n·]/).map(l => l.trim()).filter(Boolean);
-        document.getElementById('mrec-rx').innerHTML = lines.length ?
-            lines.map(l => `<div style="padding:3px 0">• ${l}</div>`).join('') :
-            '<em style="color:var(--text-muted)">No prescription recorded.</em>';
-        document.getElementById('modalDlBtn').onclick = () => fakeDownload(id);
-        new bootstrap.Modal(document.getElementById('viewRecordModal')).show();
-    }
+        function openViewRecord(id, doctor, dept, date, diag, rx, notes) {
+            document.getElementById('mrec-id').textContent = id;
+            document.getElementById('mrec-doctor').textContent = doctor;
+            document.getElementById('mrec-dept').textContent = dept;
+            document.getElementById('mrec-date').textContent = date;
+            document.getElementById('mrec-diag').textContent = diag;
+            document.getElementById('mrec-notes').textContent = notes;
+            const lines = rx.split(/[\n·]/).map(l => l.trim()).filter(Boolean);
+            document.getElementById('mrec-rx').innerHTML = lines.length ?
+                lines.map(l => `<div style="padding:3px 0">• ${l}</div>`).join('') :
+                '<em style="color:var(--text-muted)">No prescription recorded.</em>';
+            new bootstrap.Modal(document.getElementById('viewRecordModal')).show();
+        }
 
-    let toastTimer;
+        let toastTimer;
 
-    function fakeDownload(id) {
-        document.getElementById('dlToastMsg').textContent = `${id} downloaded successfully!`;
-        const toast = document.getElementById('dlToast');
-        toast.style.display = 'flex';
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => {
-            toast.style.display = 'none';
-        }, 3000);
-    }
-</script>
+        function fakeDownload(id) {
+            document.getElementById('dlToastMsg').textContent = `${id} downloaded successfully!`;
+            const toast = document.getElementById('dlToast');
+            toast.style.display = 'flex';
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.style.display = 'none';
+            }, 3000);
+        }
+    </script>
 
-<?php include('./includes/footer.php'); ?>
+    <?php include('./includes/footer.php'); ?>

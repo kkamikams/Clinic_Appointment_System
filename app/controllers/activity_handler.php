@@ -1,11 +1,5 @@
 <?php
 
-/**
- * activity_handler.php
- * Returns recent activity feed for the admin dashboard live refresh.
- * Place in: same folder as admin index.php
- */
-
 include('../../app/middleware/admin.php');
 require_once('../../app/config/config.php');
 

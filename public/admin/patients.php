@@ -5,13 +5,11 @@ include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 
-// ── Stats ──────────────────────────────────────────────────────────
 $totalPatients = $conn->query("SELECT COUNT(*) FROM patients WHERE status != 'Inactive'")->fetch_row()[0];
 $activeCount   = $conn->query("SELECT COUNT(*) FROM patients WHERE status = 'Active'")->fetch_row()[0];
 $critical      = $conn->query("SELECT COUNT(*) FROM patients WHERE patientCondition = 'Critical'")->fetch_row()[0];
 $followUp      = $conn->query("SELECT COUNT(*) FROM patients WHERE followUpDate IS NOT NULL AND followUpDate >= CURDATE() AND status != 'Inactive'")->fetch_row()[0];
 
-// ── Patient rows ───────────────────────────────────────────────────
 $sql = "
     SELECT
         p.id, p.patientCode, p.firstName, p.middleName, p.lastName,
@@ -103,7 +101,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         font-weight: 600;
     }
 
-    /* ── Stat strip ── */
     .stat-strip {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -281,7 +278,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         color: #fff;
     }
 
-    /* ── Table ── */
     .table {
         width: 100%;
         border-collapse: collapse;
@@ -488,7 +484,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         background: var(--amber);
     }
 
-    /* ── Action btns ── */
     .action-btns {
         display: flex;
         gap: 5px;
@@ -755,7 +750,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         background: var(--border);
     }
 
-    /* ── Toast ── */
     .toast-wrap {
         position: fixed;
         bottom: 24px;
@@ -817,7 +811,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
 
 <section class="section page-patients">
 
-    <!-- ── Stat Cards ── -->
     <div class="stat-strip">
         <div class="stat-card">
             <div class="sc-label">Total Patients</div>
@@ -934,7 +927,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                             <td><?= $lastVisit ?></td>
                             <td><?= htmlspecialchars($doctor) ?></td>
 
-                            <!-- Status dropdown -->
                             <td class="status-cell">
                                 <button class="badge-btn" onclick="toggleDropdown(this)">
                                     <span class="badge <?= $statusCls ?>"><?= htmlspecialchars($p['status']) ?></span>
@@ -947,7 +939,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 </div>
                             </td>
 
-                            <!-- Condition dropdown -->
                             <td class="status-cell">
                                 <button class="badge-btn" onclick="toggleDropdown(this)">
                                     <span class="badge <?= $condCls ?>"><?= htmlspecialchars($p['patientCondition']) ?></span>
@@ -980,10 +971,8 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
     </div>
 </section>
 
-<!-- ── Panel Overlay ── -->
 <div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
 
-<!-- ── View Side Panel ── -->
 <div class="view-panel" id="viewPanel">
 
     <div class="vp-hero">
@@ -1108,7 +1097,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
     }
     renderPage(1);
 
-    // ── Dropdowns ──
     function toggleDropdown(btn) {
         const dd = btn.nextElementSibling;
         const open = dd.classList.contains('open');
@@ -1130,7 +1118,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         const row = optEl.closest('tr');
         row.dataset.status = label;
 
-        fetch('update_patient_status.php', {
+        fetch('/Clinic_Appointment_System/app/controllers/update_patient_status.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -1171,7 +1159,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
             });
     }
 
-    // ── Live stat recount ──
     function recount() {
         const allRows = Array.from(document.querySelectorAll('#patTbody tr:not(.filler-row)'));
         let total = 0,
@@ -1209,7 +1196,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         }, 30);
     }
 
-    // ── Badge styles for hero ──
     const statusBadgeStyle = {
         'Active': 'background:rgba(209,250,229,.25);color:#d1fae5;border:1px solid rgba(209,250,229,.4)',
         'Discharged': 'background:rgba(243,244,246,.2);color:#e5e7eb;border:1px solid rgba(229,231,235,.3)',

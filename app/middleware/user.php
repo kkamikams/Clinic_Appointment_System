@@ -12,7 +12,7 @@ if (!isset($_SESSION['authUser'])) {
     if ($_SESSION['userRole'] !== 'user') {
         $_SESSION['message'] = "You do not have permission to access this page.";
         $_SESSION['code'] = "error";
-        header("Location: /Clinic_Appointment_System/public/admin/index");
+        header("Location: /Clinic_Appointment_System/public/login");
         exit();
     }
 }

@@ -5,7 +5,6 @@ include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 
-// Load doctor
 $id = (int)($_GET['id'] ?? 0);
 if (!$id) {
     header('Location: doctors.php');
@@ -558,10 +557,8 @@ $dayAbbr = ['Monday' => 'Mon', 'Tuesday' => 'Tue', 'Wednesday' => 'Wed', 'Thursd
 <section class="section page-edit">
     <div class="edit-layout">
 
-        <!-- Left column: profile card + employment status card -->
         <div class="edit-left-col">
 
-            <!-- Profile card -->
             <div class="profile-card">
                 <div class="profile-card-banner"></div>
                 <div class="profile-card-body">
@@ -584,7 +581,6 @@ $dayAbbr = ['Monday' => 'Mon', 'Tuesday' => 'Tue', 'Wednesday' => 'Wed', 'Thursd
                 </div>
             </div>
 
-            <!-- Employment Status radio card -->
             <div class="status-card">
                 <div class="status-card-title">Employment Status</div>
                 <div class="status-radio-list" id="statusRadioList">
@@ -611,13 +607,11 @@ $dayAbbr = ['Monday' => 'Mon', 'Tuesday' => 'Tue', 'Wednesday' => 'Wed', 'Thursd
             </div>
 
         </div>
-        <!-- /Left column -->
 
-        <!-- Right form -->
         <div class="form-card">
             <form id="editDoctorForm" onsubmit="saveDoctor(event)">
                 <input type="hidden" name="id" value="<?= $doc['id'] ?>">
-                <!-- Hidden field synced with the radio card -->
+
                 <input type="hidden" name="emp_status" id="empStatusHidden" value="<?= htmlspecialchars($es) ?>">
 
                 <div class="form-section-title"><i class="bi bi-person"></i> Personal Information</div>
@@ -787,7 +781,7 @@ $dayAbbr = ['Monday' => 'Mon', 'Tuesday' => 'Tue', 'Wednesday' => 'Wed', 'Thursd
         const form = e.target;
         const data = new FormData(form);
 
-        fetch('update_doctor.php', {
+        fetch('/Clinic_Appointment_System/app/controllers/update_doctor.php', {
                 method: 'POST',
                 body: data
             })

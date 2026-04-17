@@ -1,37 +1,46 @@
 <?php
 session_start();
+
+if (!isset($_SESSION['user_id'])) {
+  header('Location: /Clinic_Appointment_System/public/login.php');
+  exit();
+}
+
+if ($_SESSION['userRole'] !== 'admin') {
+  $_SESSION['message'] = 'You do not have permission to access this page.';
+  $_SESSION['code'] = 'error';
+  header('Location: /Clinic_Appointment_System/public/user/index');
+  exit();
+}
+
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 
-// ══════════════════════════════════════════════════════
-// LIVE STATS — all pulled from DB
-// ══════════════════════════════════════════════════════
-
 $today = date('Y-m-d');
 
 // Appointments today
-$apptToday     = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate = '$today'")->fetch_row()[0];
+$apptToday = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate = '$today'")->fetch_row()[0];
 $apptYesterday = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate = DATE_SUB('$today', INTERVAL 1 DAY)")->fetch_row()[0];
-$apptTrend     = $apptYesterday > 0 ? round((($apptToday - $apptYesterday) / $apptYesterday) * 100) : 0;
+$apptTrend = $apptYesterday > 0 ? round((($apptToday - $apptYesterday) / $apptYesterday) * 100) : 0;
 
 // Patients this month
-$patMonth     = $conn->query("SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(CURDATE()) AND YEAR(createdAt)=YEAR(CURDATE())")->fetch_row()[0];
+$patMonth = $conn->query("SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(CURDATE()) AND YEAR(createdAt)=YEAR(CURDATE())")->fetch_row()[0];
 $patLastMonth = $conn->query("SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(DATE_SUB(CURDATE(),INTERVAL 1 MONTH)) AND YEAR(createdAt)=YEAR(DATE_SUB(CURDATE(),INTERVAL 1 MONTH))")->fetch_row()[0];
-$patTrend     = $patLastMonth > 0 ? round((($patMonth - $patLastMonth) / $patLastMonth) * 100) : 0;
+$patTrend = $patLastMonth > 0 ? round((($patMonth - $patLastMonth) / $patLastMonth) * 100) : 0;
 
 // Total active patients & doctors
 $totalPatients = $conn->query("SELECT COUNT(*) FROM patients WHERE status='Active'")->fetch_row()[0];
-$totalDoctors  = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus='Active'")->fetch_row()[0];
-$onDutyNow     = $conn->query("SELECT COUNT(*) FROM doctors WHERE status='On Duty'")->fetch_row()[0];
+$totalDoctors = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus='Active'")->fetch_row()[0];
+$onDutyNow = $conn->query("SELECT COUNT(*) FROM doctors WHERE status='On Duty'")->fetch_row()[0];
 
 // Appointment chart data (last 7 days)
 $chartData = [];
 for ($i = 6; $i >= 0; $i--) {
-  $d         = date('Y-m-d', strtotime("-$i days"));
-  $label     = date('Y-m-d\TH:i:s.000\Z', strtotime($d));
-  $total     = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$d'")->fetch_row()[0];
+  $d = date('Y-m-d', strtotime("-$i days"));
+  $label = date('Y-m-d\TH:i:s.000\Z', strtotime($d));
+  $total = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$d'")->fetch_row()[0];
   $completed = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$d' AND status='Completed'")->fetch_row()[0];
   $cancelled = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$d' AND status='Cancelled'")->fetch_row()[0];
   $chartData[] = ['date' => $label, 'total' => (int)$total, 'completed' => (int)$completed, 'cancelled' => (int)$cancelled];
@@ -39,55 +48,55 @@ for ($i = 6; $i >= 0; $i--) {
 
 // Today's appointments table (limit 10)
 $apptRows = $conn->query("
-    SELECT a.appointmentCode, a.appointmentTime, a.status, a.channel,
-           CONCAT(p.firstName,' ',p.lastName) AS patientName,
-           CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
-           d.specialization
-    FROM appointments a
-    JOIN patients p ON p.id=a.patientId
-    JOIN doctors  d ON d.id=a.doctorId
-    WHERE a.appointmentDate='$today'
-    ORDER BY a.appointmentTime ASC
-    LIMIT 10
+SELECT a.appointmentCode, a.appointmentTime, a.status, a.channel,
+CONCAT(p.firstName,' ',p.lastName) AS patientName,
+CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
+d.specialization
+FROM appointments a
+JOIN patients p ON p.id=a.patientId
+JOIN doctors d ON d.id=a.doctorId
+WHERE a.appointmentDate='$today'
+ORDER BY a.appointmentTime ASC
+LIMIT 10
 ")->fetch_all(MYSQLI_ASSOC);
 
 // Doctors on duty today
 $dutyDoctors = $conn->query("
-    SELECT d.id, d.firstName, d.lastName, d.specialization,
-           d.patientCapacity, d.status,
-           COUNT(DISTINCT a.id) AS currentLoad,
-           MIN(ds.shiftStart) AS shiftStart,
-           MAX(ds.shiftEnd)   AS shiftEnd
-    FROM doctors d
-    LEFT JOIN appointments a  ON a.doctorId=d.id AND a.appointmentDate='$today' AND a.status!='Cancelled'
-    LEFT JOIN doctorSchedules ds ON ds.doctorId=d.id AND ds.dayOfWeek=DAYNAME('$today')
-    WHERE d.status='On Duty' AND d.employmentStatus='Active'
-    GROUP BY d.id
-    LIMIT 8
+SELECT d.id, d.firstName, d.lastName, d.specialization,
+d.patientCapacity, d.status,
+COUNT(DISTINCT a.id) AS currentLoad,
+MIN(ds.shiftStart) AS shiftStart,
+MAX(ds.shiftEnd) AS shiftEnd
+FROM doctors d
+LEFT JOIN appointments a ON a.doctorId=d.id AND a.appointmentDate='$today' AND a.status!='Cancelled'
+LEFT JOIN doctorSchedules ds ON ds.doctorId=d.id AND ds.dayOfWeek=DAYNAME('$today')
+WHERE d.status='On Duty' AND d.employmentStatus='Active'
+GROUP BY d.id
+LIMIT 8
 ")->fetch_all(MYSQLI_ASSOC);
 
-// Recent activity (last 8)
+// Recent activity 
 $activities = $conn->query("
-    SELECT * FROM recentActivity ORDER BY createdAt DESC LIMIT 8
+SELECT * FROM recentActivity ORDER BY createdAt DESC LIMIT 8
 ")->fetch_all(MYSQLI_ASSOC);
 
 // Appointment channels today
 $channels = $conn->query("
-    SELECT channel, COUNT(*) AS cnt FROM appointments
-    WHERE appointmentDate='$today' GROUP BY channel
+SELECT channel, COUNT(*) AS cnt FROM appointments
+WHERE appointmentDate='$today' GROUP BY channel
 ")->fetch_all(MYSQLI_ASSOC);
 $channelMap = [];
 foreach ($channels as $ch) $channelMap[$ch['channel']] = (int)$ch['cnt'];
 
 // Status breakdown today
-$apptCompleted  = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='Completed'")->fetch_row()[0];
-$apptPending    = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='Pending'")->fetch_row()[0];
+$apptCompleted = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='Completed'")->fetch_row()[0];
+$apptPending = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='Pending'")->fetch_row()[0];
 $apptInProgress = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='In Progress'")->fetch_row()[0];
-$apptCancelled  = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='Cancelled'")->fetch_row()[0];
+$apptCancelled = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='Cancelled'")->fetch_row()[0];
 
-$avatarBgs    = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
+$avatarBgs = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
 $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75'];
-$todayDay     = date('l');
+$todayDay = date('l');
 ?>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
@@ -856,58 +865,11 @@ $todayDay     = date('l');
 <section class="section dashboard">
   <div class="row g-3">
 
-    <!-- ═══ Left side ═══ -->
     <div class="col-lg-8">
       <div class="row g-3">
 
-        <!-- Quick links -->
-        <div class="col-12">
-          <div class="quick-links">
-            <a href="appointments" class="quick-link-card" style="animation-delay:.04s">
-              <div class="ql-icon" style="background:var(--blue-50);color:var(--blue-600)"><i class="bi bi-calendar2-check"></i></div>
-              <div>
-                <div class="ql-label">Appointments</div>
-                <div class="ql-sub" id="qlAppt"><?= $apptToday ?> today</div>
-              </div>
-            </a>
-            <a href="patients" class="quick-link-card" style="animation-delay:.08s">
-              <div class="ql-icon" style="background:#ecfdf5;color:var(--green)"><i class="bi bi-people"></i></div>
-              <div>
-                <div class="ql-label">Patients</div>
-                <div class="ql-sub"><?= $totalPatients ?> active</div>
-              </div>
-            </a>
-            <a href="doctors" class="quick-link-card" style="animation-delay:.12s">
-              <div class="ql-icon" style="background:#f5f3ff;color:var(--violet)"><i class="bi bi-person-badge"></i></div>
-              <div>
-                <div class="ql-label">Doctors</div>
-                <div class="ql-sub" id="qlDuty"><?= $onDutyNow ?> on duty</div>
-              </div>
-            </a>
-            <a href="medical_records" class="quick-link-card" style="animation-delay:.16s">
-              <div class="ql-icon" style="background:var(--teal-light);color:var(--teal-dark)"><i class="bi bi-file-medical"></i></div>
-              <div>
-                <div class="ql-label">Records</div>
-                <div class="ql-sub">Medical records</div>
-              </div>
-            </a>
-          </div>
-        </div>
-
-        <!-- Appointment stat card -->
         <div class="col-xxl-4 col-md-6">
           <div class="card info-card sales-card">
-            <div class="filter">
-              <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
-              <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                <li class="dropdown-header text-start">
-                  <h6>Filter</h6>
-                </li>
-                <li><a class="dropdown-item" href="appointments">View All Appointments</a></li>
-                <li><a class="dropdown-item" href="appointments?status=Pending">Pending</a></li>
-                <li><a class="dropdown-item" href="appointments?status=Completed">Completed</a></li>
-              </ul>
-            </div>
             <div class="card-body">
               <h5 class="card-title">Appointments <span>| Today</span></h5>
               <div class="d-flex align-items-center gap-3">
@@ -925,20 +887,8 @@ $todayDay     = date('l');
           </div>
         </div>
 
-        <!-- Patients stat card -->
         <div class="col-xxl-4 col-md-6">
           <div class="card info-card revenue-card">
-            <div class="filter">
-              <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
-              <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                <li class="dropdown-header text-start">
-                  <h6>Filter</h6>
-                </li>
-                <li><a class="dropdown-item" href="patients">View All Patients</a></li>
-                <li><a class="dropdown-item" href="patients?status=Active">Active</a></li>
-                <li><a class="dropdown-item" href="patients?condition=Critical">Critical</a></li>
-              </ul>
-            </div>
             <div class="card-body">
               <h5 class="card-title">Patients <span>| This Month</span></h5>
               <div class="d-flex align-items-center gap-3">
@@ -956,20 +906,8 @@ $todayDay     = date('l');
           </div>
         </div>
 
-        <!-- Doctors stat card -->
         <div class="col-xxl-4 col-xl-12">
           <div class="card info-card customers-card">
-            <div class="filter">
-              <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
-              <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-                <li class="dropdown-header text-start">
-                  <h6>Filter</h6>
-                </li>
-                <li><a class="dropdown-item" href="doctors">View All Doctors</a></li>
-                <li><a class="dropdown-item" href="doctors?status=On+Duty">On Duty</a></li>
-                <li><a class="dropdown-item" href="add_doctors">Add Doctor</a></li>
-              </ul>
-            </div>
             <div class="card-body">
               <h5 class="card-title">Doctors <span>| Active</span></h5>
               <div class="d-flex align-items-center gap-3">
@@ -983,7 +921,6 @@ $todayDay     = date('l');
           </div>
         </div>
 
-        <!-- Chart -->
         <div class="col-12">
           <div class="card">
             <div class="filter">
@@ -1114,7 +1051,6 @@ $todayDay     = date('l');
           </div>
         </div>
 
-        <!-- Today's Appointments Table -->
         <div class="col-12">
           <div class="card recent-sales overflow-auto">
             <div class="filter">
@@ -1183,7 +1119,6 @@ $todayDay     = date('l');
           </div>
         </div>
 
-        <!-- Doctors on Duty -->
         <div class="col-12">
           <div class="card top-selling overflow-auto">
             <div class="filter">
@@ -1255,12 +1190,10 @@ $todayDay     = date('l');
         </div>
 
       </div>
-    </div><!-- End left side -->
+    </div>
 
-    <!-- ═══ Right side ═══ -->
     <div class="col-lg-4">
 
-      <!-- Recent Activity — LIVE -->
       <div class="card mb-3">
         <div class="filter">
           <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
@@ -1305,7 +1238,6 @@ $todayDay     = date('l');
         </div>
       </div>
 
-      <!-- Appointment Channel Chart -->
       <div class="card mb-3">
         <div class="filter">
           <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
@@ -1339,12 +1271,11 @@ $todayDay     = date('l');
         </div>
       </div>
 
-    </div><!-- End right side -->
+    </div>
   </div>
 </section>
 
 <script>
-  // ── Task Widget ──────────────────────────────────────
   const TASK_HANDLER = 'task_handler.php';
 
   function updateTaskCounts() {
@@ -1435,7 +1366,6 @@ $todayDay     = date('l');
       if (e.key === 'Enter') addTask();
     });
 
-    // ── Channel chart ──────────────────────────────────
     <?php
     $chartChannelData = [];
     $chartChannelColors = [];
@@ -1518,7 +1448,6 @@ $todayDay     = date('l');
       }]
     });
 
-    // ── Auto-refresh activity feed every 15 seconds ────
     function refreshActivity() {
       fetch('activity_handler.php?action=recent')
         .then(r => r.json())
@@ -1548,7 +1477,6 @@ $todayDay     = date('l');
     }
     setInterval(refreshActivity, 15000);
 
-    // ── Auto-refresh today's appointment count every 30s ──
     function refreshApptCount() {
       fetch('appointments_handler.php?action=list&date=<?= $today ?>&page=1')
         .then(r => r.json())

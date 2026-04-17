@@ -5,16 +5,13 @@ include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 
-// ── Stats (active doctors only for Total/OnDuty/OnLeave) ──────────
 $totalDoctors = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus != 'Inactive'")->fetch_row()[0];
 $onDuty       = $conn->query("SELECT COUNT(*) FROM doctors WHERE status = 'On Duty' AND employmentStatus = 'Active'")->fetch_row()[0];
 $onLeave      = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus = 'On Leave'")->fetch_row()[0];
 $totalSpecs   = $conn->query("SELECT COUNT(DISTINCT specialization) FROM doctors WHERE employmentStatus != 'Inactive'")->fetch_row()[0];
 
-// ── Today's day name for schedule highlight ────────────────────────
 $todayName = date('l');
 
-// ── Doctor rows ────────────────────────────────────────────────────
 $sql = "
     SELECT
         d.id, d.doctorCode, d.firstName, d.middleName, d.lastName,
@@ -579,7 +576,6 @@ function scheduleLabel($days, $start, $end)
         cursor: not-allowed;
     }
 
-    /* ── Side Panel ─────────────────────────────────────── */
     .panel-overlay {
         display: none;
         position: fixed;
@@ -1100,10 +1096,8 @@ function scheduleLabel($days, $start, $end)
     </div>
 </section>
 
-<!-- ── Panel Overlay ──────────────────────────────────── -->
 <div class="panel-overlay" id="panelOverlay" onclick="closePanel()"></div>
 
-<!-- ── View Side Panel ───────────────────────────────── -->
 <div class="view-panel" id="viewPanel">
 
     <!-- Hero -->
@@ -1127,10 +1121,8 @@ function scheduleLabel($days, $start, $end)
         </div>
     </div>
 
-    <!-- Body -->
     <div class="vp-body">
 
-        <!-- Load bar -->
         <div class="vp-load-row">
             <div class="vp-load-track">
                 <div class="vp-load-fill" id="vpLoadFill" style="width:0%"></div>
@@ -1138,13 +1130,11 @@ function scheduleLabel($days, $start, $end)
             <span class="vp-load-txt" id="vpLoadTxt"></span>
         </div>
 
-        <!-- Today's appointments -->
         <div class="vp-section-hd">Today's Appointments</div>
         <div class="vp-appt-list" id="vpApptList">
             <div class="vp-empty">Loading appointments…</div>
         </div>
 
-        <!-- Doctor info -->
         <div class="vp-section-hd">Doctor Info</div>
         <div class="vp-info-grid">
             <div class="vp-info-item">
@@ -1177,7 +1167,6 @@ function scheduleLabel($days, $start, $end)
             </div>
         </div>
 
-        <!-- Footer -->
         <div class="vp-footer">
             <button class="vp-btn-close" onclick="closePanel()">Close</button>
         </div>
@@ -1191,7 +1180,6 @@ function scheduleLabel($days, $start, $end)
     const ROWS_PER_PAGE = 5;
     let currentPage = 1;
 
-    // ── Live stat counters ────────────────────────────────
     function recount() {
         const rows = Array.from(document.querySelectorAll('#doctorTbody tr:not(.filler-row)'));
         let duty = 0,
@@ -1222,7 +1210,6 @@ function scheduleLabel($days, $start, $end)
         }, 30);
     }
 
-    // ── Pagination ────────────────────────────────────────
     function getFilteredRows() {
         const q = document.getElementById('doctorSearch').value.toLowerCase();
         const spec = document.getElementById('specFilter').value;
@@ -1279,7 +1266,6 @@ function scheduleLabel($days, $start, $end)
     }
     renderPage(1);
 
-    // ── Status dropdown ───────────────────────────────────
     function toggleStatusDropdown(btn) {
         const dd = btn.nextElementSibling;
         const open = dd.classList.contains('open');
@@ -1294,7 +1280,7 @@ function scheduleLabel($days, $start, $end)
         badge.textContent = label;
         dd.classList.remove('open');
 
-        fetch('update_doctor_status.php', {
+        fetch('/Clinic_Appointment_System/app/controllers/update_doctor_status.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -1321,7 +1307,6 @@ function scheduleLabel($days, $start, $end)
         window.location.href = 'edit_doctor.php?id=' + id;
     }
 
-    // ── View side panel ───────────────────────────────────
     const apptBadgeStyles = {
         'Confirmed': 'background:#d1fae5;color:#065f46',
         'Pending': 'background:#fef3c7;color:#92400e',
@@ -1334,7 +1319,6 @@ function scheduleLabel($days, $start, $end)
         const d = row.dataset;
         const badge = row.querySelector('.badge');
 
-        // Hero
         const avatar = document.getElementById('vpAvatar');
         avatar.textContent = d.avatar;
         avatar.style.background = d.avatarBg;
@@ -1342,11 +1326,9 @@ function scheduleLabel($days, $start, $end)
         document.getElementById('vpName').textContent = d.name;
         document.getElementById('vpSpec').textContent = d.spec;
 
-        // Shift
         document.getElementById('vpShift').textContent =
             d.todayHas === 'true' ? d.todayShift : 'Not scheduled today';
 
-        // Load bar
         const parts = (d.load || '0/20').split('/');
         const cur = parseInt(parts[0]) || 0;
         const cap = parseInt(parts[1]) || 20;
@@ -1354,7 +1336,6 @@ function scheduleLabel($days, $start, $end)
         document.getElementById('vpLoadFill').style.width = pct + '%';
         document.getElementById('vpLoadTxt').textContent = cur + ' / ' + cap + ' patients today';
 
-        // Info
         document.getElementById('vpId').textContent = d.id || '—';
         document.getElementById('vpContact').textContent = d.contact || '—';
         document.getElementById('vpEmail').textContent = d.email || '—';
@@ -1363,14 +1344,12 @@ function scheduleLabel($days, $start, $end)
         document.getElementById('vpEmp').textContent = d.empStatus || '—';
         document.getElementById('vpSchedule').textContent = d.schedule || '—';
 
-        // Show panel with animation
         document.getElementById('panelOverlay').classList.add('show');
-        // Force reflow so transition fires
+
         const panel = document.getElementById('viewPanel');
         panel.style.display = 'flex';
         requestAnimationFrame(() => panel.classList.add('show'));
 
-        // Load appointments
         const apptList = document.getElementById('vpApptList');
         apptList.innerHTML = '<div class="vp-empty">Loading appointments…</div>';
 

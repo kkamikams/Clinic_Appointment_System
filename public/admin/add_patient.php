@@ -616,7 +616,7 @@ require_once('../../app/config/config.php');
         fd.append('status', document.querySelector('input[name="status"]:checked')?.value || 'Active');
         fd.append('condition', document.querySelector('input[name="condition"]:checked')?.value || 'Stable');
 
-        fetch('save_patient.php', {
+        fetch('/Clinic_Appointment_System/app/controllers/save_patient.php', {
                 method: 'POST',
                 body: fd
             })

@@ -1,5 +1,6 @@
 <?php
 session_start();
+
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
@@ -627,7 +628,6 @@ require_once('../../app/config/config.php');
         font-weight: 500;
     }
 
-    /* ── Live search dropdown (patient / doctor / appointment) ── */
     .live-search-wrap {
         position: relative;
     }
@@ -823,9 +823,6 @@ require_once('../../app/config/config.php');
 
 </section>
 
-<!-- ══════════════════════════════════
-     ADD / EDIT MODAL
-══════════════════════════════════ -->
 <div class="modal fade" id="recModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -837,7 +834,6 @@ require_once('../../app/config/config.php');
                 <input type="hidden" id="editId">
                 <div class="row g-3">
 
-                    <!-- ── PATIENT live search ── -->
                     <div class="col-md-6">
                         <label class="form-label">Patient</label>
                         <div class="live-search-wrap">
@@ -860,7 +856,6 @@ require_once('../../app/config/config.php');
                         </div>
                     </div>
 
-                    <!-- ── DOCTOR live search ── -->
                     <div class="col-md-6">
                         <label class="form-label">Doctor</label>
                         <div class="live-search-wrap">
@@ -883,7 +878,6 @@ require_once('../../app/config/config.php');
                         </div>
                     </div>
 
-                    <!-- ── LINKED APPOINTMENT live search ── -->
                     <div class="col-md-6">
                         <label class="form-label">
                             Linked Appointment
@@ -909,7 +903,6 @@ require_once('../../app/config/config.php');
                         </div>
                     </div>
 
-                    <!-- ── Record type ── -->
                     <div class="col-md-6">
                         <label class="form-label">Record Type</label>
                         <select class="form-select" id="fType">
@@ -956,9 +949,6 @@ require_once('../../app/config/config.php');
     </div>
 </div>
 
-<!-- ══════════════════════════════════
-     VIEW MODAL
-══════════════════════════════════ -->
 <div class="modal fade" id="viewModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -972,298 +962,322 @@ require_once('../../app/config/config.php');
             </div>
         </div>
     </div>
+</div>
+</div>
 
-    <!-- ══════════════════════════════════
-     DELETE CONFIRM MODAL
-══════════════════════════════════ -->
-    <div class="modal fade" id="deleteModal" tabindex="-1">
-        <div class="modal-dialog modal-sm">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Delete Record?</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p style="font-size:.85rem;color:var(--text-body);margin:0;">
-                        This will permanently delete the medical record. Continue?
-                    </p>
-                    <input type="hidden" id="deleteId">
-                </div>
-                <div class="modal-footer">
-                    <button class="btn-secondary-sm" data-bs-dismiss="modal">No</button>
-                    <button class="btn-primary-sm" style="background:var(--red);" onclick="confirmDelete()">
-                        <i class="bi bi-trash3"></i> Yes, Delete
-                    </button>
-                </div>
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Record?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p style="font-size:.85rem;color:var(--text-body);margin:0;">
+                    This will permanently delete the medical record. Continue?
+                </p>
+                <input type="hidden" id="deleteId">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary-sm" data-bs-dismiss="modal">No</button>
+                <button class="btn-primary-sm" style="background:var(--red);" onclick="confirmDelete()">
+                    <i class="bi bi-trash3"></i> Yes, Delete
+                </button>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        const HANDLER = 'medical_records_handler.php';
-        let currentPage = 1;
-        let searchTimer = null;
+<script>
+    const HANDLER = '../../app/controllers/medical_records_handler.php';
+    let currentPage = 1;
+    let searchTimer = null;
 
-        // ── Status config (matches appointments/patients pages) ───────────
-        const STATUS_CONFIG = {
-            'Draft': {
-                dot: '#f59e0b',
-                bg: '#fef3c7',
-                color: '#92400e'
-            },
-            'Finalized': {
-                dot: '#10b981',
-                bg: '#d1fae5',
-                color: '#065f46'
-            },
-        };
+    const STATUS_CONFIG = {
+        'Draft': {
+            dot: '#f59e0b',
+            bg: '#fef3c7',
+            color: '#92400e'
+        },
+        'Finalized': {
+            dot: '#10b981',
+            bg: '#d1fae5',
+            color: '#065f46'
+        },
+    };
 
-        // ── Close dropdowns & live results on outside click ───────────────
-        document.addEventListener('click', e => {
-            if (!e.target.closest('.status-cell'))
-                document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
-            if (!e.target.closest('.live-search-wrap'))
-                document.querySelectorAll('.live-results.open').forEach(el => el.classList.remove('open'));
-        });
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.status-cell'))
+            document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
+        if (!e.target.closest('.live-search-wrap'))
+            document.querySelectorAll('.live-results.open').forEach(el => el.classList.remove('open'));
+    });
 
-        // ── Init ──────────────────────────────────────────────────────────
-        document.addEventListener('DOMContentLoaded', () => loadRecords(1));
+    document.addEventListener('DOMContentLoaded', () => loadRecords(1));
 
-        // ════════════════════════════════════════════════════════════════
-        //  LIVE SEARCH — patient / doctor / appointment
-        // ════════════════════════════════════════════════════════════════
-        const fieldTimers = {};
 
-        function debounceField(field) {
-            clearTimeout(fieldTimers[field]);
-            fieldTimers[field] = setTimeout(() => runFieldSearch(field), 280);
+    const fieldTimers = {};
+
+    function debounceField(field) {
+        clearTimeout(fieldTimers[field]);
+        fieldTimers[field] = setTimeout(() => runFieldSearch(field), 280);
+    }
+
+    function runFieldSearch(field) {
+        const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
+        const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
+        const q = document.getElementById(inputId).value.trim();
+        const box = document.getElementById(resultsId);
+
+        if (!q) {
+            box.classList.remove('open');
+            box.innerHTML = '';
+            return;
         }
 
-        function runFieldSearch(field) {
-            const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
-            const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
-            const q = document.getElementById(inputId).value.trim();
-            const box = document.getElementById(resultsId);
+        let url = '';
+        if (field === 'patient') url = `${HANDLER}?action=get_patients&q=${encodeURIComponent(q)}`;
+        if (field === 'doctor') url = `${HANDLER}?action=get_doctors&q=${encodeURIComponent(q)}`;
+        if (field === 'appt') {
+            const patId = document.getElementById('fPatient').value;
+            url = `${HANDLER}?action=get_appointments&q=${encodeURIComponent(q)}&patientId=${patId}`;
+        }
 
-            if (!q) {
-                box.classList.remove('open');
-                box.innerHTML = '';
-                return;
-            }
-
-            let url = '';
-            if (field === 'patient') url = `${HANDLER}?action=get_patients&q=${encodeURIComponent(q)}`;
-            if (field === 'doctor') url = `${HANDLER}?action=get_doctors&q=${encodeURIComponent(q)}`;
-            if (field === 'appt') {
-                const patId = document.getElementById('fPatient').value;
-                url = `${HANDLER}?action=get_appointments&q=${encodeURIComponent(q)}&patientId=${patId}`;
-            }
-
-            fetch(url)
-                .then(r => r.json())
-                .then(res => {
-                    if (!res.success || !res.data.length) {
-                        box.innerHTML = `<div style="padding:.6rem 1rem;font-size:.8rem;color:var(--text-muted);">No results found.</div>`;
-                        box.classList.add('open');
-                        return;
-                    }
-                    box.innerHTML = res.data.map(item => {
-                        if (field === 'patient') {
-                            return `<div class="live-item" onclick="selectField('patient',${item.id},'${esc(item.name)}','${esc(item.patientCode)}','${esc(item.patientCode)}')">
+        fetch(url)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.data.length) {
+                    box.innerHTML = `<div style="padding:.6rem 1rem;font-size:.8rem;color:var(--text-muted);">No results found.</div>`;
+                    box.classList.add('open');
+                    return;
+                }
+                box.innerHTML = res.data.map(item => {
+                    if (field === 'patient') {
+                        return `<div class="live-item" onclick="selectField('patient',${item.id},'${esc(item.name)}','${esc(item.patientCode)}','${esc(item.patientCode)}')">
                             <div class="live-avatar">${inits(item.name)}</div>
                             <div><div class="live-name">${item.name}</div><div class="live-sub">${item.patientCode}</div></div>
                         </div>`;
-                        }
-                        if (field === 'doctor') {
-                            return `<div class="live-item" onclick="selectField('doctor',${item.id},'${esc(item.name)}','${esc(item.specialization)}','')">
+                    }
+                    if (field === 'doctor') {
+                        return `<div class="live-item" onclick="selectField('doctor',${item.id},'${esc(item.name)}','${esc(item.specialization)}','')">
                             <div class="live-avatar" style="background:var(--green-light);color:var(--green-dark);">${inits(item.name)}</div>
                             <div><div class="live-name">${item.name}</div><div class="live-sub">${item.specialization}</div></div>
                         </div>`;
-                        }
-                        // appointment
-                        return `<div class="live-item" onclick="selectField('appt',${item.id},'${esc(item.appointmentCode)}','${esc(item.doctorName+' · '+fmtDate(item.appointmentDate))}','')">
-                        <div class="live-avatar" style="background:var(--violet-light);color:var(--violet-dark);"><i class="bi bi-calendar2-check" style="font-size:.7rem;"></i></div>
-                        <div><div class="live-name">${item.appointmentCode}</div><div class="live-sub">${item.doctorName} · ${fmtDate(item.appointmentDate)}</div></div>
-                    </div>`;
-                    }).join('');
-                    box.classList.add('open');
+                    }
+                    // appointment
+                    return `<div class="live-item" onclick="selectAppt(${item.id},'${esc(item.appointmentCode)}','${esc(item.doctorName+' · '+fmtDate(item.appointmentDate))}')">
+    <div class="live-avatar" style="background:var(--violet-light);color:var(--violet-dark);"><i class="bi bi-calendar2-check" style="font-size:.7rem;"></i></div>
+    <div><div class="live-name">${item.appointmentCode}</div><div class="live-sub">${item.doctorName} · ${fmtDate(item.appointmentDate)}</div></div>
+</div>`;
+                }).join('');
+                box.classList.add('open');
+            });
+    }
+
+    function selectField(field, id, name, sub) {
+        const hiddenId = field === 'patient' ? 'fPatient' : field === 'doctor' ? 'fDoctor' : 'fAppointment';
+        const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
+        const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
+        const pillId = field === 'patient' ? 'patientPill' : field === 'doctor' ? 'doctorPill' : 'apptPill';
+        const nameId = field === 'patient' ? 'patientPillName' : field === 'doctor' ? 'doctorPillName' : 'apptPillName';
+        const subId = field === 'patient' ? 'patientPillSub' : field === 'doctor' ? 'doctorPillSub' : 'apptPillSub';
+
+        document.getElementById(hiddenId).value = id;
+        document.getElementById(inputId).value = '';
+        document.getElementById(resultsId).classList.remove('open');
+        document.getElementById(nameId).textContent = name;
+        document.getElementById(subId).textContent = sub;
+        document.getElementById(pillId).classList.add('show');
+
+        if (field === 'patient') {
+            clearField('appt');
+            clearField('doctor');
+
+            fetch(`${HANDLER}?action=get_patient_doctor&patientId=${id}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success || !res.data) return;
+                    const doc = res.data;
+                    document.getElementById('fDoctor').value = doc.doctorId;
+                    document.getElementById('doctorPillName').textContent = doc.doctorName;
+                    document.getElementById('doctorPillSub').textContent = doc.specialization || '';
+                    document.getElementById('doctorPill').classList.add('show');
                 });
         }
+    }
 
-        function selectField(field, id, name, sub) {
-            const hiddenId = field === 'patient' ? 'fPatient' : field === 'doctor' ? 'fDoctor' : 'fAppointment';
-            const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
-            const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
-            const pillId = field === 'patient' ? 'patientPill' : field === 'doctor' ? 'doctorPill' : 'apptPill';
-            const nameId = field === 'patient' ? 'patientPillName' : field === 'doctor' ? 'doctorPillName' : 'apptPillName';
-            const subId = field === 'patient' ? 'patientPillSub' : field === 'doctor' ? 'doctorPillSub' : 'apptPillSub';
+    function clearField(field) {
+        const hiddenId = field === 'patient' ? 'fPatient' : field === 'doctor' ? 'fDoctor' : 'fAppointment';
+        const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
+        const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
+        const pillId = field === 'patient' ? 'patientPill' : field === 'doctor' ? 'doctorPill' : 'apptPill';
 
-            document.getElementById(hiddenId).value = id;
-            document.getElementById(inputId).value = '';
-            document.getElementById(resultsId).classList.remove('open');
-            document.getElementById(nameId).textContent = name;
-            document.getElementById(subId).textContent = sub;
-            document.getElementById(pillId).classList.add('show');
+        document.getElementById(hiddenId).value = '';
+        document.getElementById(inputId).value = '';
+        document.getElementById(resultsId).classList.remove('open');
+        document.getElementById(pillId).classList.remove('show');
+    }
 
-            // If patient selected, clear appointment since it's patient-scoped
-            if (field === 'patient') clearField('appt');
-        }
-
-        function clearField(field) {
-            const hiddenId = field === 'patient' ? 'fPatient' : field === 'doctor' ? 'fDoctor' : 'fAppointment';
-            const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
-            const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
-            const pillId = field === 'patient' ? 'patientPill' : field === 'doctor' ? 'doctorPill' : 'apptPill';
-
-            document.getElementById(hiddenId).value = '';
-            document.getElementById(inputId).value = '';
-            document.getElementById(resultsId).classList.remove('open');
-            document.getElementById(pillId).classList.remove('show');
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  STATUS DROPDOWN (table rows)
-        // ════════════════════════════════════════════════════════════════
-        function statusDropdown(id, current) {
-            const cfg = STATUS_CONFIG[current] || {
-                dot: '#9ca3af',
-                bg: '#f3f4f6',
-                color: '#374151'
-            };
-            const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => `
+    function statusDropdown(id, current) {
+        const cfg = STATUS_CONFIG[current] || {
+            dot: '#9ca3af',
+            bg: '#f3f4f6',
+            color: '#374151'
+        };
+        const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => `
             <div class="status-opt" onclick="pickRecStatus(this,'${label}',${id})">
                 <span class="dot" style="background:${c.dot};"></span>${label}
             </div>`).join('');
 
-            return `<div class="status-cell">
+        return `<div class="status-cell">
             <button class="badge-btn" onclick="toggleStatusDrop(this)">
                 <span class="rec-badge" style="background:${cfg.bg};color:${cfg.color};">
-                    <span style="width:7px;height:7px;border-radius:50%;background:${cfg.dot};display:inline-block;flex-shrink:0;"></span>
-                    ${current}
-                </span>
+                    <span class="badge-dot" style="width:7px;height:7px;border-radius:50%;background:${cfg.dot};display:inline-block;flex-shrink:0;"></span>
+<span class="badge-label">${current}</span>
                 <span class="badge-caret">▾</span>
             </button>
             <div class="status-dropdown">${opts}</div>
         </div>`;
-        }
+    }
 
-        function toggleStatusDrop(btn) {
-            const dd = btn.nextElementSibling;
-            const isOpen = dd.classList.contains('open');
-            document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
-            if (!isOpen) dd.classList.add('open');
-        }
+    function toggleStatusDrop(btn) {
+        const dd = btn.nextElementSibling;
+        const isOpen = dd.classList.contains('open');
+        document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
+        if (!isOpen) dd.classList.add('open');
+    }
 
-        function pickRecStatus(optEl, newStatus, id) {
-            const cfg = STATUS_CONFIG[newStatus];
-            const dd = optEl.closest('.status-dropdown');
-            const badge = dd.previousElementSibling.querySelector('.rec-badge');
+    function pickRecStatus(optEl, newStatus, id) {
+        const cfg = STATUS_CONFIG[newStatus];
+        const dd = optEl.closest('.status-dropdown');
+        const badge = dd.previousElementSibling.querySelector('.rec-badge');
 
-            badge.style.background = cfg.bg;
-            badge.style.color = cfg.color;
-            badge.querySelector('span').style.background = cfg.dot;
-            // update text node (second child after the dot span)
-            badge.childNodes[1].textContent = ' ' + newStatus;
-            dd.classList.remove('open');
+        badge.style.background = cfg.bg;
+        badge.style.color = cfg.color;
+        badge.querySelector('.badge-dot').style.background = cfg.dot;
+        badge.querySelector('.badge-label').textContent = newStatus;
+        dd.classList.remove('open');
 
-            const fd = new FormData();
-            fd.append('id', id);
-            fd.append('status', newStatus);
+        const fd = new FormData();
+        fd.append('id', id);
+        fd.append('status', newStatus);
 
-            fetch(`${HANDLER}?action=update_status`, {
-                    method: 'POST',
-                    body: fd
-                })
-                .then(r => r.json())
-                .then(res => {
-                    if (res.success) {
-                        renderStats(res.stats);
-                        showToast('Status updated to "' + newStatus + '"', 'success');
-                    } else {
-                        loadRecords(currentPage);
-                    }
-                })
-                .catch(() => loadRecords(currentPage));
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  LOAD & RENDER
-        // ════════════════════════════════════════════════════════════════
-        function loadRecords(page) {
-            currentPage = page || 1;
-            const search = encodeURIComponent(document.getElementById('recSearch').value.trim());
-            const type = encodeURIComponent(document.getElementById('recType').value);
-            const status = encodeURIComponent(document.getElementById('recStatus').value);
-            const url = `${HANDLER}?action=list&search=${search}&type=${type}&status=${status}&page=${currentPage}`;
-
-            document.getElementById('tblLoading').style.display = 'flex';
-
-            fetch(url)
-                .then(r => r.json())
-                .then(res => {
-                    document.getElementById('tblLoading').style.display = 'none';
-                    if (!res.success) return;
-                    renderRows(res.rows);
+        fetch(`${HANDLER}?action=update_status`, {
+                method: 'POST',
+                body: fd
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
                     renderStats(res.stats);
-                    renderPagination(res.total, res.page, res.limit);
-                })
-                .catch(() => document.getElementById('tblLoading').style.display = 'none');
-        }
+                    showToast('Status updated to "' + newStatus + '"', 'success');
+                } else {
+                    loadRecords(currentPage);
+                }
+            })
+            .catch(() => loadRecords(currentPage));
+    }
 
-        function debounceSearch() {
-            clearTimeout(searchTimer);
-            searchTimer = setTimeout(() => loadRecords(1), 350);
-        }
+    function selectAppt(id, name, sub) {
+        selectField('appt', id, name, sub);
 
-        const avatarColors = [
-            ['#dbeafe', '#1d4ed8'],
-            ['#d1fae5', '#065f46'],
-            ['#fef3c7', '#92400e'],
-            ['#ede9fe', '#5b21b6'],
-            ['#cffafe', '#155e75'],
-            ['#fee2e2', '#991b1b'],
-        ];
+        // Auto-fill diagnosis from appointment remarks
+        fetch(`${HANDLER}?action=get_appointment_details&apptId=${id}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.data) return;
+                const appt = res.data;
 
-        function inits(name) {
-            return (name || '').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-        }
+                // Fill diagnosis if empty
+                if (!document.getElementById('fDiagnosis').value && appt.remarks) {
+                    document.getElementById('fDiagnosis').value = appt.remarks;
+                }
 
-        function typeChip(t) {
-            const map = {
-                'Consultation': 'chip-consultation',
-                'Lab Result': 'chip-lab',
-                'Imaging': 'chip-imaging',
-                'Prescription': 'chip-prescription',
-                'Other': 'chip-other',
-            };
-            return `<span class="rec-type-chip ${map[t]||'chip-other'}">${t}</span>`;
-        }
-
-        function fmtDate(d) {
-            if (!d) return '—';
-            return new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
+                // Auto-fill doctor from appointment if doctor field is empty
+                if (!document.getElementById('fDoctor').value && appt.doctorId) {
+                    document.getElementById('fDoctor').value = appt.doctorId;
+                    document.getElementById('doctorPillName').textContent = appt.doctorName;
+                    document.getElementById('doctorPillSub').textContent = appt.specialization || '';
+                    document.getElementById('doctorPill').classList.add('show');
+                }
             });
-        }
+    }
 
-        function esc(str) {
-            return String(str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        }
+    function loadRecords(page) {
+        currentPage = page || 1;
+        const search = encodeURIComponent(document.getElementById('recSearch').value.trim());
+        const type = encodeURIComponent(document.getElementById('recType').value);
+        const status = encodeURIComponent(document.getElementById('recStatus').value);
+        const url = `${HANDLER}?action=list&search=${search}&type=${type}&status=${status}&page=${currentPage}`;
 
-        function renderRows(rows) {
-            const tbody = document.getElementById('recTbody');
-            if (!rows.length) {
-                tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+        document.getElementById('tblLoading').style.display = 'flex';
+
+        fetch(url)
+            .then(r => r.json())
+            .then(res => {
+                document.getElementById('tblLoading').style.display = 'none';
+                if (!res.success) return;
+                renderRows(res.rows);
+                renderStats(res.stats);
+                renderPagination(res.total, res.page, res.limit);
+            })
+            .catch(() => document.getElementById('tblLoading').style.display = 'none');
+    }
+
+    function debounceSearch() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => loadRecords(1), 350);
+    }
+
+    const avatarColors = [
+        ['#dbeafe', '#1d4ed8'],
+        ['#d1fae5', '#065f46'],
+        ['#fef3c7', '#92400e'],
+        ['#ede9fe', '#5b21b6'],
+        ['#cffafe', '#155e75'],
+        ['#fee2e2', '#991b1b'],
+    ];
+
+    function inits(name) {
+        return (name || '').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+    }
+
+    function typeChip(t) {
+        const map = {
+            'Consultation': 'chip-consultation',
+            'Lab Result': 'chip-lab',
+            'Imaging': 'chip-imaging',
+            'Prescription': 'chip-prescription',
+            'Other': 'chip-other',
+        };
+        return `<span class="rec-type-chip ${map[t]||'chip-other'}">${t}</span>`;
+    }
+
+    function fmtDate(d) {
+        if (!d) return '—';
+        return new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    }
+
+    function esc(str) {
+        return String(str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    function renderRows(rows) {
+        const tbody = document.getElementById('recTbody');
+        if (!rows.length) {
+            tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
                 <i class="bi bi-folder-x"></i><p>No records found for the selected filters.</p>
             </div></td></tr>`;
-                return;
-            }
-            tbody.innerHTML = rows.map((r, i) => {
-                const [bg, fg] = avatarColors[i % avatarColors.length];
-                const avatarHtml = r.patPhoto ? `<img src="${r.patPhoto}" alt="">` : inits(r.patientName);
-                return `<tr>
+            return;
+        }
+        tbody.innerHTML = rows.map((r, i) => {
+            const [bg, fg] = avatarColors[i % avatarColors.length];
+            const avatarHtml = r.patPhoto ? `<img src="${r.patPhoto}" alt="">` : inits(r.patientName);
+            return `<tr>
                 <td><a href="#" class="rec-id">${r.recordCode}</a></td>
                 <td><div class="pat-cell">
                     <div class="pat-avatar" style="background:${bg};color:${fg}">${avatarHtml}</div>
@@ -1284,159 +1298,150 @@ require_once('../../app/config/config.php');
                     <button class="btn-act" title="View"   onclick="viewRecord(${r.id})"><i class="bi bi-eye"></i></button>
                     <button class="btn-act" title="Edit"   onclick="editRecord(${r.id})"><i class="bi bi-pencil"></i></button>
             </tr>`;
-            }).join('');
+        }).join('');
+    }
+
+    function renderStats(s) {
+        document.getElementById('statTotal').textContent = s.total ?? '—';
+        document.getElementById('statToday').textContent = s.today ?? '—';
+        document.getElementById('statLab').textContent = s.labPending ?? '—';
+        document.getElementById('statRx').textContent = s.prescriptions ?? '—';
+    }
+
+    function renderPagination(total, page, limit) {
+        const pages = Math.ceil(total / limit);
+        const start = (page - 1) * limit + 1,
+            end = Math.min(page * limit, total);
+        document.getElementById('paginationInfo').textContent =
+            total ? `Showing ${start}–${end} of ${total} records` : 'No records';
+        const wrap = document.getElementById('paginationBtns');
+        wrap.innerHTML = '';
+        if (pages <= 1) return;
+        const btn = (label, p, active = false) => {
+            const b = document.createElement('button');
+            b.className = 'btn-act';
+            b.innerHTML = label;
+            b.style.cssText = `border-radius:8px;padding:4px 12px;font-size:.78rem;${active?'background:var(--blue-600);color:#fff;border-color:var(--blue-600);':''}`;
+            if (p) b.onclick = () => loadRecords(p);
+            else b.disabled = true;
+            return b;
+        };
+        wrap.appendChild(btn('‹ Prev', page > 1 ? page - 1 : null));
+        for (let i = 1; i <= pages; i++) wrap.appendChild(btn(i, i, i === page));
+        wrap.appendChild(btn('Next ›', page < pages ? page + 1 : null));
+    }
+
+    function resetModal() {
+        ['patient', 'doctor', 'appt'].forEach(f => clearField(f));
+        document.getElementById('fType').value = 'Consultation';
+        document.getElementById('fDiagnosis').value = '';
+        document.getElementById('fIcdCode').value = '';
+        document.getElementById('fPrescription').value = '';
+        document.getElementById('fNotes').value = '';
+        document.getElementById('fStatus').value = 'Draft';
+        document.getElementById('editId').value = '';
+    }
+
+    function openAddModal() {
+        resetModal();
+        document.getElementById('recModalTitle').textContent = 'New Medical Record';
+        document.getElementById('saveBtnLabel').textContent = 'Save Record';
+        new bootstrap.Modal(document.getElementById('recModal')).show();
+    }
+
+    function editRecord(id) {
+        fetch(`${HANDLER}?action=get&id=${id}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) return alert('Could not load record.');
+                const d = res.data;
+                resetModal();
+                document.getElementById('recModalTitle').textContent = 'Edit Medical Record';
+                document.getElementById('saveBtnLabel').textContent = 'Update Record';
+                document.getElementById('editId').value = d.id;
+                document.getElementById('fType').value = d.recordType;
+                document.getElementById('fDiagnosis').value = d.diagnosis || '';
+                document.getElementById('fIcdCode').value = d.icdCode || '';
+                document.getElementById('fPrescription').value = d.prescription || '';
+                document.getElementById('fNotes').value = d.notes || '';
+                document.getElementById('fStatus').value = d.status;
+
+                if (d.patientId) {
+                    document.getElementById('fPatient').value = d.patientId;
+                    document.getElementById('patientPillName').textContent = d.patientName || '—';
+                    document.getElementById('patientPillSub').textContent = d.patientCode || '';
+                    document.getElementById('patientPill').classList.add('show');
+                }
+
+                if (d.doctorId) {
+                    document.getElementById('fDoctor').value = d.doctorId;
+                    document.getElementById('doctorPillName').textContent = d.doctorName || '—';
+                    document.getElementById('doctorPillSub').textContent = d.specialization || '';
+                    document.getElementById('doctorPill').classList.add('show');
+                }
+
+                if (d.appointmentId) {
+                    document.getElementById('fAppointment').value = d.appointmentId;
+                    document.getElementById('apptPillName').textContent = d.appointmentCode || '—';
+                    document.getElementById('apptPillSub').textContent = d.doctorName + ' · ' + fmtDate(d.appointmentDate);
+                    document.getElementById('apptPill').classList.add('show');
+                }
+
+                new bootstrap.Modal(document.getElementById('recModal')).show();
+            });
+    }
+
+    function saveRecord() {
+        const id = document.getElementById('editId').value;
+        const payload = {
+            id: id || undefined,
+            patientId: document.getElementById('fPatient').value,
+            doctorId: document.getElementById('fDoctor').value,
+            appointmentId: document.getElementById('fAppointment').value || null,
+            recordType: document.getElementById('fType').value,
+            diagnosis: document.getElementById('fDiagnosis').value,
+            icdCode: document.getElementById('fIcdCode').value,
+            prescription: document.getElementById('fPrescription').value,
+            notes: document.getElementById('fNotes').value,
+            status: document.getElementById('fStatus').value,
+        };
+
+        if (!payload.patientId || !payload.doctorId) {
+            alert('Patient and Doctor are required.');
+            return;
         }
 
-        function renderStats(s) {
-            document.getElementById('statTotal').textContent = s.total ?? '—';
-            document.getElementById('statToday').textContent = s.today ?? '—';
-            document.getElementById('statLab').textContent = s.labPending ?? '—';
-            document.getElementById('statRx').textContent = s.prescriptions ?? '—';
-        }
+        fetch(`${HANDLER}?action=${id ? 'edit' : 'add'}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload),
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('recModal')).hide();
+                    loadRecords(currentPage);
+                    showToast(id ? 'Record updated!' : 'Record saved!', 'success');
+                } else {
+                    alert('Failed to save. Please try again.');
+                }
+            });
+    }
 
-        function renderPagination(total, page, limit) {
-            const pages = Math.ceil(total / limit);
-            const start = (page - 1) * limit + 1,
-                end = Math.min(page * limit, total);
-            document.getElementById('paginationInfo').textContent =
-                total ? `Showing ${start}–${end} of ${total} records` : 'No records';
-            const wrap = document.getElementById('paginationBtns');
-            wrap.innerHTML = '';
-            if (pages <= 1) return;
-            const btn = (label, p, active = false) => {
-                const b = document.createElement('button');
-                b.className = 'btn-act';
-                b.innerHTML = label;
-                b.style.cssText = `border-radius:8px;padding:4px 12px;font-size:.78rem;${active?'background:var(--blue-600);color:#fff;border-color:var(--blue-600);':''}`;
-                if (p) b.onclick = () => loadRecords(p);
-                else b.disabled = true;
-                return b;
-            };
-            wrap.appendChild(btn('‹ Prev', page > 1 ? page - 1 : null));
-            for (let i = 1; i <= pages; i++) wrap.appendChild(btn(i, i, i === page));
-            wrap.appendChild(btn('Next ›', page < pages ? page + 1 : null));
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  ADD / EDIT / SAVE
-        // ════════════════════════════════════════════════════════════════
-        function resetModal() {
-            ['patient', 'doctor', 'appt'].forEach(f => clearField(f));
-            document.getElementById('fType').value = 'Consultation';
-            document.getElementById('fDiagnosis').value = '';
-            document.getElementById('fIcdCode').value = '';
-            document.getElementById('fPrescription').value = '';
-            document.getElementById('fNotes').value = '';
-            document.getElementById('fStatus').value = 'Draft';
-            document.getElementById('editId').value = '';
-        }
-
-        function openAddModal() {
-            resetModal();
-            document.getElementById('recModalTitle').textContent = 'New Medical Record';
-            document.getElementById('saveBtnLabel').textContent = 'Save Record';
-            new bootstrap.Modal(document.getElementById('recModal')).show();
-        }
-
-        function editRecord(id) {
-            fetch(`${HANDLER}?action=get&id=${id}`)
-                .then(r => r.json())
-                .then(res => {
-                    if (!res.success) return alert('Could not load record.');
-                    const d = res.data;
-                    resetModal();
-                    document.getElementById('recModalTitle').textContent = 'Edit Medical Record';
-                    document.getElementById('saveBtnLabel').textContent = 'Update Record';
-                    document.getElementById('editId').value = d.id;
-                    document.getElementById('fType').value = d.recordType;
-                    document.getElementById('fDiagnosis').value = d.diagnosis || '';
-                    document.getElementById('fIcdCode').value = d.icdCode || '';
-                    document.getElementById('fPrescription').value = d.prescription || '';
-                    document.getElementById('fNotes').value = d.notes || '';
-                    document.getElementById('fStatus').value = d.status;
-
-                    // Pre-fill patient pill
-                    if (d.patientId) {
-                        document.getElementById('fPatient').value = d.patientId;
-                        document.getElementById('patientPillName').textContent = d.patientName || '—';
-                        document.getElementById('patientPillSub').textContent = d.patientCode || '';
-                        document.getElementById('patientPill').classList.add('show');
-                    }
-
-                    // Pre-fill doctor pill
-                    if (d.doctorId) {
-                        document.getElementById('fDoctor').value = d.doctorId;
-                        document.getElementById('doctorPillName').textContent = d.doctorName || '—';
-                        document.getElementById('doctorPillSub').textContent = d.specialization || '';
-                        document.getElementById('doctorPill').classList.add('show');
-                    }
-
-                    // Pre-fill appointment pill
-                    if (d.appointmentId) {
-                        document.getElementById('fAppointment').value = d.appointmentId;
-                        document.getElementById('apptPillName').textContent = d.appointmentCode || '—';
-                        document.getElementById('apptPillSub').textContent = d.doctorName + ' · ' + fmtDate(d.appointmentDate);
-                        document.getElementById('apptPill').classList.add('show');
-                    }
-
-                    new bootstrap.Modal(document.getElementById('recModal')).show();
-                });
-        }
-
-        function saveRecord() {
-            const id = document.getElementById('editId').value;
-            const payload = {
-                id: id || undefined,
-                patientId: document.getElementById('fPatient').value,
-                doctorId: document.getElementById('fDoctor').value,
-                appointmentId: document.getElementById('fAppointment').value || null,
-                recordType: document.getElementById('fType').value,
-                diagnosis: document.getElementById('fDiagnosis').value,
-                icdCode: document.getElementById('fIcdCode').value,
-                prescription: document.getElementById('fPrescription').value,
-                notes: document.getElementById('fNotes').value,
-                status: document.getElementById('fStatus').value,
-            };
-
-            if (!payload.patientId || !payload.doctorId) {
-                alert('Patient and Doctor are required.');
-                return;
-            }
-
-            fetch(`${HANDLER}?action=${id ? 'edit' : 'add'}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload),
-                })
-                .then(r => r.json())
-                .then(res => {
-                    if (res.success) {
-                        bootstrap.Modal.getInstance(document.getElementById('recModal')).hide();
-                        loadRecords(currentPage);
-                        showToast(id ? 'Record updated!' : 'Record saved!', 'success');
-                    } else {
-                        alert('Failed to save. Please try again.');
-                    }
-                });
-        }
-
-        // ════════════════════════════════════════════════════════════════
-        //  VIEW / PRINT / DELETE
-        // ════════════════════════════════════════════════════════════════
-        function viewRecord(id, print = false) {
-            fetch(`${HANDLER}?action=get&id=${id}`)
-                .then(r => r.json())
-                .then(res => {
-                    if (!res.success) return alert('Could not load record.');
-                    const d = res.data;
-                    const cfg = STATUS_CONFIG[d.status] || {
-                        bg: '#f3f4f6',
-                        color: '#374151',
-                        dot: '#9ca3af'
-                    };
-                    document.getElementById('viewModalBody').innerHTML = `
+    function viewRecord(id, print = false) {
+        fetch(`${HANDLER}?action=get&id=${id}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) return alert('Could not load record.');
+                const d = res.data;
+                const cfg = STATUS_CONFIG[d.status] || {
+                    bg: '#f3f4f6',
+                    color: '#374151',
+                    dot: '#9ca3af'
+                };
+                document.getElementById('viewModalBody').innerHTML = `
                     <div class="detail-row"><span class="detail-label">Code</span>          <span class="detail-value">${d.recordCode}</span></div>
                     <div class="detail-row"><span class="detail-label">Patient</span>        <span class="detail-value">${d.patientName} (${d.patientCode})</span></div>
                     <div class="detail-row"><span class="detail-label">Doctor</span>         <span class="detail-value">${d.doctorName}</span></div>
@@ -1455,58 +1460,57 @@ require_once('../../app/config/config.php');
                     </div>
                     <div class="detail-row"><span class="detail-label">Created</span>        <span class="detail-value">${fmtDate(d.createdAt?.slice(0,10))}</span></div>
                 `;
-                    const modal = new bootstrap.Modal(document.getElementById('viewModal'));
-                    modal.show();
-                    if (print) {
-                        document.getElementById('viewModal').addEventListener('shown.bs.modal', () => window.print(), {
-                            once: true
-                        });
-                    }
-                });
-        }
+                const modal = new bootstrap.Modal(document.getElementById('viewModal'));
+                modal.show();
+                if (print) {
+                    document.getElementById('viewModal').addEventListener('shown.bs.modal', () => window.print(), {
+                        once: true
+                    });
+                }
+            });
+    }
 
-        function printRecord() {
-            window.print();
-        }
+    function printRecord() {
+        window.print();
+    }
 
-        function openDelete(id) {
-            document.getElementById('deleteId').value = id;
-            new bootstrap.Modal(document.getElementById('deleteModal')).show();
-        }
+    function openDelete(id) {
+        document.getElementById('deleteId').value = id;
+        new bootstrap.Modal(document.getElementById('deleteModal')).show();
+    }
 
-        function confirmDelete() {
-            const id = document.getElementById('deleteId').value;
-            const fd = new FormData();
-            fd.append('id', id);
-            fetch(`${HANDLER}?action=delete`, {
-                    method: 'POST',
-                    body: fd
-                })
-                .then(r => r.json())
-                .then(res => {
-                    if (res.success) {
-                        bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
-                        loadRecords(currentPage);
-                        showToast('Record deleted.', 'success');
-                    } else {
-                        alert('Failed to delete. Please try again.');
-                    }
-                });
-        }
+    function confirmDelete() {
+        const id = document.getElementById('deleteId').value;
+        const fd = new FormData();
+        fd.append('id', id);
+        fetch(`${HANDLER}?action=delete`, {
+                method: 'POST',
+                body: fd
+            })
+            .then(r => r.json())
+            .then(res => {
+                if (res.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                    loadRecords(currentPage);
+                    showToast('Record deleted.', 'success');
+                } else {
+                    alert('Failed to delete. Please try again.');
+                }
+            });
+    }
 
-        // ── Toast ─────────────────────────────────────────────────────────
-        function showToast(msg, type = 'success') {
-            const colors = {
-                success: '#065f46',
-                error: '#991b1b',
-                info: '#155e75'
-            };
-            const el = document.createElement('div');
-            el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;background:${colors[type]||colors.success};color:#fff;border-radius:10px;padding:.65rem 1.1rem;font-size:.82rem;font-family:'DM Sans',sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.1);display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease both;`;
-            el.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${msg}`;
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 3500);
-        }
-    </script>
+    function showToast(msg, type = 'success') {
+        const colors = {
+            success: '#065f46',
+            error: '#991b1b',
+            info: '#155e75'
+        };
+        const el = document.createElement('div');
+        el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;background:${colors[type]||colors.success};color:#fff;border-radius:10px;padding:.65rem 1.1rem;font-size:.82rem;font-family:'DM Sans',sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.1);display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease both;`;
+        el.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${msg}`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3500);
+    }
+</script>
 
-    <?php include('./includes/footer.php'); ?>
+<?php include('./includes/footer.php'); ?>

@@ -1,10 +1,5 @@
 <?php
 
-/**
- * update_patient.php
- * Handles saving edits from edit_patient.php
- */
-
 require_once('../../app/config/config.php');
 header('Content-Type: application/json');
 
@@ -27,7 +22,6 @@ if (!$id || !$firstName || !$lastName || !$gender || !$contact) {
     exit;
 }
 
-// Handle photo upload
 $photoSql = '';
 if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
     $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/patients/';
@@ -38,7 +32,7 @@ if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD
         echo json_encode(['success' => false, 'message' => 'Invalid image type.']);
         exit;
     }
-    // Get patient code for filename
+
     $code = $conn->query("SELECT patientCode FROM patients WHERE id=$id")->fetch_row()[0] ?? 'PAT';
     $filename = $code . '_' . time() . '.' . $ext;
     if (move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $filename)) {
@@ -47,7 +41,6 @@ if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD
     }
 }
 
-// Sanitize
 $firstName  = $conn->real_escape_string($firstName);
 $middleName = $conn->real_escape_string($middleName);
 $lastName   = $conn->real_escape_string($lastName);
@@ -72,7 +65,7 @@ $sql = "UPDATE patients SET
 WHERE id=$id";
 
 if ($conn->query($sql)) {
-    // Log activity
+
     $fullName = "$firstName $lastName";
     $desc = "Patient record updated: $fullName";
     $type = 'patient';

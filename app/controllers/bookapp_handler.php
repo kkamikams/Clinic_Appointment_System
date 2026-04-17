@@ -1,20 +1,13 @@
 <?php
 
-/**
- * bookapp_handler.php
- * User-facing appointment booking + cancellation handler.
- * Connected to: patients, doctors, doctorSchedules, appointments, recentActivity
- */
-
-include('../../app/middleware/user.php');
-require_once('../../app/config/config.php');
+include('../middleware/user.php');
+require_once('../config/config.php');
 
 header('Content-Type: application/json');
 header('X-Content-Type-Options: nosniff');
 
 $action = $_GET['action'] ?? '';
 
-// ── Helper: log activity ──────────────────────────────────────────
 function logActivity($conn, $type, $desc, $refId = null, $refType = null)
 {
     $stmt = $conn->prepare(
@@ -45,7 +38,7 @@ function generateCode($conn, $date): string
 
 switch ($action) {
 
-    // ── GET DEPARTMENTS ──────────────────────────────────────────────
+
     case 'get_departments':
         $rows = $conn->query("
             SELECT DISTINCT department FROM doctors
@@ -55,7 +48,7 @@ switch ($action) {
         echo json_encode(['success' => true, 'data' => array_column($rows, 'department')]);
         break;
 
-    // ── GET DOCTORS ──────────────────────────────────────────────────
+
     case 'get_doctors':
         $dept = $conn->real_escape_string($_GET['department'] ?? '');
         $where = $dept ? "AND department='$dept'" : '';
@@ -67,7 +60,7 @@ switch ($action) {
         echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
-    // ── GET SLOTS ────────────────────────────────────────────────────
+
     case 'get_slots':
         $doctorId = (int)($_GET['doctorId'] ?? 0);
         $date     = $conn->real_escape_string($_GET['date'] ?? '');
@@ -89,7 +82,6 @@ switch ($action) {
             break;
         }
 
-        // Booked times
         $booked = $conn->query("
             SELECT TIME_FORMAT(appointmentTime,'%H:%i') AS t
             FROM appointments
@@ -97,7 +89,7 @@ switch ($action) {
         ")->fetch_all(MYSQLI_ASSOC);
         $bookedTimes = array_column($booked, 't');
 
-        // Generate 30-min slots
+
         $slots    = [];
         $start    = strtotime($date . ' ' . $schedule['shiftStart']);
         $end      = strtotime($date . ' ' . $schedule['shiftEnd']);
@@ -115,8 +107,6 @@ switch ($action) {
         echo json_encode(['success' => true, 'slots' => $slots]);
         break;
 
-    // ── GET PATIENTS (search) ────────────────────────────────────────
-    case 'get_patients':
         $q = '%' . $conn->real_escape_string($_GET['q'] ?? '') . '%';
         if (strlen(trim($_GET['q'] ?? '')) < 2) {
             echo json_encode(['success' => true, 'data' => []]);
@@ -131,7 +121,35 @@ switch ($action) {
         echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
-    // ── BOOK ─────────────────────────────────────────────────────────
+    case 'book':
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+
+        // Always try to use logged-in user's email to find existing patient
+        $sessionUserId = $_SESSION['authUser']['user_id'] ?? 0;
+        $sessionEmail  = '';
+        if ($sessionUserId) {
+            $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id=? LIMIT 1");
+            $uStmt->bind_param('i', $sessionUserId);
+            $uStmt->execute();
+            $sessionEmail = $uStmt->get_result()->fetch_assoc()['emailAddress'] ?? '';
+        }
+
+        // Override email with session email if not provided
+        if (!empty($sessionEmail)) {
+            $body['email'] = $sessionEmail;
+        }
+
+        // Also check if patient already exists for this user
+        $patientId = (int)($body['patientId'] ?? 0);
+        if (!$patientId && $sessionEmail) {
+            $esc = $conn->real_escape_string($sessionEmail);
+            $existing = $conn->query("SELECT id FROM patients WHERE emailAddress='$esc' AND status!='Inactive' LIMIT 1")->fetch_assoc();
+            if ($existing) {
+                $patientId = (int)$existing['id'];
+                $body['patientId'] = $patientId;
+            }
+        }
+
     case 'book':
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
@@ -146,20 +164,18 @@ switch ($action) {
             break;
         }
 
-        // Past date check
         if ($appointmentDate < date('Y-m-d')) {
             echo json_encode(['success' => false, 'message' => 'Appointment date cannot be in the past.']);
             break;
         }
 
-        // Doctor active?
+
         $doc = $conn->query("SELECT id FROM doctors WHERE id=$doctorId AND employmentStatus='Active'")->fetch_assoc();
         if (!$doc) {
             echo json_encode(['success' => false, 'message' => 'Doctor not available.']);
             break;
         }
 
-        // Slot taken?
         $taken = $conn->query("
             SELECT id FROM appointments
             WHERE doctorId=$doctorId AND appointmentDate='$appointmentDate' AND appointmentTime='$appointmentTime'
@@ -170,20 +186,18 @@ switch ($action) {
             break;
         }
 
-        // Resolve patient
         $patientId = (int)($body['patientId'] ?? 0);
         if (!$patientId) {
             $email   = $conn->real_escape_string(trim($body['email']   ?? ''));
             $contact = $conn->real_escape_string(trim($body['contact'] ?? ''));
 
-            // Try to find existing
             $existing = null;
             if ($email) $existing = $conn->query("SELECT id FROM patients WHERE emailAddress='$email' AND status!='Inactive' LIMIT 1")->fetch_assoc();
             if (!$existing && $contact) $existing = $conn->query("SELECT id FROM patients WHERE contactNumber='$contact' AND status!='Inactive' LIMIT 1")->fetch_assoc();
             if ($existing) {
                 $patientId = (int)$existing['id'];
             } else {
-                // Create new patient
+
                 $fullName  = $conn->real_escape_string(trim($body['patientName'] ?? 'Unknown'));
                 $parts     = explode(' ', $fullName, 2);
                 $firstName = $conn->real_escape_string($parts[0]);
@@ -207,7 +221,6 @@ switch ($action) {
             break;
         }
 
-        // Insert appointment
         $code = generateCode($conn, $appointmentDate);
         $conn->query("
             INSERT INTO appointments (appointmentCode,patientId,doctorId,appointmentDate,appointmentTime,channel,status,remarks)
@@ -221,18 +234,21 @@ switch ($action) {
         echo json_encode(['success' => true, 'appointmentCode' => $code, 'appointmentId' => $newId, 'message' => 'Appointment booked!']);
         break;
 
-    // ── CANCEL APPOINTMENT (user side) ───────────────────────────────
+
     case 'cancel_appointment':
-        $id     = (int)($_POST['id'] ?? 0);
-        $userId = $_SESSION['user_id'] ?? 0;
+        $id = (int)($_POST['id'] ?? 0);
 
         if (!$id) {
             echo json_encode(['success' => false]);
             break;
         }
 
-        // Verify this appointment belongs to the logged-in user's patient
-        $userEmail = $conn->real_escape_string($_SESSION['email'] ?? '');
+
+        $userId = $_SESSION['authUser']['user_id'] ?? 0;
+        $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
+        $uStmt->bind_param('i', $userId);
+        $uStmt->execute();
+        $userEmail = $conn->real_escape_string($uStmt->get_result()->fetch_assoc()['emailAddress'] ?? '');
         $check = $conn->query("
             SELECT a.id, a.appointmentCode, a.appointmentDate, a.status
             FROM appointments a
@@ -256,6 +272,40 @@ switch ($action) {
         $conn->query("UPDATE appointments SET status='Cancelled', updatedAt=NOW() WHERE id=$id");
         logActivity($conn, 'cancel', "Appointment {$check['appointmentCode']} cancelled by patient.", $id, 'Appointment');
         echo json_encode(['success' => true]);
+        break;
+
+    case 'my_appointments':
+        $userId = $_SESSION['authUser']['user_id'] ?? 0;
+        if (!$userId) {
+            echo json_encode(['success' => false, 'message' => 'Not logged in.']);
+            break;
+        }
+
+        $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
+        $uStmt->bind_param('i', $userId);
+        $uStmt->execute();
+        $userEmail = $conn->real_escape_string(
+            $uStmt->get_result()->fetch_assoc()['emailAddress'] ?? ''
+        );
+
+        if (!$userEmail) {
+            echo json_encode(['success' => true, 'rows' => []]);
+            break;
+        }
+
+        $rows = $conn->query("
+        SELECT a.id, a.appointmentCode, a.appointmentDate, a.appointmentTime,
+               a.channel, a.status, a.remarks,
+               CONCAT('Dr. ', d.firstName, ' ', d.lastName) AS doctorName,
+               d.specialization, d.department
+        FROM appointments a
+        JOIN patients p ON p.id = a.patientId
+        JOIN doctors  d ON d.id = a.doctorId
+        WHERE p.emailAddress = '$userEmail'
+        ORDER BY a.appointmentDate DESC, a.appointmentTime DESC
+    ")->fetch_all(MYSQLI_ASSOC);
+
+        echo json_encode(['success' => true, 'rows' => $rows]);
         break;
 
     default:

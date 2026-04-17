@@ -1,11 +1,6 @@
 <?php
-
-/**
- * save_patient.php
- * Handles new patient creation from add_patient.php
- */
-
-require_once('../../app/config/config.php');
+session_start();
+require_once($_SERVER['DOCUMENT_ROOT'] . '/Clinic_Appointment_System/app/config/config.php');
 header('Content-Type: application/json');
 
 $firstName   = trim($_POST['first_name']    ?? '');
@@ -26,17 +21,14 @@ if (!$firstName || !$lastName || !$gender || !$contact) {
     exit;
 }
 
-// Generate patient code
 $count = $conn->query("SELECT COUNT(*) FROM patients")->fetch_row()[0];
 $patientCode = 'PAT-' . str_pad((int)$count + 1, 5, '0', STR_PAD_LEFT);
 
-// Ensure code is unique
 while ($conn->query("SELECT id FROM patients WHERE patientCode='$patientCode'")->num_rows > 0) {
     $count++;
     $patientCode = 'PAT-' . str_pad($count + 1, 5, '0', STR_PAD_LEFT);
 }
 
-// Handle photo upload
 $photoUrl = null;
 if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
     $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/patients/';
@@ -53,7 +45,6 @@ if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD
     }
 }
 
-// Sanitize for query
 $firstName  = $conn->real_escape_string($firstName);
 $middleName = $conn->real_escape_string($middleName);
 $lastName   = $conn->real_escape_string($lastName);
@@ -79,7 +70,6 @@ $sql = "INSERT INTO patients
 
 if ($conn->query($sql)) {
     $newId = $conn->insert_id;
-    // Log activity
     $desc = "New patient registered: $firstName $lastName ($patientCode)";
     $type = 'patient';
     $ref  = 'Patient';

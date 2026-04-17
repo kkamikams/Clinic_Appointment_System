@@ -1,10 +1,5 @@
 <?php
 
-/**
- * update_patient_status.php
- * Called from patients.php status badge dropdown.
- */
-
 include('../../app/middleware/admin.php');
 require_once('../../app/config/config.php');
 

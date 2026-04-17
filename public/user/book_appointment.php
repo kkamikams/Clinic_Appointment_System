@@ -5,9 +5,16 @@ include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 
-$userEmail = $_SESSION['email'] ?? '';
+$userId = $_SESSION['authUser']['user_id'] ?? 0;
+$userEmail = '';
+if ($userId) {
+    $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
+    $uStmt->bind_param('i', $userId);
+    $uStmt->execute();
+    $uRow = $uStmt->get_result()->fetch_assoc();
+    $userEmail = $uRow['emailAddress'] ?? '';
+}
 
-// Pre-fill patient data if linked
 $patientRow = null;
 if ($userEmail) {
     $stmt = $conn->prepare("SELECT * FROM patients WHERE emailAddress=? AND status!='Inactive' LIMIT 1");
@@ -16,7 +23,6 @@ if ($userEmail) {
     $patientRow = $stmt->get_result()->fetch_assoc();
 }
 
-// Load departments and doctors for dropdowns
 $departments = $conn->query("
     SELECT DISTINCT department FROM doctors
     WHERE employmentStatus='Active' AND department IS NOT NULL AND department!=''
@@ -62,10 +68,22 @@ $doctors = $conn->query("
         --shadow-lg: 0 8px 30px rgba(0, 0, 0, .10);
     }
 
-    .page-book,
-    .page-book * {
+    /* Scope font only — do NOT apply box-sizing here as it breaks Bootstrap grid */
+    .page-book {
         font-family: 'DM Sans', sans-serif;
-        box-sizing: border-box
+    }
+
+    .page-book .form-label,
+    .page-book .form-control,
+    .page-book .form-select,
+    .page-book .btn-submit,
+    .page-book .btn-cancel-form,
+    .page-book .summary-card,
+    .page-book .main-card,
+    .page-book .slot-btn,
+    .page-book .form-section-label {
+        font-family: 'DM Sans', sans-serif;
+        box-sizing: border-box;
     }
 
     .pagetitle h1 {
@@ -73,19 +91,19 @@ $doctors = $conn->query("
         font-size: 1.75rem;
         color: var(--text-dark);
         letter-spacing: -.03em;
-        margin-bottom: 2px
+        margin-bottom: 2px;
     }
 
     .pagetitle .breadcrumb-item,
     .pagetitle .breadcrumb-item a {
         font-size: .78rem;
         color: var(--text-muted);
-        text-decoration: none
+        text-decoration: none;
     }
 
     .pagetitle .breadcrumb-item.active {
         color: var(--blue-600);
-        font-weight: 600
+        font-weight: 600;
     }
 
     .form-section-label {
@@ -99,12 +117,12 @@ $doctors = $conn->query("
         border-bottom: 1px solid var(--border);
         display: flex;
         align-items: center;
-        gap: 7px
+        gap: 7px;
     }
 
     .form-section-label i {
         color: var(--blue-500);
-        font-size: .75rem
+        font-size: .75rem;
     }
 
     .main-card {
@@ -113,7 +131,7 @@ $doctors = $conn->query("
         border-radius: var(--radius);
         box-shadow: var(--shadow);
         padding: 2rem;
-        animation: fadeUp .32s .1s ease both
+        animation: fadeUp .32s .1s ease both;
     }
 
     .form-label {
@@ -122,12 +140,12 @@ $doctors = $conn->query("
         text-transform: uppercase;
         letter-spacing: .07em;
         color: var(--text-body);
-        margin-bottom: .4rem
+        margin-bottom: .4rem;
     }
 
     .form-label .req {
         color: #ef4444;
-        margin-left: 2px
+        margin-left: 2px;
     }
 
     .form-control,
@@ -139,7 +157,7 @@ $doctors = $conn->query("
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         padding: .55rem .85rem;
-        transition: border-color .2s, box-shadow .2s, background .2s
+        transition: border-color .2s, box-shadow .2s, background .2s;
     }
 
     .form-control:focus,
@@ -147,17 +165,17 @@ $doctors = $conn->query("
         border-color: var(--blue-400);
         background: #fff;
         box-shadow: 0 0 0 3px rgba(96, 165, 250, .15);
-        outline: none
+        outline: none;
     }
 
     .form-control::placeholder {
         color: var(--text-muted);
-        font-size: .84rem
+        font-size: .84rem;
     }
 
     textarea.form-control {
         min-height: 100px;
-        resize: vertical
+        resize: vertical;
     }
 
     .btn-submit {
@@ -173,13 +191,13 @@ $doctors = $conn->query("
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        transition: background .15s, box-shadow .15s, transform .1s
+        transition: background .15s, box-shadow .15s, transform .1s;
     }
 
     .btn-submit:hover {
         background: var(--blue-700);
         box-shadow: 0 4px 14px rgba(37, 99, 235, .3);
-        transform: translateY(-1px)
+        transform: translateY(-1px);
     }
 
     .btn-cancel-form {
@@ -195,11 +213,11 @@ $doctors = $conn->query("
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        transition: background .15s
+        transition: background .15s;
     }
 
     .btn-cancel-form:hover {
-        background: var(--surface)
+        background: var(--surface);
     }
 
     .alert-success-custom {
@@ -213,11 +231,11 @@ $doctors = $conn->query("
         font-size: .875rem;
         color: var(--green-dark);
         font-weight: 500;
-        animation: fadeUp .25s ease
+        animation: fadeUp .25s ease;
     }
 
     .alert-success-custom i {
-        font-size: 1.1rem
+        font-size: 1.1rem;
     }
 
     .alert-error-custom {
@@ -230,7 +248,7 @@ $doctors = $conn->query("
         gap: 10px;
         font-size: .875rem;
         color: var(--red-dark);
-        font-weight: 500
+        font-weight: 500;
     }
 
     .summary-card {
@@ -238,8 +256,6 @@ $doctors = $conn->query("
         border: 1px solid var(--blue-100);
         border-radius: var(--radius);
         padding: 1.5rem;
-        position: sticky;
-        top: 1rem
     }
 
     .summary-card h6 {
@@ -251,7 +267,7 @@ $doctors = $conn->query("
         margin-bottom: 1rem;
         display: flex;
         align-items: center;
-        gap: 6px
+        gap: 6px;
     }
 
     .summary-item {
@@ -259,11 +275,11 @@ $doctors = $conn->query("
         flex-direction: column;
         gap: 2px;
         padding: .6rem 0;
-        border-bottom: 1px solid var(--blue-100)
+        border-bottom: 1px solid var(--blue-100);
     }
 
     .summary-item:last-child {
-        border-bottom: none
+        border-bottom: none;
     }
 
     .summary-item .s-label {
@@ -271,19 +287,19 @@ $doctors = $conn->query("
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: .08em;
-        color: var(--text-muted)
+        color: var(--text-muted);
     }
 
     .summary-item .s-value {
         font-size: .875rem;
         font-weight: 600;
-        color: var(--text-dark)
+        color: var(--text-dark);
     }
 
     .summary-item .s-placeholder {
         font-size: .82rem;
         color: var(--text-muted);
-        font-style: italic
+        font-style: italic;
     }
 
     .slot-grid {
@@ -292,7 +308,7 @@ $doctors = $conn->query("
         gap: 6px;
         max-height: 200px;
         overflow-y: auto;
-        margin-top: .5rem
+        margin-top: .5rem;
     }
 
     .slot-btn {
@@ -305,43 +321,64 @@ $doctors = $conn->query("
         color: var(--text-body);
         cursor: pointer;
         text-align: center;
-        transition: all .15s
+        transition: all .15s;
     }
 
     .slot-btn:hover:not(:disabled) {
         background: var(--blue-50);
-        border-color: var(--blue-300);
-        color: var(--blue-700)
+        border-color: var(--blue-400);
+        color: var(--blue-700);
     }
 
     .slot-btn.selected {
         background: var(--blue-600);
         color: #fff;
-        border-color: var(--blue-600)
+        border-color: var(--blue-600);
     }
 
     .slot-btn:disabled {
         opacity: .4;
         cursor: not-allowed;
-        text-decoration: line-through
+        text-decoration: line-through;
     }
 
     .slots-loading {
         text-align: center;
         padding: 1rem;
         color: var(--text-muted);
-        font-size: .8rem
+        font-size: .8rem;
+    }
+
+    /* Fix sticky sidebar */
+    .sidebar-sticky-col {
+        position: sticky;
+        top: 80px;
+        align-self: flex-start;
     }
 
     @keyframes fadeUp {
         from {
             opacity: 0;
-            transform: translateY(10px)
+            transform: translateY(10px);
         }
 
         to {
             opacity: 1;
-            transform: translateY(0)
+            transform: translateY(0);
+        }
+    }
+
+    @media (min-width: 992px) {
+        .col-lg-8 {
+            flex: 0 0 auto;
+            width: 66.66667%;
+            max-width: 66.66667%;
+        }
+
+        .col-lg-4 {
+            flex: 0 0 auto;
+            width: 33.33333%;
+            max-width: 33.33333%;
         }
     }
 </style>
@@ -360,7 +397,8 @@ $doctors = $conn->query("
 
     <div id="successAlert" class="alert-success-custom mb-4" style="display:none">
         <i class="bi bi-check-circle-fill"></i>
-        <div><strong id="successMsg">Appointment booked successfully!</strong><br>
+        <div>
+            <strong id="successMsg">Appointment booked successfully!</strong><br>
             <span id="successCode"></span> — We'll see you soon.
         </div>
     </div>
@@ -369,7 +407,9 @@ $doctors = $conn->query("
         <div id="errorMsg">Something went wrong. Please try again.</div>
     </div>
 
-    <div class="row g-4">
+    <div class="row g-4 align-items-start">
+
+        <!-- LEFT: Form -->
         <div class="col-lg-8">
             <div class="main-card">
 
@@ -379,49 +419,48 @@ $doctors = $conn->query("
                     <div class="col-md-6">
                         <label class="form-label">Patient Name <span class="req">*</span></label>
                         <input type="text" id="patientName" class="form-control"
-                            value="<?= htmlspecialchars($patientRow ? $patientRow['firstName'] . ' ' . $patientRow['lastName'] : '') ?>"
-                            placeholder="e.g. Juan dela Cruz" oninput="updateSummary()">
+                            value="" placeholder="e.g. Juan dela Cruz" oninput="updateSummary()">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Date of Birth</label>
-                        <input type="date" id="dateOfBirth" class="form-control"
-                            value="<?= htmlspecialchars($patientRow['dateOfBirth'] ?? '') ?>">
+                        <input type="date" id="dateOfBirth" class="form-control" value="">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Contact Number</label>
                         <input type="tel" id="contactNumber" class="form-control"
-                            value="<?= htmlspecialchars($patientRow['contactNumber'] ?? '') ?>"
-                            placeholder="e.g. 09171234567">
+                            value="" placeholder="e.g. 09171234567">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Email Address</label>
                         <input type="email" id="emailAddress" class="form-control"
-                            value="<?= htmlspecialchars($patientRow['emailAddress'] ?? $userEmail) ?>"
-                            placeholder="e.g. patient@email.com">
+                            value="" placeholder="e.g. patient@email.com">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Gender</label>
                         <select id="gender" class="form-select">
                             <option value="">Select Gender</option>
-                            <option <?= ($patientRow['gender'] ?? '') === 'Male' ? 'selected' : '' ?>>Male</option>
-                            <option <?= ($patientRow['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
-                            <option <?= ($patientRow['gender'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
+                            <option>Male</option>
+                            <option>Female</option>
+                            <option>Other</option>
                         </select>
                     </div>
-                    <?php if ($patientRow): ?>
-                        <input type="hidden" id="patientId" value="<?= $patientRow['id'] ?>">
-                    <?php endif; ?>
                 </div>
 
                 <!-- Appointment Details -->
                 <div class="form-section-label mb-3"><i class="bi bi-calendar2-check-fill"></i> Appointment Details</div>
                 <div class="row g-3 mb-4">
                     <div class="col-md-6">
-                        <label class="form-label">Department <span class="req">*</span></label>
+                        <label class="form-label">Specialization <span class="req">*</span></label>
                         <select id="deptSelect" class="form-select" onchange="updateSummary(); filterDoctors()">
-                            <option value="">Select Department</option>
-                            <?php foreach ($departments as $dept): ?>
-                                <option><?= htmlspecialchars($dept['department']) ?></option>
+                            <option value="">Select Specialization</option>
+                            <?php
+                            $specs = $conn->query("
+                                SELECT DISTINCT specialization FROM doctors
+                                WHERE employmentStatus='Active' AND specialization IS NOT NULL AND specialization!=''
+                                ORDER BY specialization
+                            ")->fetch_all(MYSQLI_ASSOC);
+                            foreach ($specs as $spec): ?>
+                                <option><?= htmlspecialchars($spec['specialization']) ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -430,7 +469,9 @@ $doctors = $conn->query("
                         <select id="doctorSelect" class="form-select" onchange="updateSummary(); loadSlots()">
                             <option value="">Select Doctor</option>
                             <?php foreach ($doctors as $doc): ?>
-                                <option value="<?= $doc['id'] ?>" data-dept="<?= htmlspecialchars($doc['department'] ?? '') ?>" data-spec="<?= htmlspecialchars($doc['specialization']) ?>">
+                                <option value="<?= $doc['id'] ?>"
+                                    data-dept="<?= htmlspecialchars($doc['department'] ?? '') ?>"
+                                    data-spec="<?= htmlspecialchars($doc['specialization']) ?>">
                                     Dr. <?= htmlspecialchars($doc['name']) ?> (<?= htmlspecialchars($doc['specialization']) ?>)
                                 </option>
                             <?php endforeach; ?>
@@ -444,7 +485,7 @@ $doctors = $conn->query("
                         <label class="form-label">Appointment Time <span class="req">*</span></label>
                         <input type="hidden" id="apptTime">
                         <div id="slotsContainer">
-                            <div class="slots-loading" style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">
+                            <div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">
                                 Select a doctor and date to see available slots.
                             </div>
                         </div>
@@ -465,7 +506,9 @@ $doctors = $conn->query("
                 <div class="row g-3 mb-4">
                     <div class="col-12">
                         <label class="form-label">Notes / Remarks</label>
-                        <textarea id="apptNotes" class="form-control" placeholder="Describe your symptoms or reason for visit…" oninput="updateSummary()"></textarea>
+                        <textarea id="apptNotes" class="form-control"
+                            placeholder="Describe your symptoms or reason for visit…"
+                            oninput="updateSummary()"></textarea>
                     </div>
                 </div>
 
@@ -473,20 +516,26 @@ $doctors = $conn->query("
                     <button class="btn-cancel-form" onclick="resetForm()"><i class="bi bi-x-lg"></i> Cancel</button>
                     <button class="btn-submit" id="submitBtn" onclick="submitForm()"><i class="bi bi-calendar-check"></i> Book Appointment</button>
                 </div>
-            </div>
-        </div>
 
-        <div class="col-lg-4">
-            <div class="summary-card">
+            </div><!-- /.main-card -->
+        </div><!-- /.col-lg-8 -->
+
+        <!-- RIGHT: Summary + Reminders (sticky) -->
+        <div class="col-lg-4 sidebar-sticky-col">
+
+            <!-- Appointment Summary -->
+            <div class="summary-card mb-3">
                 <h6><i class="bi bi-clipboard2-pulse-fill"></i> Appointment Summary</h6>
                 <div class="summary-item"><span class="s-label">Patient</span><span id="sum-patient" class="s-placeholder">Not entered</span></div>
-                <div class="summary-item"><span class="s-label">Department</span><span id="sum-dept" class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Specialization</span><span id="sum-spec" class="s-placeholder">Not selected</span></div>
                 <div class="summary-item"><span class="s-label">Doctor</span><span id="sum-doctor" class="s-placeholder">Not selected</span></div>
                 <div class="summary-item"><span class="s-label">Date</span><span id="sum-date" class="s-placeholder">Not selected</span></div>
                 <div class="summary-item"><span class="s-label">Time</span><span id="sum-time" class="s-placeholder">Not selected</span></div>
                 <div class="summary-item"><span class="s-label">Notes</span><span id="sum-notes" class="s-placeholder">None</span></div>
             </div>
-            <div class="main-card mt-3" style="padding:1.25rem">
+
+            <!-- Reminders -->
+            <div class="main-card" style="padding:1.25rem">
                 <div class="form-section-label mb-2"><i class="bi bi-info-circle-fill"></i> Reminders</div>
                 <ul style="font-size:.8rem;color:var(--text-body);padding-left:1.1rem;margin:0;line-height:1.8">
                     <li>Arrive <strong>15 minutes</strong> before your schedule.</li>
@@ -495,12 +544,15 @@ $doctors = $conn->query("
                     <li>Your appointment is subject to <strong>doctor availability</strong>.</li>
                 </ul>
             </div>
-        </div>
-    </div>
+
+        </div><!-- /.col-lg-4 -->
+
+    </div><!-- /.row -->
+
 </section>
 
 <script>
-    const HANDLER = 'bookapp_handler.php';
+    const HANDLER = '../../app/controllers/bookapp_handler.php';
     const allDoctors = <?= json_encode($doctors) ?>;
 
     function updateSummary() {
@@ -515,7 +567,7 @@ $doctors = $conn->query("
             }
         };
         set('sum-patient', document.getElementById('patientName').value, 'Not entered');
-        set('sum-dept', document.getElementById('deptSelect').value, 'Not selected');
+        set('sum-spec', document.getElementById('deptSelect').value, 'Not selected');
         const docSel = document.getElementById('doctorSelect');
         set('sum-doctor', docSel.options[docSel.selectedIndex]?.text || '', 'Not selected');
         set('sum-notes', document.getElementById('apptNotes').value, 'None');
@@ -542,7 +594,7 @@ $doctors = $conn->query("
         const dept = document.getElementById('deptSelect').value;
         const sel = document.getElementById('doctorSelect');
         sel.innerHTML = '<option value="">Select Doctor</option>';
-        allDoctors.filter(d => !dept || d.department === dept).forEach(d => {
+        allDoctors.filter(d => !dept || d.specialization === dept).forEach(d => {
             sel.insertAdjacentHTML('beforeend',
                 `<option value="${d.id}" data-dept="${d.department||''}" data-spec="${d.specialization}">Dr. ${d.name} (${d.specialization})</option>`);
         });
@@ -565,7 +617,7 @@ $doctors = $conn->query("
                 let html = '<div class="slot-grid">';
                 res.slots.forEach(slot => {
                     html += `<button type="button" class="slot-btn" ${!slot.available ? 'disabled' : ''}
-                    onclick="selectSlot('${slot.value}','${slot.label}',this)">${slot.label}</button>`;
+                        onclick="selectSlot('${slot.value}','${slot.label}',this)">${slot.label}</button>`;
                 });
                 html += '</div>';
                 document.getElementById('slotsContainer').innerHTML = html;
@@ -597,7 +649,7 @@ $doctors = $conn->query("
             patientName: name,
             dateOfBirth: document.getElementById('dateOfBirth').value,
             contact: document.getElementById('contactNumber').value,
-            email: document.getElementById('emailAddress').value,
+            email: document.getElementById('emailAddress').value || '<?= $userEmail ?>',
             gender: document.getElementById('gender').value,
             doctorId: doctor,
             appointmentDate: date,
@@ -648,16 +700,19 @@ $doctors = $conn->query("
 
     function resetForm() {
         document.querySelectorAll('#patientName,#dateOfBirth,#contactNumber,#apptNotes').forEach(el => el.value = '');
+        document.getElementById('emailAddress').value = '';
+        document.getElementById('gender').value = '';
         document.getElementById('deptSelect').value = '';
         document.getElementById('doctorSelect').value = '';
         document.getElementById('apptDate').value = '';
         document.getElementById('apptTime').value = '';
         document.getElementById('channel').value = 'Online';
         document.getElementById('slotsContainer').innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">Select a doctor and date to see available slots.</div>';
+        const patIdEl = document.getElementById('patientId');
+        if (patIdEl) patIdEl.value = '';
         updateSummary();
     }
 
-    // Set min date to today
     document.getElementById('apptDate').min = new Date().toISOString().split('T')[0];
     updateSummary();
 </script>

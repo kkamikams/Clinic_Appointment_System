@@ -28,7 +28,6 @@ if (!$id || !$firstName || !$lastName) {
     exit;
 }
 
-// Update doctor
 $stmt = $conn->prepare("
     UPDATE doctors SET
         firstName = ?, middleName = ?, lastName = ?, gender = ?, dateOfBirth = ?,
@@ -65,7 +64,6 @@ if (!$stmt->execute()) {
 }
 $stmt->close();
 
-// Replace schedules: delete old, insert new
 $del = $conn->prepare("DELETE FROM doctorSchedules WHERE doctorId = ?");
 $del->bind_param('i', $id);
 $del->execute();
@@ -83,7 +81,6 @@ if (!empty($days)) {
     $sched->close();
 }
 
-// Log activity
 $desc    = "Doctor updated: Dr. $firstName $lastName (ID: $id)";
 $type    = 'Doctor Updated';
 $refType = 'Doctor';

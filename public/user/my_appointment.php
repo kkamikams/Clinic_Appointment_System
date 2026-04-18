@@ -392,6 +392,30 @@ $filterStatus = $_GET['status'] ?? '';
         font-family: 'DM Sans', sans-serif;
     }
 
+    .cancel-btn {
+    background: transparent !important;
+    border: 1px solid #fecaca !important;  
+    color: #dc2626 !important;             
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+}
+
+.cancel-btn i {
+    color: #dc2626 !important;
+}
+
+.cancel-btn:hover {
+    background: #fff1f2 !important;       
+    border-color: #fca5a5 !important;      
+    color: #b91c1c !important;
+}
+
+.cancel-btn:hover i {
+    color: #b91c1c !important;
+}
+
     .btn-act:hover {
         background: var(--blue-50);
         color: var(--blue-600);
@@ -519,6 +543,7 @@ $filterStatus = $_GET['status'] ?? '';
             opacity: 1;
             transform: translateY(0);
         }
+        
     }
 </style>
 
@@ -644,12 +669,11 @@ $filterStatus = $_GET['status'] ?? '';
         '<?= htmlspecialchars($appt['channel']) ?>'
     )"><i class="bi bi-eye"></i></button>
 
-                                    <?php if ($isUpcoming): ?>
-                                        <button class="btn-act"
-                                            style="color:var(--red);border-color:#fca5a5;"
-                                            onclick="doCancel(<?= $appt['id'] ?>, '<?= $appt['appointmentCode'] ?>')">
-                                            <i class="bi bi-x-lg"></i>
-                                        </button>
+                                    <?php if (true): ?>
+                                       <button class="btn-act cancel-btn"
+                                    onclick="doCancel(<?= $appt['id'] ?>, '<?= $appt['appointmentCode'] ?>')">
+                                    <i class="bi bi-x-circle"></i> Cancel
+                                    </button>
                                     <?php endif; ?>
                                 </td>
                             </tr>

@@ -941,7 +941,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 </div>
             </div>
 
-
         </div>
     </div>
 </section>

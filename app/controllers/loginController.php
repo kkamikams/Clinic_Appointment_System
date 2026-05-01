@@ -20,32 +20,42 @@ if (isset($_POST['loginButton'])) {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    $loginQuery = "SELECT `id`, `firstName`, `lastName`, `emailAddress`, `username`, `password`, `role` FROM `users` WHERE username = ? AND password = ? LIMIT 1";
+    $loginQuery = "SELECT `id`, `firstName`, `middleName`, `lastName`, `username`, `password`, `role`, `profilePic` FROM `users` WHERE username = ? LIMIT 1";
     $stmt = $conn->prepare($loginQuery);
 
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "ss", $username, $password);
+        mysqli_stmt_bind_param($stmt, "s", $username);
         mysqli_stmt_execute($stmt);
         $result = mysqli_stmt_get_result($stmt);
 
         if (mysqli_num_rows($result) > 0) {
             $data = mysqli_fetch_assoc($result);
 
-            $user_id = $data['id'];
-            $fullName = $data['firstName'] . ' ' . $data['lastName'];
+            if (!password_verify($password, $data['password'])) {
+                $_SESSION['message'] = "Invalid username or password";
+                $_SESSION['code'] = "error";
+                header("Location: /Clinic_Appointment_System/public/login");
+                exit();
+            }
+
+            $user_id  = $data['id'];
+            $fullName = trim($data['firstName'] . ' ' . $data['middleName'] . ' ' . $data['lastName']);
             $username = $data['username'];
             $userRole = $data['role'];
 
-            $_SESSION['user_id'] = $user_id;
+            $_SESSION['user_id']  = $user_id;
             $_SESSION['userRole'] = $userRole;
+
             $_SESSION['authUser'] = [
-                'user_id' => $user_id,
-                'fullName' => $fullName,
-                'username' => $username,
+                'user_id'    => $user_id,
+                'fullName'   => $fullName,
+                'username'   => $username,
+                'role'       => $userRole,
+                'profilePic' => $data['profilePic'] ?? null,
             ];
 
             $_SESSION['message'] = "Welcome $fullName";
-            $_SESSION['code'] = "success";
+            $_SESSION['code']    = "success";
 
             if ($userRole === 'admin') {
                 header("Location: /Clinic_Appointment_System/public/admin/index");

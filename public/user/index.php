@@ -88,7 +88,9 @@ $availDoctors = $conn->query("
     FROM doctors d
     LEFT JOIN appointments a ON a.doctorId=d.id AND a.appointmentDate='$today' AND a.status!='Cancelled'
     LEFT JOIN doctorSchedules ds ON ds.doctorId=d.id AND ds.dayOfWeek=DAYNAME('$today')
-    WHERE d.employmentStatus='Active' AND ds.id IS NOT NULL
+    WHERE d.employmentStatus='Active' 
+    AND ds.id IS NOT NULL
+    AND d.status != 'Off Duty'
     GROUP BY d.id
     ORDER BY d.status='On Duty' DESC, d.lastName
     LIMIT 6
@@ -524,36 +526,39 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         background: linear-gradient(135deg, var(--blue-50), #fff);
         border: 1px solid var(--blue-200);
         border-radius: var(--radius);
-        padding: 1.25rem 1.5rem;
+        padding: 1.4rem 1.5rem;
         text-align: center;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 
     .book-cta i {
-        font-size: 2rem;
+        font-size: 1.1rem;
         color: var(--blue-400);
         display: block;
-        margin-bottom: .5rem;
+        margin-bottom: .2rem;
     }
 
     .book-cta p {
-        font-size: .83rem;
+        font-size: .72rem;
         color: var(--text-muted);
-        margin-bottom: .85rem;
+        margin-bottom: .4rem;
     }
 
     .btn-book {
         background: var(--blue-600);
         color: #fff;
         border: none;
-        border-radius: var(--radius-sm);
-        padding: .55rem 1.4rem;
-        font-size: .84rem;
+        border-radius: 8px;
+        padding: .28rem .6rem;
+        font-size: .72rem;
         font-weight: 600;
         font-family: 'DM Sans', sans-serif;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
-        gap: 7px;
+        gap: 4px;
         transition: background .15s, box-shadow .15s;
         text-decoration: none;
     }
@@ -888,9 +893,9 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
             <div class="card mb-3">
                 <div class="card-body book-cta">
                     <i class="bi bi-calendar-plus"></i>
-                    <h6 style="font-weight:700;color:var(--text-dark);margin-bottom:.3rem">Schedule an Appointment</h6>
+
                     <p>Choose from our available doctors and book your slot in minutes.</p>
-                    <a href="book_appointment.php" class="btn-book"><i class="bi bi-plus-lg"></i> Book Now</a>
+                    <a href="book_appointment.php" class="btn-book" style="padding:.28rem .6rem;font-size:.72rem;width:auto;display:inline-flex"><i class="bi bi-plus-lg"></i> Book Now</a>
                 </div>
             </div>
 
@@ -936,33 +941,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 </div>
             </div>
 
-            <div class="card mb-3">
-                <div class="card-body">
-                    <h5 class="card-title">Quick Links</h5>
-                    <div style="display:flex;flex-direction:column;gap:6px;">
-                        <?php
-                        $links = [
-                            ['book_appointment.php', 'bi-calendar-plus',  'Book Appointment',  'Schedule a new visit',    '#2563eb', '#dbeafe'],
-                            ['my_appointments.php',  'bi-calendar2-check', 'My Appointments',   'View all your bookings',  '#10b981', '#d1fae5'],
-                            ['medical_records.php',  'bi-file-medical',   'Medical Records',   'Your health history',     '#06b6d4', '#cffafe'],
-                            ['users.php',            'bi-person-gear',    'Profile Settings',  'Manage your account',     '#8b5cf6', '#ede9fe'],
-                        ];
-                        foreach ($links as [$href, $icon, $label, $sub, $color, $bg]):
-                        ?>
-                            <a href="<?= $href ?>" style="display:flex;align-items:center;gap:10px;padding:.65rem .85rem;border-radius:10px;background:var(--surface);border:1px solid var(--border);text-decoration:none;transition:background .15s" onmouseover="this.style.background='<?= $bg ?>'" onmouseout="this.style.background='var(--surface)'">
-                                <div style="width:34px;height:34px;border-radius:9px;background:<?= $bg ?>;color:<?= $color ?>;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0">
-                                    <i class="bi <?= $icon ?>"></i>
-                                </div>
-                                <div>
-                                    <div style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= $label ?></div>
-                                    <div style="font-size:.67rem;color:var(--text-muted)"><?= $sub ?></div>
-                                </div>
-                                <i class="bi bi-chevron-right" style="margin-left:auto;color:var(--text-muted);font-size:.7rem"></i>
-                            </a>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-            </div>
 
         </div>
     </div>

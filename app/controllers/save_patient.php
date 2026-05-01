@@ -11,7 +11,6 @@ $dob         = ($_POST['dob'] ?? '') ?: null;
 $address     = trim($_POST['address']       ?? '');
 $contact     = trim($_POST['contact']       ?? '');
 $email       = trim($_POST['email']         ?? '');
-$followUp    = ($_POST['follow_up_date'] ?? '') ?: null;
 $notes       = trim($_POST['notes']         ?? '');
 $status      = in_array($_POST['status'] ?? '', ['Active', 'Discharged', 'Inactive']) ? $_POST['status'] : 'Active';
 $condition   = in_array($_POST['condition'] ?? '', ['Stable', 'Critical', 'Under Observation', 'Recovering']) ? $_POST['condition'] : 'Stable';
@@ -21,13 +20,8 @@ if (!$firstName || !$lastName || !$gender || !$contact) {
     exit;
 }
 
-$count = $conn->query("SELECT COUNT(*) FROM patients")->fetch_row()[0];
-$patientCode = 'PAT-' . str_pad((int)$count + 1, 5, '0', STR_PAD_LEFT);
-
-while ($conn->query("SELECT id FROM patients WHERE patientCode='$patientCode'")->num_rows > 0) {
-    $count++;
-    $patientCode = 'PAT-' . str_pad($count + 1, 5, '0', STR_PAD_LEFT);
-}
+$max = (int) $conn->query("SELECT MAX(id) FROM patients")->fetch_row()[0];
+$patientCode = 'PAT-' . date('Y') . '-' . str_pad($max + 1, 3, '0', STR_PAD_LEFT);
 
 $photoUrl = null;
 if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
@@ -55,9 +49,9 @@ $email      = $conn->real_escape_string($email);
 $notes      = $conn->real_escape_string($notes);
 $status     = $conn->real_escape_string($status);
 $condition  = $conn->real_escape_string($condition);
-$dobVal     = $dob     ? "'" . $conn->real_escape_string($dob) . "'"     : 'NULL';
-$followVal  = $followUp ? "'" . $conn->real_escape_string($followUp) . "'" : 'NULL';
+$dobVal     = $dob     ? "'" . $conn->real_escape_string($dob) . "'" : 'NULL';
 $photoVal   = $photoUrl ? "'" . $conn->real_escape_string($photoUrl) . "'" : 'NULL';
+$followVal  = 'NULL'; // no follow-up date input yet
 
 $sql = "INSERT INTO patients
     (patientCode, firstName, middleName, lastName, gender, dateOfBirth,

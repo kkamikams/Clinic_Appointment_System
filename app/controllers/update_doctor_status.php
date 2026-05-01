@@ -5,6 +5,19 @@ require_once('../../app/config/config.php');
 
 header('Content-Type: application/json');
 
+$todayName = date('l');
+$conn->query("
+    UPDATE doctors d
+    SET d.status = CASE
+        WHEN EXISTS (
+            SELECT 1 FROM doctorSchedules ds 
+            WHERE ds.doctorId = d.id AND ds.dayOfWeek = '$todayName'
+        ) THEN 'On Duty'
+        ELSE 'Off Duty'
+    END
+    WHERE d.employmentStatus = 'Active' AND d.status != 'Break'
+");
+
 $id     = (int)($_POST['id']     ?? 0);
 $status = $_POST['status'] ?? '';
 

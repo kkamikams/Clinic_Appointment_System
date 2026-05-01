@@ -29,14 +29,21 @@ if (!$firstName || !$lastName || !$gender || !$license || !$specialization || !$
     exit;
 }
 
-$lastRow = $conn->query("SELECT doctorCode FROM doctors ORDER BY id DESC LIMIT 1");
+$year = date('Y');
+$lastRow = $conn->query("SELECT doctorCode FROM doctors WHERE doctorCode LIKE 'DOC-$year-%' ORDER BY id DESC LIMIT 1");
 $lastCode = $lastRow ? $lastRow->fetch_row() : null;
-$nextNum  = $lastCode ? ((int)filter_var($lastCode[0], FILTER_SANITIZE_NUMBER_INT) + 1) : 1;
 
-while ($conn->query("SELECT id FROM doctors WHERE doctorCode = 'D-" . str_pad($nextNum, 3, '0', STR_PAD_LEFT) . "'")->num_rows > 0) {
+if ($lastCode) {
+    $parts = explode('-', $lastCode[0]);
+    $nextNum = ((int)end($parts)) + 1;
+} else {
+    $nextNum = 1;
+}
+
+while ($conn->query("SELECT id FROM doctors WHERE doctorCode = 'DOC-$year-" . str_pad($nextNum, 3, '0', STR_PAD_LEFT) . "'")->num_rows > 0) {
     $nextNum++;
 }
-$doctorCode = 'D-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);;
+$doctorCode = 'DOC-' . $year . '-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
 
 
 $webRoot  = rtrim($_SERVER['DOCUMENT_ROOT'], '/');

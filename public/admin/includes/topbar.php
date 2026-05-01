@@ -1,4 +1,3 @@
-<!-- ======= Topbar ======= -->
 <header id="header" class="header fixed-top d-flex align-items-center">
 
   <div class="d-flex align-items-center justify-content-between">
@@ -7,30 +6,31 @@
       <span class="d-none d-lg-block" style="font-family:'DM Serif Display',serif;font-style:italic;font-size:1.55rem;color:#2563eb;letter-spacing:-.01em;">Queue</span>
     </a>
     <i class="bi bi-list toggle-sidebar-btn"></i>
-  </div><!-- End Logo -->
+  </div>
 
   <div class="search-bar">
     <form class="search-form d-flex align-items-center" method="POST" action="#">
       <input type="text" name="query" placeholder="Search" title="Enter search keyword">
       <button type="submit" title="Search"><i class="bi bi-search"></i></button>
     </form>
-  </div><!-- End Search Bar -->
+  </div>
 
   <?php
   $fullName  = $_SESSION['authUser']['fullName'] ?? 'Guest';
   $userRole  = $_SESSION['userRole'] ?? 'user';
 
-  // Short display name: "J. Dela Cruz"
+
   $nameParts = explode(' ', $fullName);
   $shortName = count($nameParts) >= 2
     ? strtoupper(substr($nameParts[0], 0, 1)) . '. ' . end($nameParts)
     : $fullName;
 
-  // Initials for avatar: first + last initial
+
   $initials = strtoupper(substr($nameParts[0], 0, 1));
   if (count($nameParts) >= 2) {
     $initials .= strtoupper(substr(end($nameParts), 0, 1));
   }
+  $profilePic = $_SESSION['authUser']['profilePic'] ?? null;
   ?>
 
   <nav class="header-nav ms-auto">
@@ -59,7 +59,14 @@
             font-weight: 700;
             letter-spacing: 0.05em;
             flex-shrink: 0;
-          "><?= htmlspecialchars($initials) ?></div>
+            overflow: hidden;
+          ">
+            <?php if (!empty($profilePic)): ?>
+              <img src="<?= htmlspecialchars($profilePic) ?>" style="width:100%;height:100%;object-fit:cover;">
+            <?php else: ?>
+              <?= htmlspecialchars($initials) ?>
+            <?php endif; ?>
+          </div>
 
           <span class="d-none d-md-block dropdown-toggle" style="font-size: 1rem; font-weight: 600; color: #333;">
             <?= htmlspecialchars($shortName) ?>
@@ -71,6 +78,17 @@
             <h6><?= htmlspecialchars($fullName) ?></h6>
             <span><?= ucfirst(htmlspecialchars($userRole)) ?></span>
           </li>
+          <li>
+            <hr class="dropdown-divider">
+          </li>
+
+          <li>
+            <a class="dropdown-item d-flex align-items-center" href="profile.php">
+              <i class="bi bi-person"></i>
+              <span>Profile</span>
+            </a>
+          </li>
+
           <li>
             <hr class="dropdown-divider">
           </li>

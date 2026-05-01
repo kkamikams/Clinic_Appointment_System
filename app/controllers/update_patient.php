@@ -12,7 +12,6 @@ $dob         = ($_POST['dob']              ?? '') ?: null;
 $address     = trim($_POST['address']       ?? '');
 $contact     = trim($_POST['contact']       ?? '');
 $email       = trim($_POST['email']         ?? '');
-$followUp    = ($_POST['follow_up_date']   ?? '') ?: null;
 $notes       = trim($_POST['notes']         ?? '');
 $status      = in_array($_POST['status']    ?? '', ['Active', 'Discharged', 'Inactive']) ? $_POST['status'] : 'Active';
 $condition   = in_array($_POST['condition'] ?? '', ['Stable', 'Critical', 'Under Observation', 'Recovering']) ? $_POST['condition'] : 'Stable';
@@ -52,14 +51,13 @@ $notes      = $conn->real_escape_string($notes);
 $status     = $conn->real_escape_string($status);
 $condition  = $conn->real_escape_string($condition);
 $dobVal    = $dob     ? "'" . $conn->real_escape_string($dob) . "'"     : 'NULL';
-$followVal = $followUp ? "'" . $conn->real_escape_string($followUp) . "'" : 'NULL';
 
 $sql = "UPDATE patients SET
     firstName='$firstName', middleName='$middleName', lastName='$lastName',
     gender='$gender', dateOfBirth=$dobVal,
     contactNumber='$contact', emailAddress='$email', address='$address',
     status='$status', patientCondition='$condition',
-    followUpDate=$followVal, notes='$notes',
+    notes='$notes',
     updatedAt=NOW()
     $photoSql
 WHERE id=$id";

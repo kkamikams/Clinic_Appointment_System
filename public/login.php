@@ -226,10 +226,8 @@
 
                     <div class="col-12">
                       <label for="yourUsername" class="form-label">Username <span style="color: red;">*</span></label>
-                      <div class="input-group has-validation">
-                        <input type="text" name="username" class="form-control" id="yourUsername" placeholder="Enter your username" required>
-                        <div class="invalid-feedback">Please enter your username.</div>
-                      </div>
+                      <input type="text" name="username" class="form-control" id="yourUsername" placeholder="Enter your username" required>
+                      <div class="invalid-feedback">Please enter your username.</div>
                     </div>
 
                     <div class="col-12">

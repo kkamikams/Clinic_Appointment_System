@@ -8,13 +8,12 @@ require_once('../../app/config/config.php');
 $totalPatients = $conn->query("SELECT COUNT(*) FROM patients WHERE status != 'Inactive'")->fetch_row()[0];
 $activeCount   = $conn->query("SELECT COUNT(*) FROM patients WHERE status = 'Active'")->fetch_row()[0];
 $critical      = $conn->query("SELECT COUNT(*) FROM patients WHERE patientCondition = 'Critical'")->fetch_row()[0];
-$followUp      = $conn->query("SELECT COUNT(*) FROM patients WHERE followUpDate IS NOT NULL AND followUpDate >= CURDATE() AND status != 'Inactive'")->fetch_row()[0];
 
 $sql = "
     SELECT
         p.id, p.patientCode, p.firstName, p.middleName, p.lastName,
         p.gender, p.dateOfBirth, p.contactNumber, p.emailAddress, p.address,
-        p.status, p.patientCondition, p.followUpDate,
+        p.status, p.patientCondition,
         TIMESTAMPDIFF(YEAR, p.dateOfBirth, CURDATE()) AS age,
         MAX(a.appointmentDate) AS lastVisit,
         d.firstName AS docFirst, d.lastName AS docLast
@@ -827,11 +826,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
             <div class="sc-num" id="stat-critical"><?= $critical ?></div>
             <div class="sc-sub">Needs attention</div>
         </div>
-        <div class="stat-card">
-            <div class="sc-label">Follow-up</div>
-            <div class="sc-num" id="stat-followup"><?= $followUp ?></div>
-            <div class="sc-sub">Upcoming follow-ups</div>
-        </div>
     </div>
 
     <div class="main-card">
@@ -898,7 +892,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                             data-name="<?= htmlspecialchars(strtolower($fullName)) ?>"
                             data-status="<?= htmlspecialchars($p['status']) ?>"
                             data-condition="<?= htmlspecialchars($p['patientCondition']) ?>"
-                            data-followup="<?= htmlspecialchars($p['followUpDate'] ?? '') ?>"
                             data-id="<?= $p['id'] ?>"
                             data-code="<?= htmlspecialchars($p['patientCode']) ?>"
                             data-fullname="<?= htmlspecialchars($fullName) ?>"
@@ -912,7 +905,12 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                             data-avatar="<?= $initials ?>"
                             data-avatar-bg="<?= $bg ?>"
                             data-avatar-color="<?= $col ?>">
-                            <td><?= htmlspecialchars($p['patientCode']) ?></td>
+                            <td>
+                                <span style="color:#2563eb;font-weight:600;font-size:.83rem;cursor:pointer;"
+                                    onclick="viewPatient(this.closest('tr'))">
+                                    <?= htmlspecialchars($p['patientCode']) ?>
+                                </span>
+                            </td>
                             <td>
                                 <div class="pat-cell">
                                     <div class="pat-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $initials ?></div>
@@ -1016,10 +1014,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
             <div class="vp-info-item">
                 <div class="vp-info-lbl">Doctor</div>
                 <div class="vp-info-val" id="vpDoctor"></div>
-            </div>
-            <div class="vp-info-item">
-                <div class="vp-info-lbl">Follow-up Date</div>
-                <div class="vp-info-val" id="vpFollowup"></div>
             </div>
             <div class="vp-info-item" style="grid-column:1/-1;">
                 <div class="vp-info-lbl">Address</div>
@@ -1163,21 +1157,17 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         const allRows = Array.from(document.querySelectorAll('#patTbody tr:not(.filler-row)'));
         let total = 0,
             active = 0,
-            critical = 0,
-            followup = 0;
+            critical = 0;
         allRows.forEach(r => {
             const st = r.dataset.status || '';
             const cd = r.dataset.condition || '';
-            const fu = r.dataset.followup || '';
             if (st !== 'Inactive') total++;
             if (st === 'Active') active++;
             if (cd === 'Critical') critical++;
-            if (fu && fu >= new Date().toISOString().slice(0, 10) && st !== 'Inactive') followup++;
         });
         animateNum('stat-total', total);
         animateNum('stat-active', active);
         animateNum('stat-critical', critical);
-        animateNum('stat-followup', followup);
     }
 
     function animateNum(id, target) {
@@ -1225,7 +1215,6 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         document.getElementById('vpLastVisit').textContent = d.lastvisit;
         document.getElementById('vpDoctor').textContent = d.doctor;
         document.getElementById('vpAddress').textContent = d.address;
-        document.getElementById('vpFollowup').textContent = d.followup || '—';
 
         const sSt = statusBadgeStyle[d.status] || statusBadgeStyle['Inactive'];
         const sCd = condBadgeStyle[d.condition] || condBadgeStyle['Stable'];

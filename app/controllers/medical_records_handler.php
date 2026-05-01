@@ -95,22 +95,49 @@ switch ($action) {
         ]);
         break;
 
+    case 'get_appointments':
+        $patientId = (int)($_GET['patientId'] ?? 0);
+        $q = '%' . $conn->real_escape_string(trim($_GET['q'] ?? '')) . '%';
+        $patFilter = $patientId ? "AND a.patientId = $patientId" : '';
+        $rows = $conn->query("
+            SELECT a.id,
+                   a.appointmentCode,
+                   a.appointmentDate,
+                   a.remarks,
+                   a.doctorId,
+                   TRIM(CONCAT(d.firstName,' ',COALESCE(NULLIF(d.middleName,''),''),' ',d.lastName)) AS doctorName,
+                   d.specialization
+            FROM appointments a
+            JOIN doctors d ON d.id = a.doctorId
+            WHERE a.status != 'Cancelled'
+              $patFilter
+              AND (a.appointmentCode LIKE '$q'
+                OR CONCAT(d.firstName,' ',d.lastName) LIKE '$q')
+            ORDER BY a.appointmentDate DESC
+            LIMIT 15
+        ")->fetch_all(MYSQLI_ASSOC);
+        echo json_encode(['success' => true, 'data' => $rows]);
+        break;
+
     case 'get_appointment_details':
         $apptId = (int)($_GET['apptId'] ?? 0);
         $row = $conn->query("
-        SELECT a.id,
-               a.appointmentCode,
-               a.remarks,
-               a.appointmentDate,
-               a.doctorId,
-               TRIM(CONCAT(d.firstName,' ',COALESCE(NULLIF(d.middleName,''),''),' ',d.lastName)) AS doctorName,
-               d.specialization
-        FROM appointments a
-        JOIN doctors d ON d.id = a.doctorId
-        WHERE a.id = $apptId
-        LIMIT 1
-    ")->fetch_assoc();
-
+    SELECT a.id,
+           a.appointmentCode,
+           a.remarks,
+           a.appointmentDate,
+           a.doctorId,
+           TRIM(CONCAT(d.firstName,' ',COALESCE(NULLIF(d.middleName,''),''),' ',d.lastName)) AS doctorName,
+           d.specialization,
+           a.patientId,
+           TRIM(CONCAT(p.firstName,' ',p.lastName)) AS patientName,
+           p.patientCode
+    FROM appointments a
+    JOIN doctors d ON d.id = a.doctorId
+    LEFT JOIN patients p ON p.id = a.patientId
+    WHERE a.id = $apptId
+    LIMIT 1
+")->fetch_assoc();
         echo json_encode([
             'success' => (bool)$row,
             'data'    => $row ?: null
@@ -121,6 +148,7 @@ switch ($action) {
         $searchRaw = trim($_GET['search'] ?? '');
         $type      = trim($_GET['type']   ?? '');
         $status    = trim($_GET['status'] ?? '');
+        $followUpDate = ($body['followUpDate'] ?? '') ?: null;
         $page      = max(1, (int)($_GET['page'] ?? 1));
         $limit     = 15;
         $offset    = ($page - 1) * $limit;
@@ -163,7 +191,7 @@ switch ($action) {
             JOIN patients p ON p.id = m.patientId
             JOIN doctors  d ON d.id = m.doctorId
             $whereSQL
-            ORDER BY m.createdAt DESC
+            ORDER BY COALESCE(m.updatedAt, m.createdAt) DESC
             LIMIT $limit OFFSET $offset
         ")->fetch_all(MYSQLI_ASSOC);
 
@@ -207,8 +235,11 @@ switch ($action) {
 
         $body = json_decode(file_get_contents('php://input'), true);
 
-        $count = (int) $conn->query("SELECT COUNT(*) FROM medicalRecords")->fetch_row()[0];
-        $code  = 'REC-' . date('Ymd') . '-' . str_pad($count + 1, 4, '0', STR_PAD_LEFT);
+        $lastCode = $conn->query("
+    SELECT MAX(CAST(SUBSTRING_INDEX(recordCode, '-', -1) AS UNSIGNED)) 
+    FROM medicalRecords
+")->fetch_row()[0];
+        $code = 'REC-' . date('Y') . '-' . str_pad((int)$lastCode + 1, 4, '0', STR_PAD_LEFT);
 
         $patientId     = (int)($body['patientId']     ?? 0) ?: 'NULL';
         $doctorId      = (int)($body['doctorId']      ?? 0) ?: 'NULL';
@@ -219,22 +250,39 @@ switch ($action) {
         $prescription  = $conn->real_escape_string($body['prescription'] ?? '');
         $notes         = $conn->real_escape_string($body['notes']        ?? '');
         $status        = $conn->real_escape_string($body['status']       ?? 'Draft');
+        $followUpRaw  = ($body['followUpDate'] ?? '') ?: null;
+        $followUpDate = $followUpRaw ? "'" . $conn->real_escape_string($followUpRaw) . "'" : "NULL";
 
         $ok = $conn->query("
-            INSERT INTO medicalRecords
-                (recordCode, patientId, doctorId, appointmentId,
-                 recordType, diagnosis, icdCode, prescription, notes, status)
-            VALUES
-                ('$code', $patientId, $doctorId, $appointmentId,
-                 '$recordType', '$diagnosis', '$icdCode', '$prescription', '$notes', '$status')
-        ");
+        INSERT INTO medicalRecords
+            (recordCode, patientId, doctorId, appointmentId,
+ recordType, diagnosis, icdCode, prescription, notes, status, followUpDate)
+        VALUES
+            ('$code', $patientId, $doctorId, $appointmentId,
+ '$recordType', '$diagnosis', '$icdCode', '$prescription', '$notes', '$status', $followUpDate)
+    ");
 
         if ($ok) {
             $newId = $conn->insert_id;
             logActivity($conn, 'New Record', "Medical record $code created", $newId, 'Record');
-        }
 
-        echo json_encode(['success' => (bool)$ok, 'error' => $ok ? null : $conn->error]);
+            if ($followUpRaw) {
+                $folLast     = $conn->query("SELECT MAX(CAST(SUBSTRING_INDEX(followUpCode, '-', -1) AS UNSIGNED)) FROM followups")->fetch_row()[0];
+                $folCode     = 'FOL-' . date('Y') . '-' . str_pad((int)$folLast + 1, 4, '0', STR_PAD_LEFT);
+                $followUpEsc = $conn->real_escape_string($followUpRaw);
+
+                $conn->query("
+        INSERT INTO followups (followUpCode, patientId, appointmentId, followUpDate, reason, status)
+        VALUES ('$folCode', $patientId, $appointmentId, '$followUpEsc', 'Follow-up from record $code', 'Pending')
+    ");
+
+                logActivity($conn, 'New Follow-up', "Follow-up $folCode created from $code", $conn->insert_id, 'Followup');
+            }
+
+            echo json_encode(['success' => true, 'recordCode' => $code]);
+        } else {
+            echo json_encode(['success' => false, 'error' => $conn->error]);
+        }
         break;
 
     case 'edit':
@@ -252,21 +300,50 @@ switch ($action) {
         $prescription  = $conn->real_escape_string($body['prescription'] ?? '');
         $notes         = $conn->real_escape_string($body['notes']        ?? '');
         $status        = $conn->real_escape_string($body['status']       ?? 'Draft');
+        $followUpRaw   = ($body['followUpDate'] ?? '') ?: null;
+        $followUpDate  = $followUpRaw ? "'" . $conn->real_escape_string($followUpRaw) . "'" : "NULL";
 
         $ok = $conn->query("
-            UPDATE medicalRecords SET
-                patientId     = $patientId,
-                doctorId      = $doctorId,
-                appointmentId = $appointmentId,
-                recordType    = '$recordType',
-                diagnosis     = '$diagnosis',
-                icdCode       = '$icdCode',
-                prescription  = '$prescription',
-                notes         = '$notes',
-                status        = '$status',
-                updatedAt     = NOW()
-            WHERE id = $id
-        ");
+        UPDATE medicalRecords SET
+            patientId     = $patientId,
+            doctorId      = $doctorId,
+            appointmentId = $appointmentId,
+            recordType    = '$recordType',
+            diagnosis     = '$diagnosis',
+            icdCode       = '$icdCode',
+            prescription  = '$prescription',
+            notes         = '$notes',
+            status        = '$status',
+            followUpDate  = $followUpDate,
+            updatedAt     = NOW()
+        WHERE id = $id
+    ");
+
+        // ── NEW: sync follow-up appointment on edit ──────────────────────────
+        if ($ok && $followUpRaw && $patientId !== 'NULL' && $doctorId !== 'NULL') {
+            $followUpEsc = $conn->real_escape_string($followUpRaw);
+            $recCode     = $conn->query("SELECT recordCode FROM medicalRecords WHERE id=$id")->fetch_row()[0] ?? '';
+
+            $exists = $conn->query("
+    SELECT id FROM followups
+    WHERE patientId = $patientId
+      AND followUpDate = '$followUpEsc'
+      AND status NOT IN ('Cancelled')
+    LIMIT 1
+")->fetch_row();
+
+            if (!$exists) {
+                $folLast  = $conn->query("SELECT MAX(CAST(SUBSTRING_INDEX(followUpCode, '-', -1) AS UNSIGNED)) FROM followups")->fetch_row()[0];
+                $folCode  = 'FOL-' . date('Y') . '-' . str_pad((int)$folLast + 1, 4, '0', STR_PAD_LEFT);
+
+                $conn->query("
+                    INSERT INTO followups (followUpCode, patientId, appointmentId, followUpDate, reason, status)
+                    VALUES ('$folCode', $patientId, $appointmentId, '$followUpEsc', 'Follow-up from record $recCode', 'Pending')
+                ");
+                logActivity($conn, 'New Follow-up', "Follow-up $folCode created from $recCode (edit)", $conn->insert_id, 'Followup');
+            }
+        }
+        // ────────────────────────────────────────────────────────────────────
 
         echo json_encode(['success' => (bool)$ok, 'error' => $ok ? null : $conn->error]);
         break;

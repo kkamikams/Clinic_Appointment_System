@@ -24,25 +24,24 @@ if ($userEmail) {
 }
 $patientId = $patientRow['id'] ?? 0;
 
-if ($patientId) {
-    $statTotal = $conn->query("SELECT COUNT(*) FROM medicalRecords WHERE patientId=$patientId")->fetch_row()[0];
-    $statMonth = $conn->query("SELECT COUNT(*) FROM medicalRecords WHERE patientId=$patientId AND MONTH(createdAt)=MONTH(CURDATE()) AND YEAR(createdAt)=YEAR(CURDATE())")->fetch_row()[0];
-    $statDoctors = $conn->query("SELECT COUNT(DISTINCT doctorId) FROM medicalRecords WHERE patientId=$patientId")->fetch_row()[0];
-    $statDepts   = $conn->query("SELECT COUNT(DISTINCT d.specialization) FROM medicalRecords mr JOIN doctors d ON d.id=mr.doctorId WHERE mr.patientId=$patientId")->fetch_row()[0];
+$statTotal   = $conn->query("SELECT COUNT(*) FROM medicalRecords mr JOIN appointments a ON a.id=mr.appointmentId WHERE a.bookedByUserId=$userId AND mr.status='Finalized'")->fetch_row()[0];
+$statMonth   = $conn->query("SELECT COUNT(*) FROM medicalRecords mr JOIN appointments a ON a.id=mr.appointmentId WHERE a.bookedByUserId=$userId AND mr.status='Finalized' AND MONTH(mr.createdAt)=MONTH(CURDATE()) AND YEAR(mr.createdAt)=YEAR(CURDATE())")->fetch_row()[0];
+$statDoctors = $conn->query("SELECT COUNT(DISTINCT mr.doctorId) FROM medicalRecords mr JOIN appointments a ON a.id=mr.appointmentId WHERE a.bookedByUserId=$userId AND mr.status='Finalized'")->fetch_row()[0];
+$statDepts   = $conn->query("SELECT COUNT(DISTINCT d.specialization) FROM medicalRecords mr JOIN appointments a ON a.id=mr.appointmentId JOIN doctors d ON d.id=mr.doctorId WHERE a.bookedByUserId=$userId AND mr.status='Finalized'")->fetch_row()[0];
 
-    $records = $conn->query("
-        SELECT mr.*,
-               CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
-               d.specialization, d.department
-        FROM medicalRecords mr
-        JOIN doctors d ON d.id=mr.doctorId
-        WHERE mr.patientId=$patientId
-        ORDER BY mr.createdAt DESC
-    ")->fetch_all(MYSQLI_ASSOC);
-} else {
-    $statTotal = $statMonth = $statDoctors = $statDepts = 0;
-    $records = [];
-}
+$records = $conn->query("
+    SELECT mr.*,
+           CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
+           d.specialization, d.department,
+           CONCAT(p.firstName,' ',p.lastName) AS patientName
+    FROM medicalRecords mr
+    JOIN appointments a ON a.id = mr.appointmentId
+    JOIN doctors d ON d.id = mr.doctorId
+    JOIN patients p ON p.id = mr.patientId
+    WHERE a.bookedByUserId = $userId
+      AND mr.status = 'Finalized'
+    ORDER BY mr.createdAt DESC
+")->fetch_all(MYSQLI_ASSOC);
 
 $avatarBgs    = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
 $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75'];
@@ -346,7 +345,8 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
     .action-btns {
         display: flex;
         gap: 5px;
-        flex-wrap: wrap
+        flex-wrap: wrap;
+        justify-content: center
     }
 
     .btn-act {
@@ -619,6 +619,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 <thead>
                     <tr>
                         <th>Record ID</th>
+                        <th>Patient</th>
                         <th>Doctor</th>
                         <th>Diagnosis</th>
                         <th>Prescription</th>
@@ -630,7 +631,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 <tbody id="recTbody">
                     <?php if (empty($records)): ?>
                         <tr>
-                            <td colspan="7">
+                            <td colspan="">
                                 <div class="empty-state">
                                     <i class="bi bi-file-medical"></i>
                                     <p>No medical records found.<br>Records will appear here after your appointments are completed.</p>
@@ -652,6 +653,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 data-dept="<?= htmlspecialchars($rec['specialization']) ?>"
                                 data-diag="<?= htmlspecialchars(strtolower($rec['diagnosis'] ?? '')) ?>">
                                 <td><span class="rec-id"><?= htmlspecialchars($rec['recordCode']) ?></span></td>
+                                <td style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= htmlspecialchars($rec['patientName']) ?></td>
                                 <td>
                                     <div class="doc-cell">
                                         <div class="doc-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $ini ?></div>
@@ -677,7 +679,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                     '<?= htmlspecialchars(addslashes($rec['diagnosis'] ?? '—')) ?>',
                     '<?= htmlspecialchars(addslashes($rec['prescription'] ?? '—')) ?>',
                     '<?= htmlspecialchars(addslashes($rec['notes'] ?? '—')) ?>'
-                )">View</button>
+                )" title="View Record"><i class="bi bi-eye"></i></button>
                                     </div>
                                 </td>
                             </tr>

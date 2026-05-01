@@ -61,32 +61,33 @@ LIMIT 10
 ")->fetch_all(MYSQLI_ASSOC);
 
 // Doctors on duty today
+$conn->query("
+    UPDATE doctors d
+    LEFT JOIN doctorSchedules ds ON ds.doctorId = d.id AND ds.dayOfWeek = DAYNAME('$today')
+    SET d.status = 'Off Duty'
+    WHERE ds.doctorId IS NULL
+      AND d.employmentStatus = 'Active'
+      AND d.status != 'Off Duty'
+");
+
 $dutyDoctors = $conn->query("
-SELECT d.id, d.firstName, d.lastName, d.specialization,
-d.patientCapacity, d.status,
-COUNT(DISTINCT a.id) AS currentLoad,
-MIN(ds.shiftStart) AS shiftStart,
-MAX(ds.shiftEnd) AS shiftEnd
-FROM doctors d
-LEFT JOIN appointments a ON a.doctorId=d.id AND a.appointmentDate='$today' AND a.status!='Cancelled'
-LEFT JOIN doctorSchedules ds ON ds.doctorId=d.id AND ds.dayOfWeek=DAYNAME('$today')
-WHERE d.status='On Duty' AND d.employmentStatus='Active'
-GROUP BY d.id
-LIMIT 8
+    SELECT d.id, d.firstName, d.lastName, d.specialization,
+           d.patientCapacity, d.status,
+           COUNT(DISTINCT a.id) AS currentLoad,
+           MIN(ds.shiftStart) AS shiftStart,
+           MAX(ds.shiftEnd) AS shiftEnd
+    FROM doctors d
+    INNER JOIN doctorSchedules ds ON ds.doctorId = d.id AND ds.dayOfWeek = DAYNAME('$today')
+    LEFT JOIN appointments a ON a.doctorId = d.id AND a.appointmentDate = '$today' AND a.status != 'Cancelled'
+    WHERE d.employmentStatus = 'Active'
+    GROUP BY d.id
+    LIMIT 8
 ")->fetch_all(MYSQLI_ASSOC);
 
-// Recent activity 
+// Recent activity
 $activities = $conn->query("
 SELECT * FROM recentActivity ORDER BY createdAt DESC LIMIT 8
 ")->fetch_all(MYSQLI_ASSOC);
-
-// Appointment channels today
-$channels = $conn->query("
-SELECT channel, COUNT(*) AS cnt FROM appointments
-WHERE appointmentDate='$today' GROUP BY channel
-")->fetch_all(MYSQLI_ASSOC);
-$channelMap = [];
-foreach ($channels as $ch) $channelMap[$ch['channel']] = (int)$ch['cnt'];
 
 // Status breakdown today
 $apptCompleted = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='Completed'")->fetch_row()[0];
@@ -167,7 +168,6 @@ $todayDay = date('l');
     font-weight: 600;
   }
 
-  /* Cards */
   .card {
     background: var(--card);
     border: 1px solid var(--border);
@@ -182,7 +182,6 @@ $todayDay = date('l');
     transform: translateY(-1px);
   }
 
-  /* Stat cards */
   .info-card .card-body {
     padding: 1.4rem 1.5rem 1.3rem;
     position: relative;
@@ -316,7 +315,6 @@ $todayDay = date('l');
     color: var(--blue-600);
   }
 
-  /* Tables */
   .table thead th {
     font-size: .65rem;
     font-weight: 600;
@@ -355,7 +353,6 @@ $todayDay = date('l');
     font-weight: 500;
   }
 
-  /* Badges */
   .badge {
     font-family: 'DM Sans', sans-serif;
     font-size: .65rem;
@@ -390,7 +387,6 @@ $todayDay = date('l');
     color: #374151 !important;
   }
 
-  /* Duty bar */
   .duty-progress {
     display: flex;
     align-items: center;
@@ -429,7 +425,6 @@ $todayDay = date('l');
     font-weight: 400;
   }
 
-  /* Activity */
   .activity {
     display: flex;
     flex-direction: column;
@@ -476,7 +471,6 @@ $todayDay = date('l');
     color: var(--blue-700);
   }
 
-  /* Doctor avatar */
   .doc-avatar-sm {
     width: 36px;
     height: 36px;
@@ -490,281 +484,6 @@ $todayDay = date('l');
     flex-shrink: 0;
   }
 
-  /* Quick links */
-  .quick-links {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 1.25rem;
-  }
-
-  @media(max-width:768px) {
-    .quick-links {
-      grid-template-columns: repeat(2, 1fr);
-    }
-  }
-
-  .quick-link-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: .8rem 1rem;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    text-decoration: none;
-    transition: box-shadow .15s, transform .15s;
-    animation: fadeUp .32s ease both;
-  }
-
-  .quick-link-card:hover {
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
-  }
-
-  .ql-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1rem;
-    flex-shrink: 0;
-  }
-
-  .ql-label {
-    font-size: .78rem;
-    font-weight: 600;
-    color: var(--text-dark);
-  }
-
-  .ql-sub {
-    font-size: .66rem;
-    color: var(--text-muted);
-  }
-
-  /* Tasks */
-  .task-add-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 1rem;
-  }
-
-  .task-add-row input[type="text"] {
-    flex: 1;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: .42rem .75rem;
-    font-size: .82rem;
-    font-family: 'DM Sans', sans-serif;
-    color: var(--text-dark);
-    background: var(--surface);
-    outline: none;
-    transition: border-color .2s;
-  }
-
-  .task-add-row input[type="text"]:focus {
-    border-color: var(--blue-400);
-    background: #fff;
-  }
-
-  .task-add-row button {
-    background: var(--blue-600);
-    color: #fff;
-    border: none;
-    border-radius: var(--radius-sm);
-    padding: .42rem .9rem;
-    font-size: .8rem;
-    font-weight: 600;
-    font-family: 'DM Sans', sans-serif;
-    cursor: pointer;
-    transition: background .15s;
-    white-space: nowrap;
-  }
-
-  .task-add-row button:hover {
-    background: var(--blue-700);
-  }
-
-  .task-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    max-height: 320px;
-    overflow-y: auto;
-  }
-
-  .task-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: .52rem .7rem;
-    border-radius: 9px;
-    border: 1px solid var(--border);
-    background: var(--surface);
-    transition: background .15s;
-    font-size: .82rem;
-  }
-
-  .task-item:hover {
-    background: var(--blue-50);
-  }
-
-  .task-item input[type="checkbox"] {
-    accent-color: var(--blue-600);
-    width: 15px;
-    height: 15px;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-
-  .task-item .task-label {
-    flex: 1;
-    color: var(--text-body);
-    line-height: 1.4;
-  }
-
-  .task-item .task-label.done {
-    text-decoration: line-through;
-    color: var(--text-muted);
-  }
-
-  .task-item .task-priority {
-    font-size: .6rem;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 5px;
-    text-transform: uppercase;
-    letter-spacing: .05em;
-    flex-shrink: 0;
-  }
-
-  .task-item .task-priority.high {
-    background: var(--red-light);
-    color: var(--red-dark);
-  }
-
-  .task-item .task-priority.medium {
-    background: var(--amber-light);
-    color: var(--amber-dark);
-  }
-
-  .task-item .task-priority.low {
-    background: var(--green-light);
-    color: var(--green-dark);
-  }
-
-  .task-item .task-delete {
-    background: none;
-    border: none;
-    color: var(--text-muted);
-    cursor: pointer;
-    font-size: .75rem;
-    padding: 0 2px;
-    line-height: 1;
-    flex-shrink: 0;
-    transition: color .15s;
-  }
-
-  .task-item .task-delete:hover {
-    color: var(--red);
-  }
-
-  .task-empty {
-    text-align: center;
-    padding: 1.5rem 0;
-    color: var(--text-muted);
-    font-size: .8rem;
-  }
-
-  .task-stats {
-    display: flex;
-    gap: 12px;
-    margin-bottom: .75rem;
-  }
-
-  .task-stat {
-    flex: 1;
-    background: var(--surface);
-    border-radius: 8px;
-    padding: .4rem .6rem;
-    text-align: center;
-    border: 1px solid var(--border);
-  }
-
-  .task-stat .ts-num {
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-dark);
-    letter-spacing: -.04em;
-    line-height: 1;
-  }
-
-  .task-stat .ts-label {
-    font-size: .62rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .07em;
-    margin-top: 2px;
-  }
-
-  .priority-select {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    padding: .42rem .5rem;
-    font-size: .78rem;
-    font-family: 'DM Sans', sans-serif;
-    color: var(--text-body);
-    background: var(--surface);
-    outline: none;
-    cursor: pointer;
-  }
-
-  /* Source legend */
-  .source-legend {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: .5rem;
-    padding: 0 .25rem;
-  }
-
-  .source-legend-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    font-size: .78rem;
-  }
-
-  .source-legend-dot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    margin-right: 8px;
-  }
-
-  .source-legend-label {
-    display: flex;
-    align-items: center;
-    color: var(--text-body);
-  }
-
-  .source-legend-val {
-    font-weight: 700;
-    color: var(--text-dark);
-    font-size: .78rem;
-  }
-
-  .source-legend-pct {
-    font-size: .68rem;
-    color: var(--text-muted);
-    margin-left: 4px;
-  }
-
-  /* Live indicator */
   .live-dot {
     display: inline-block;
     width: 7px;
@@ -789,7 +508,6 @@ $todayDay = date('l');
     }
   }
 
-  /* Dropdown */
   .dropdown-menu {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
@@ -954,15 +672,18 @@ $todayDay = date('l');
                   const raw = <?= json_encode($chartData) ?>;
                   new ApexCharts(document.querySelector("#reportsChart"), {
                     series: [{
-                      name: 'Appointments',
-                      data: raw.map(r => r.total)
-                    }, {
-                      name: 'Completed',
-                      data: raw.map(r => r.completed)
-                    }, {
-                      name: 'Cancelled',
-                      data: raw.map(r => r.cancelled)
-                    }],
+                        name: 'Appointments',
+                        data: raw.map(r => r.total)
+                      },
+                      {
+                        name: 'Completed',
+                        data: raw.map(r => r.completed)
+                      },
+                      {
+                        name: 'Cancelled',
+                        data: raw.map(r => r.cancelled)
+                      }
+                    ],
                     chart: {
                       height: 280,
                       type: 'area',
@@ -1205,14 +926,13 @@ $todayDay = date('l');
             <li><a class="dropdown-item" href="patients">View Patients</a></li>
           </ul>
         </div>
-        <div class="card-body">
+        <div class="card-body d-flex flex-column">
           <h5 class="card-title">
             Recent Activity <span>| Today</span>
             <span class="live-dot ms-2"></span><span style="font-size:.65rem;color:var(--green);font-weight:600">LIVE</span>
           </h5>
-          <div class="activity" id="activityFeed">
+          <div class="activity flex-grow-1" id="activityFeed">
             <?php
-            $actColors = ['appointment' => 'var(--green)', 'cancel' => 'var(--red)', 'progress' => 'var(--blue-500)', 'record' => 'var(--teal)', 'patient' => 'var(--amber)'];
             if (!empty($activities)):
               foreach ($activities as $act):
                 $diff = time() - strtotime($act['createdAt']);
@@ -1238,215 +958,12 @@ $todayDay = date('l');
         </div>
       </div>
 
-      <div class="card mb-3">
-        <div class="filter">
-          <a class="icon" href="#" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></a>
-          <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
-            <li class="dropdown-header text-start">
-              <h6>Actions</h6>
-            </li>
-            <li><a class="dropdown-item" href="appointments">View Appointments</a></li>
-          </ul>
-        </div>
-        <div class="card-body pb-2">
-          <h5 class="card-title">Appointment Channel <span>| Today</span></h5>
-          <div id="channelChart" style="min-height:240px;" class="echart"></div>
-          <?php
-          $channelDefs = ['Online' => ['#2563eb', 'Online Booking'], 'Walk-in' => ['#10b981', 'Walk-in'], 'Phone' => ['#f59e0b', 'Phone Call'], 'Referral' => ['#8b5cf6', 'Referral'], 'Follow-up' => ['#06b6d4', 'Follow-up']];
-          $chanTotal = array_sum($channelMap) ?: 1;
-          ?>
-          <div class="source-legend">
-            <?php foreach ($channelDefs as $key => [$color, $label]):
-              $cnt = $channelMap[$key] ?? 0;
-              $pct = round($cnt / $chanTotal * 100);
-            ?>
-              <div class="source-legend-item">
-                <div class="source-legend-label">
-                  <div class="source-legend-dot" style="background:<?= $color ?>"></div><?= $label ?>
-                </div>
-                <div><span class="source-legend-val"><?= $cnt ?></span><span class="source-legend-pct"><?= $pct ?>%</span></div>
-              </div>
-            <?php endforeach; ?>
-          </div>
-        </div>
-      </div>
-
     </div>
   </div>
 </section>
 
 <script>
-  const TASK_HANDLER = 'task_handler.php';
-
-  function updateTaskCounts() {
-    const items = document.querySelectorAll('#taskList .task-item');
-    const total = items.length,
-      done = document.querySelectorAll('#taskList .task-item input:checked').length;
-    document.getElementById('tsTotal').textContent = total;
-    document.getElementById('tsDone').textContent = done;
-    document.getElementById('tsLeft').textContent = total - done;
-    const el = document.getElementById('taskEmpty');
-    if (el) el.style.display = total ? 'none' : '';
-  }
-
-  function addTask() {
-    const input = document.getElementById('taskInput'),
-      label = input.value.trim();
-    if (!label) {
-      input.focus();
-      return;
-    }
-    const priority = document.getElementById('taskPriority').value;
-    fetch(TASK_HANDLER + '?action=add', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          title: label,
-          priority,
-          category: 'General',
-          status: 'Pending'
-        })
-      })
-      .then(r => r.json()).then(res => {
-        if (!res.success) return;
-        const pri = priority.toLowerCase();
-        const list = document.getElementById('taskList');
-        const div = document.createElement('div');
-        div.className = 'task-item';
-        div.id = 'task-' + res.id;
-        div.innerHTML = `<input type="checkbox" onchange="toggleTask(${res.id},this)"><span class="task-label">${escHtml(label)}</span><span class="task-priority ${pri}">${priority}</span><button class="task-delete" onclick="deleteTask(${res.id},this.closest('.task-item'))" title="Remove"><i class="bi bi-x"></i></button>`;
-        list.insertBefore(div, list.firstChild);
-        input.value = '';
-        updateTaskCounts();
-      });
-  }
-
-  function toggleTask(id, checkbox) {
-    const item = document.getElementById('task-' + id);
-    if (!item) return;
-    item.querySelector('.task-label').classList.toggle('done', checkbox.checked);
-    const fd = new FormData();
-    fd.append('id', id);
-    fetch(TASK_HANDLER + '?action=toggle', {
-      method: 'POST',
-      body: fd
-    });
-    updateTaskCounts();
-  }
-
-  function deleteTask(id, el) {
-    if (el) el.remove();
-    const fd = new FormData();
-    fd.append('id', id);
-    fetch(TASK_HANDLER + '?action=delete', {
-      method: 'POST',
-      body: fd
-    });
-    updateTaskCounts();
-  }
-
-  function clearDone(e) {
-    e.preventDefault();
-    document.querySelectorAll('#taskList .task-item input:checked').forEach(cb => cb.closest('.task-item').remove());
-    fetch(TASK_HANDLER + '?action=clear_done', {
-      method: 'POST'
-    });
-    updateTaskCounts();
-  }
-
-  function escHtml(str) {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-
   document.addEventListener('DOMContentLoaded', () => {
-    updateTaskCounts();
-    document.getElementById('taskInput').addEventListener('keydown', e => {
-      if (e.key === 'Enter') addTask();
-    });
-
-    <?php
-    $chartChannelData = [];
-    $chartChannelColors = [];
-    foreach ($channelDefs as $key => [$color, $label]) {
-      $cnt = $channelMap[$key] ?? 0;
-      $chartChannelData[] = ['value' => $cnt, 'name' => $label];
-      $chartChannelColors[] = $color;
-    }
-    ?>
-    const channelData = <?= json_encode($chartChannelData) ?>;
-    const channelColors = <?= json_encode($chartChannelColors) ?>;
-    echarts.init(document.querySelector("#channelChart")).setOption({
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: {
-          type: 'none'
-        }
-      },
-      grid: {
-        left: '2%',
-        right: '12%',
-        top: '4%',
-        bottom: '4%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'value',
-        axisLine: {
-          show: false
-        },
-        axisTick: {
-          show: false
-        },
-        splitLine: {
-          lineStyle: {
-            color: '#eaecf4',
-            type: 'dashed'
-          }
-        },
-        axisLabel: {
-          fontFamily: 'DM Sans',
-          fontSize: 10,
-          color: '#9ca3af'
-        }
-      },
-      yAxis: {
-        type: 'category',
-        data: channelData.map(d => d.name),
-        axisLine: {
-          show: false
-        },
-        axisTick: {
-          show: false
-        },
-        axisLabel: {
-          fontFamily: 'DM Sans',
-          fontSize: 11,
-          color: '#4b5563'
-        }
-      },
-      series: [{
-        type: 'bar',
-        data: channelData.map((d, i) => ({
-          value: d.value,
-          itemStyle: {
-            color: channelColors[i],
-            borderRadius: [0, 6, 6, 0]
-          }
-        })),
-        barMaxWidth: 16,
-        label: {
-          show: true,
-          position: 'right',
-          fontFamily: 'DM Sans',
-          fontSize: 11,
-          fontWeight: 600,
-          color: '#4b5563',
-          formatter: '{c}'
-        }
-      }]
-    });
 
     function refreshActivity() {
       fetch('activity_handler.php?action=recent')
@@ -1487,7 +1004,6 @@ $todayDay = date('l');
           if (el && s.total !== undefined) el.textContent = s.total;
           const qlEl = document.getElementById('qlAppt');
           if (qlEl && s.total !== undefined) qlEl.textContent = s.total + ' today';
-          // Update status breakdown labels
           if (s.Completed !== undefined) {
             const e = document.getElementById('statCompleted');
             if (e) e.textContent = s.Completed || 0;

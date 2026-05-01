@@ -31,9 +31,8 @@ function sanitizeTime(string $val): string
 
 function generateCode($conn, $date): string
 {
-    $prefix = 'APT-' . str_replace('-', '', $date) . '-';
-    $count  = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentCode LIKE '{$prefix}%'")->fetch_row()[0];
-    return $prefix . str_pad((int)$count + 1, 4, '0', STR_PAD_LEFT);
+    $max = (int) $conn->query("SELECT MAX(CAST(SUBSTRING_INDEX(appointmentCode, '-', -1) AS UNSIGNED)) FROM appointments")->fetch_row()[0];
+    return 'APP-' . date('Y') . '-' . str_pad($max + 1, 4, '0', STR_PAD_LEFT);
 }
 
 switch ($action) {
@@ -124,35 +123,6 @@ switch ($action) {
     case 'book':
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
 
-        // Always try to use logged-in user's email to find existing patient
-        $sessionUserId = $_SESSION['authUser']['user_id'] ?? 0;
-        $sessionEmail  = '';
-        if ($sessionUserId) {
-            $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id=? LIMIT 1");
-            $uStmt->bind_param('i', $sessionUserId);
-            $uStmt->execute();
-            $sessionEmail = $uStmt->get_result()->fetch_assoc()['emailAddress'] ?? '';
-        }
-
-        // Override email with session email if not provided
-        if (!empty($sessionEmail)) {
-            $body['email'] = $sessionEmail;
-        }
-
-        // Also check if patient already exists for this user
-        $patientId = (int)($body['patientId'] ?? 0);
-        if (!$patientId && $sessionEmail) {
-            $esc = $conn->real_escape_string($sessionEmail);
-            $existing = $conn->query("SELECT id FROM patients WHERE emailAddress='$esc' AND status!='Inactive' LIMIT 1")->fetch_assoc();
-            if ($existing) {
-                $patientId = (int)$existing['id'];
-                $body['patientId'] = $patientId;
-            }
-        }
-
-    case 'book':
-        $body = json_decode(file_get_contents('php://input'), true) ?? [];
-
         $doctorId        = (int)($body['doctorId']        ?? 0);
         $appointmentDate = sanitizeDate($body['appointmentDate'] ?? '');
         $appointmentTime = sanitizeTime($body['appointmentTime'] ?? '');
@@ -188,13 +158,15 @@ switch ($action) {
 
         $patientId = (int)($body['patientId'] ?? 0);
         if (!$patientId) {
-            $email   = $conn->real_escape_string(trim($body['email']   ?? ''));
-            $contact = $conn->real_escape_string(trim($body['contact'] ?? ''));
+            $email    = $conn->real_escape_string(trim($body['email']   ?? ''));
+            $contact  = $conn->real_escape_string(trim($body['contact'] ?? ''));
+            $fullName = trim($body['patientName'] ?? 'Unknown');
 
             $existing = null;
-            if ($email) $existing = $conn->query("SELECT id FROM patients WHERE emailAddress='$email' AND status!='Inactive' LIMIT 1")->fetch_assoc();
-            if (!$existing && $contact) $existing = $conn->query("SELECT id FROM patients WHERE contactNumber='$contact' AND status!='Inactive' LIMIT 1")->fetch_assoc();
-            if ($existing) {
+            if ($email) $existing = $conn->query("SELECT id, CONCAT(firstName,' ',lastName) AS name FROM patients WHERE emailAddress='$email' AND status!='Inactive' LIMIT 1")->fetch_assoc();
+
+            // Only reuse existing patient if name also matches (same person)
+            if ($existing && strtolower($existing['name']) === strtolower($fullName)) {
                 $patientId = (int)$existing['id'];
             } else {
 
@@ -205,7 +177,8 @@ switch ($action) {
                 $gender    = in_array($body['gender'] ?? '', ['Male', 'Female', 'Other']) ? $body['gender'] : 'Other';
                 $dob       = !empty($body['dateOfBirth']) ? "'" . sanitizeDate($body['dateOfBirth']) . "'" : 'NULL';
                 $count     = $conn->query("SELECT COUNT(*) FROM patients")->fetch_row()[0];
-                $pCode     = 'P-' . date('Ymd') . '-' . str_pad((int)$count + 1, 4, '0', STR_PAD_LEFT);
+                $lastCode = $conn->query("SELECT MAX(CAST(SUBSTRING_INDEX(patientCode, '-', -1) AS UNSIGNED)) FROM patients")->fetch_row()[0];
+                $pCode = 'PAT-' . date('Y') . '-' . str_pad((int)$lastCode + 1, 3, '0', STR_PAD_LEFT);
 
                 $conn->query("
                     INSERT INTO patients (patientCode,firstName,lastName,gender,dateOfBirth,contactNumber,emailAddress,status,patientCondition)
@@ -222,10 +195,11 @@ switch ($action) {
         }
 
         $code = generateCode($conn, $appointmentDate);
+        $sessionUserId = $_SESSION['authUser']['user_id'] ?? 0;
         $conn->query("
-            INSERT INTO appointments (appointmentCode,patientId,doctorId,appointmentDate,appointmentTime,channel,status,remarks)
-            VALUES ('$code',$patientId,$doctorId,'$appointmentDate','$appointmentTime','$channel','Pending','$remarks')
-        ");
+    INSERT INTO appointments (appointmentCode,patientId,doctorId,appointmentDate,appointmentTime,channel,status,remarks,bookedByUserId)
+    VALUES ('$code',$patientId,$doctorId,'$appointmentDate','$appointmentTime','$channel','Pending','$remarks',$sessionUserId)
+");
         $newId = $conn->insert_id;
 
         $patName = $conn->query("SELECT CONCAT(firstName,' ',lastName) FROM patients WHERE id=$patientId")->fetch_row()[0] ?? '';
@@ -288,24 +262,36 @@ switch ($action) {
             $uStmt->get_result()->fetch_assoc()['emailAddress'] ?? ''
         );
 
-        if (!$userEmail) {
-            echo json_encode(['success' => true, 'rows' => []]);
-            break;
-        }
-
         $rows = $conn->query("
         SELECT a.id, a.appointmentCode, a.appointmentDate, a.appointmentTime,
                a.channel, a.status, a.remarks,
+               CONCAT(p.firstName, ' ', p.lastName) AS patientName,
                CONCAT('Dr. ', d.firstName, ' ', d.lastName) AS doctorName,
                d.specialization, d.department
         FROM appointments a
         JOIN patients p ON p.id = a.patientId
         JOIN doctors  d ON d.id = a.doctorId
-        WHERE p.emailAddress = '$userEmail'
+        WHERE a.bookedByUserId = $userId
+           OR p.emailAddress = '$userEmail'
         ORDER BY a.appointmentDate DESC, a.appointmentTime DESC
     ")->fetch_all(MYSQLI_ASSOC);
 
         echo json_encode(['success' => true, 'rows' => $rows]);
+        break;
+
+    case 'get_doctor_schedule':
+        $doctorId = (int)($_GET['doctorId'] ?? 0);
+        if (!$doctorId) {
+            echo json_encode(['success' => false]);
+            break;
+        }
+        $rows = $conn->query("
+        SELECT dayOfWeek, shiftStart, shiftEnd
+        FROM doctorSchedules
+        WHERE doctorId = $doctorId
+        ORDER BY FIELD(dayOfWeek,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')
+    ")->fetch_all(MYSQLI_ASSOC);
+        echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
     default:

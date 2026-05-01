@@ -18,33 +18,70 @@ function logActivity($conn, $type, $desc, $refId = null, $refType = null)
 
 function generateCode($conn, $date = null)
 {
-    $date   = $date ?? date('Y-m-d');
-    $prefix = 'APT-' . str_replace('-', '', $date) . '-';
-    $count  = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentCode LIKE '{$prefix}%'")->fetch_row()[0];
-    return $prefix . str_pad((int)$count + 1, 4, '0', STR_PAD_LEFT);
+    $max = (int) $conn->query("SELECT MAX(id) FROM appointments")->fetch_row()[0];
+    return 'APP-' . date('Y') . '-' . str_pad($max + 1, 4, '0', STR_PAD_LEFT);
 }
-
 switch ($action) {
 
     case 'get_linked_record':
         $apptId = (int)($_GET['apptId'] ?? 0);
+
+        // First try: directly linked by appointmentId
         $row = $conn->query("
-        SELECT m.id,
-               m.recordCode,
-               m.recordType,
-               m.diagnosis,
-               m.icdCode,
-               m.status,
-               m.createdAt
+        SELECT m.id, m.recordCode, m.recordType, m.diagnosis,
+               m.icdCode, m.status, m.createdAt
         FROM medicalRecords m
         WHERE m.appointmentId = $apptId
         LIMIT 1
     ")->fetch_assoc();
 
+        // Fallback: find by patientId + date match, or just latest record for that patient
+        if (!$row) {
+            $row = $conn->query("
+            SELECT m.id, m.recordCode, m.recordType, m.diagnosis,
+                   m.icdCode, m.status, m.createdAt
+            FROM medicalRecords m
+            JOIN appointments a ON a.patientId = m.patientId
+            WHERE a.id = $apptId
+            ORDER BY ABS(DATEDIFF(DATE(m.createdAt), a.appointmentDate)) ASC, m.createdAt DESC
+            LIMIT 1
+        ")->fetch_assoc();
+        }
+
         echo json_encode([
             'success' => true,
             'data'    => $row ?: null
         ]);
+        break;
+
+    case 'get_followups':
+        $rows = $conn->query("
+        SELECT 
+            mr.id AS recordId,
+            mr.recordCode,
+            mr.followUpDate,
+            mr.diagnosis,
+            CONCAT(p.firstName,' ',p.lastName) AS patientName,
+            p.id AS patientId,
+            p.patientCode,
+            CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
+            d.id AS doctorId
+        FROM medicalRecords mr
+        JOIN patients p ON p.id = mr.patientId
+        JOIN doctors d ON d.id = mr.doctorId
+        WHERE mr.followUpDate IS NOT NULL
+          AND mr.followUpDate >= CURDATE()
+          AND NOT EXISTS (
+              SELECT 1 FROM appointments a
+              WHERE a.patientId = mr.patientId
+                AND a.appointmentDate = mr.followUpDate
+                AND a.status NOT IN ('Cancelled')
+          )
+        ORDER BY mr.followUpDate ASC
+        LIMIT 10
+    ")->fetch_all(MYSQLI_ASSOC);
+
+        echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
     case 'list':
@@ -70,20 +107,49 @@ switch ($action) {
         $total = $countRes ? (int) $countRes->fetch_row()[0] : 0;
 
         $rows = $conn->query("
-            SELECT a.id, a.appointmentCode, a.appointmentDate, a.appointmentTime,
-                   a.channel, a.status, a.remarks,
-                   a.patientId, a.doctorId,
-                   CONCAT(COALESCE(p.firstName,''),' ',COALESCE(p.lastName,'')) AS patientName,
-                   p.photoUrl AS patPhoto,
-                   CONCAT('Dr. ',COALESCE(d.firstName,''),' ',COALESCE(d.lastName,'')) AS doctorName,
-                   d.specialization
-            FROM appointments a
-            LEFT JOIN patients p ON p.id = a.patientId
-            LEFT JOIN doctors  d ON d.id = a.doctorId
-            $where
-            ORDER BY a.appointmentDate DESC, a.appointmentTime ASC
-            LIMIT $limit OFFSET $offset
-        ")->fetch_all(MYSQLI_ASSOC);
+    SELECT 
+        a.id, a.appointmentCode, a.appointmentDate, a.appointmentTime,
+        a.channel, a.status, a.remarks,
+        a.patientId, a.doctorId,
+        CONCAT(COALESCE(p.firstName,''),' ',COALESCE(p.lastName,'')) AS patientName,
+        p.photoUrl AS patPhoto,
+        CONCAT('Dr. ',COALESCE(d.firstName,''),' ',COALESCE(d.lastName,'')) AS doctorName,
+        d.specialization,
+        NULL AS followUpDate,
+NULL AS followUpCode,
+0 AS isFollowUp
+
+    FROM appointments a
+    LEFT JOIN patients p ON p.id = a.patientId
+    LEFT JOIN doctors  d ON d.id = a.doctorId
+    $where
+
+    UNION ALL
+
+    SELECT
+        a.id, a.appointmentCode, f.followUpDate AS appointmentDate, a.appointmentTime,
+        'Follow-up' AS channel, f.status, f.reason AS remarks,
+        a.patientId, a.doctorId,
+        CONCAT(COALESCE(p.firstName,''),' ',COALESCE(p.lastName,'')) AS patientName,
+        p.photoUrl AS patPhoto,
+        CONCAT('Dr. ',COALESCE(d.firstName,''),' ',COALESCE(d.lastName,'')) AS doctorName,
+        d.specialization,
+        f.followUpDate AS followUpDate,
+        f.followUpCode AS followUpCode,
+        1 AS isFollowUp
+
+    FROM followups f
+    JOIN appointments a ON a.id = f.appointmentId
+    LEFT JOIN patients p ON p.id = f.patientId
+    LEFT JOIN doctors  d ON d.id = a.doctorId
+    $where
+
+    ORDER BY 
+        CASE WHEN appointmentDate = CURDATE() AND status = 'Pending' THEN 0 ELSE 1 END ASC,
+        appointmentDate DESC,
+        appointmentTime ASC
+    LIMIT $limit OFFSET $offset
+")->fetch_all(MYSQLI_ASSOC);
 
         $statWhere = $date ? "WHERE appointmentDate = '$date'" : "WHERE 1=1";
         $statRes   = $conn->query("
@@ -112,15 +178,19 @@ switch ($action) {
     case 'get':
         $id  = (int) ($_GET['id'] ?? 0);
         $row = $conn->query("
-            SELECT a.*,
-                   CONCAT(COALESCE(p.firstName,''),' ',COALESCE(p.lastName,'')) AS patientName,
-                   CONCAT('Dr. ',COALESCE(d.firstName,''),' ',COALESCE(d.lastName,'')) AS doctorName,
-                   d.specialization
-            FROM appointments a
-            LEFT JOIN patients p ON p.id = a.patientId
-            LEFT JOIN doctors  d ON d.id = a.doctorId
-            WHERE a.id = $id
-        ")->fetch_assoc();
+    SELECT a.*,
+           CONCAT(COALESCE(p.firstName,''),' ',COALESCE(p.lastName,'')) AS patientName,
+           CONCAT('Dr. ',COALESCE(d.firstName,''),' ',COALESCE(d.lastName,'')) AS doctorName,
+           d.specialization,
+           (SELECT mr.followUpDate FROM medicalRecords mr
+ WHERE mr.patientId = a.patientId
+ AND mr.appointmentId = a.id
+ ORDER BY mr.createdAt DESC LIMIT 1) AS followUpDate
+    FROM appointments a
+    LEFT JOIN patients p ON p.id = a.patientId
+    LEFT JOIN doctors  d ON d.id = a.doctorId
+    WHERE a.id = $id
+")->fetch_assoc();
 
         echo json_encode(['success' => !!$row, 'data' => $row]);
         break;
@@ -145,8 +215,8 @@ switch ($action) {
             $email     = $conn->real_escape_string(trim($body['patientEmail']   ?? ''));
             $gender    = in_array($body['patientGender'] ?? '', ['Male', 'Female', 'Other'])
                 ? $body['patientGender'] : 'Other';
-            $count     = $conn->query("SELECT COUNT(*) FROM patients")->fetch_row()[0];
-            $pCode     = 'P-' . date('Ymd') . '-' . str_pad((int)$count + 1, 4, '0', STR_PAD_LEFT);
+            $max       = (int) $conn->query("SELECT MAX(id) FROM patients")->fetch_row()[0];
+            $pCode     = 'PAT-' . date('Y') . '-' . str_pad($max + 1, 3, '0', STR_PAD_LEFT);
             $conn->query("
                 INSERT INTO patients (patientCode, firstName, lastName, gender, contactNumber, emailAddress, status, patientCondition)
                 VALUES (
@@ -269,6 +339,21 @@ switch ($action) {
             WHERE status != 'Inactive'
               AND (firstName LIKE '$q' OR lastName LIKE '$q' OR patientCode LIKE '$q')
             ORDER BY firstName LIMIT 100
+        ")->fetch_all(MYSQLI_ASSOC);
+        echo json_encode(['success' => true, 'data' => $rows]);
+        break;
+
+    case 'get_doctor_schedule':
+        $doctorId = (int)($_GET['doctorId'] ?? 0);
+        if (!$doctorId) {
+            echo json_encode(['success' => false]);
+            break;
+        }
+        $rows = $conn->query("
+            SELECT dayOfWeek, shiftStart, shiftEnd
+            FROM doctorSchedules
+            WHERE doctorId = $doctorId
+            ORDER BY FIELD(dayOfWeek,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')
         ")->fetch_all(MYSQLI_ASSOC);
         echo json_encode(['success' => true, 'data' => $rows]);
         break;

@@ -517,16 +517,6 @@ require_once('../../app/config/config.php');
 
             <div class="form-divider"></div>
 
-            <div class="section-label">Medical Information</div>
-            <div class="form-grid">
-                <div class="field">
-                    <label>Follow-up Date</label>
-                    <input type="date" id="followUpDate">
-                </div>
-            </div>
-
-            <div class="form-divider"></div>
-
             <div class="section-label">Additional Notes</div>
             <div class="form-grid cols-1">
                 <div class="field">
@@ -611,7 +601,6 @@ require_once('../../app/config/config.php');
         fd.append('address', document.getElementById('address').value.trim());
         fd.append('contact', document.getElementById('contact').value.trim());
         fd.append('email', document.getElementById('email').value.trim());
-        fd.append('follow_up_date', document.getElementById('followUpDate').value);
         fd.append('notes', document.getElementById('notes').value.trim());
         fd.append('status', document.querySelector('input[name="status"]:checked')?.value || 'Active');
         fd.append('condition', document.querySelector('input[name="condition"]:checked')?.value || 'Stable');

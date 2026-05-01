@@ -22,27 +22,28 @@ if ($userEmail) {
     $stmt->execute();
     $patientRow = $stmt->get_result()->fetch_assoc();
 }
+
 $patientId = $patientRow['id'] ?? 0;
 
 $today = date('Y-m-d');
-if ($patientId) {
-    $statTotal     = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId")->fetch_row()[0];
-    $statUpcoming  = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND appointmentDate>='$today' AND status IN ('Pending','In Progress')")->fetch_row()[0];
-    $statCompleted = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND status='Completed'")->fetch_row()[0];
-    $statCancelled = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND status='Cancelled'")->fetch_row()[0];
 
-    $appointments = $conn->query("
-        SELECT a.*, CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
-               d.specialization, d.department
-        FROM appointments a
-        JOIN doctors d ON d.id = a.doctorId
-        WHERE a.patientId = $patientId
-        ORDER BY a.appointmentDate DESC, a.appointmentTime DESC
-    ")->fetch_all(MYSQLI_ASSOC);
-} else {
-    $statTotal = $statUpcoming = $statCompleted = $statCancelled = 0;
-    $appointments = [];
-}
+// Fetch ALL appointments booked by this user (regardless of which patient name was used)
+$statTotal     = $conn->query("SELECT COUNT(*) FROM appointments WHERE bookedByUserId=$userId")->fetch_row()[0];
+$statUpcoming  = $conn->query("SELECT COUNT(*) FROM appointments WHERE bookedByUserId=$userId AND appointmentDate>='$today' AND status IN ('Pending','In Progress')")->fetch_row()[0];
+$statCompleted = $conn->query("SELECT COUNT(*) FROM appointments WHERE bookedByUserId=$userId AND status='Completed'")->fetch_row()[0];
+$statCancelled = $conn->query("SELECT COUNT(*) FROM appointments WHERE bookedByUserId=$userId AND status='Cancelled'")->fetch_row()[0];
+
+$appointments = $conn->query("
+    SELECT a.*,
+           CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
+           d.specialization, d.department,
+           CONCAT(p.firstName,' ',p.lastName) AS patientName
+    FROM appointments a
+    JOIN doctors d ON d.id = a.doctorId
+    JOIN patients p ON p.id = a.patientId
+    WHERE a.bookedByUserId = $userId
+    ORDER BY a.appointmentDate DESC, a.appointmentTime DESC
+")->fetch_all(MYSQLI_ASSOC);
 
 $filterStatus = $_GET['status'] ?? '';
 ?>
@@ -392,6 +393,34 @@ $filterStatus = $_GET['status'] ?? '';
         font-family: 'DM Sans', sans-serif;
     }
 
+    .cancel-btn {
+        background: none !important;
+        border: 1px solid var(--border) !important;
+        color: var(--text-muted) !important;
+        display: inline-flex;
+        align-items: center;
+        gap: 0;
+        transition: all 0.15s ease;
+    }
+
+    .cancel-btn i {
+        color: var(--text-muted) !important;
+    }
+
+    .cancel-btn:hover {
+        background: var(--red-light) !important;
+        border-color: #fca5a5 !important;
+        color: var(--red) !important;
+    }
+
+    .cancel-btn:hover i {
+        color: var(--red) !important;
+    }
+
+    .cancel-btn:hover i {
+        color: #b91c1c !important;
+    }
+
     .btn-act:hover {
         background: var(--blue-50);
         color: var(--blue-600);
@@ -519,6 +548,7 @@ $filterStatus = $_GET['status'] ?? '';
             opacity: 1;
             transform: translateY(0);
         }
+
     }
 </style>
 
@@ -622,7 +652,7 @@ $filterStatus = $_GET['status'] ?? '';
                                 data-status="<?= $appt['status'] ?>"
                                 data-upcoming="<?= $isUpcoming ? '1' : '0' ?>">
                                 <td><span class="appt-code"><?= htmlspecialchars($appt['appointmentCode']) ?></span></td>
-                                <td style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= htmlspecialchars($patientRow['firstName'] . ' ' . $patientRow['lastName']) ?></td>
+                                <td style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= htmlspecialchars($appt['patientName']) ?></td>
                                 <td>
                                     <div class="doc-name"><?= htmlspecialchars($appt['doctorName']) ?></div>
                                     <div class="doc-spec"><?= htmlspecialchars($appt['specialization']) ?></div>
@@ -644,11 +674,10 @@ $filterStatus = $_GET['status'] ?? '';
         '<?= htmlspecialchars($appt['channel']) ?>'
     )"><i class="bi bi-eye"></i></button>
 
-                                    <?php if ($isUpcoming): ?>
-                                        <button class="btn-act"
-                                            style="color:var(--red);border-color:#fca5a5;"
-                                            onclick="doCancel(<?= $appt['id'] ?>, '<?= $appt['appointmentCode'] ?>')">
-                                            <i class="bi bi-x-lg"></i>
+                                    <?php if (true): ?>
+                                        <button class="btn-act cancel-btn"
+                                            onclick="doCancel(<?= $appt['id'] ?>, '<?= $appt['appointmentCode'] ?>')" title="Cancel">
+                                            <i class="bi bi-x-circle"></i>
                                         </button>
                                     <?php endif; ?>
                                 </td>
@@ -660,6 +689,29 @@ $filterStatus = $_GET['status'] ?? '';
         </div>
 
         <div style="margin-top:.75rem;font-size:.75rem;color:var(--text-muted)" id="tableInfo"></div>
+    </div>
+
+    <div class="modal fade" id="cancelConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content" style="border-radius:16px;border:1px solid var(--border);">
+                <div class="modal-body" style="padding:1.75rem 1.5rem;text-align:center;">
+                    <div style="width:52px;height:52px;border-radius:50%;background:var(--red-light);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;">
+                        <i class="bi bi-x-circle-fill" style="font-size:1.4rem;color:var(--red);"></i>
+                    </div>
+                    <div style="font-weight:700;font-size:1rem;color:var(--text-dark);margin-bottom:.4rem;">Cancel Appointment?</div>
+                    <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:1.5rem;" id="cancelConfirmMsg">
+                        This action cannot be undone.
+                    </div>
+                    <div style="display:flex;gap:8px;justify-content:center;">
+                        <button class="btn-modal-close" data-bs-dismiss="modal">Keep It</button>
+                        <button id="cancelConfirmBtn"
+                            style="background:var(--red);color:#fff;border:none;border-radius:var(--radius-sm);padding:.45rem 1.2rem;font-size:.84rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:6px;">
+                            <i class="bi bi-x-lg"></i> Yes, Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
 </section>
@@ -780,31 +832,44 @@ $filterStatus = $_GET['status'] ?? '';
             total ? `Showing ${shown} of ${total} appointments` : '';
     }
 
+    let _cancelId = null,
+        _cancelCode = null;
+
     function doCancel(id, code) {
-        if (!confirm(`Cancel appointment ${code}? This cannot be undone.`)) return;
-        const fd = new FormData();
-        fd.append('id', id);
-        fetch('../../app/controllers/bookapp_handler.php?action=cancel_appointment', {
-                method: 'POST',
-                body: fd
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) {
-                    document.getElementById('successMsg').textContent = `Appointment ${code} cancelled successfully.`;
-                    document.getElementById('successAlert').style.display = 'flex';
-                    setTimeout(() => location.reload(), 1500);
-                } else {
-                    document.getElementById('errorMsg').textContent = res.message || 'Could not cancel. Please try again.';
-                    document.getElementById('errorAlert').style.display = 'flex';
-                    setTimeout(() => document.getElementById('errorAlert').style.display = 'none', 4000);
-                }
-            })
-            .catch(() => {
-                document.getElementById('errorMsg').textContent = 'Network error. Please try again.';
-                document.getElementById('errorAlert').style.display = 'flex';
-            });
+        _cancelId = id;
+        _cancelCode = code;
+        document.getElementById('cancelConfirmMsg').textContent =
+            `Appointment ${code} will be marked as cancelled. This cannot be undone.`;
+        new bootstrap.Modal(document.getElementById('cancelConfirmModal')).show();
     }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('cancelConfirmBtn').addEventListener('click', () => {
+            const fd = new FormData();
+            fd.append('id', _cancelId);
+            bootstrap.Modal.getInstance(document.getElementById('cancelConfirmModal')).hide();
+            fetch('../../app/controllers/bookapp_handler.php?action=cancel_appointment', {
+                    method: 'POST',
+                    body: fd
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        document.getElementById('successMsg').textContent = `Appointment ${_cancelCode} cancelled successfully.`;
+                        document.getElementById('successAlert').style.display = 'flex';
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        document.getElementById('errorMsg').textContent = res.message || 'Could not cancel. Please try again.';
+                        document.getElementById('errorAlert').style.display = 'flex';
+                        setTimeout(() => document.getElementById('errorAlert').style.display = 'none', 4000);
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('errorMsg').textContent = 'Network error. Please try again.';
+                    document.getElementById('errorAlert').style.display = 'flex';
+                });
+        });
+    });
 </script>
 
 <?php include('./includes/footer.php'); ?>

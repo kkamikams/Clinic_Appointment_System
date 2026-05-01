@@ -930,6 +930,10 @@ require_once('../../app/config/config.php');
                         <label class="form-label">Notes</label>
                         <textarea class="form-control" id="fNotes" rows="2" placeholder="Additional notes…"></textarea>
                     </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Follow-Up Date <small style="text-transform:none;letter-spacing:0;font-weight:400;">(optional)</small></label>
+                        <input type="date" class="form-control" id="fFollowUpDate">
+                    </div>
                     <div class="col-md-4">
                         <label class="form-label">Status</label>
                         <select class="form-select" id="fStatus">
@@ -1013,7 +1017,57 @@ require_once('../../app/config/config.php');
             document.querySelectorAll('.live-results.open').forEach(el => el.classList.remove('open'));
     });
 
-    document.addEventListener('DOMContentLoaded', () => loadRecords(1));
+    document.addEventListener('DOMContentLoaded', () => {
+        loadRecords(1);
+
+        const params = new URLSearchParams(window.location.search);
+        const apptId = params.get('apptId');
+        const patientId = params.get('patientId');
+
+        if (apptId) {
+            openAddModal();
+
+            // Pre-fill appointment
+            fetch(`${HANDLER}?action=get_appointment_details&apptId=${apptId}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success || !res.data) return;
+                    const appt = res.data;
+
+                    // Set appointment pill
+                    document.getElementById('fAppointment').value = appt.id;
+                    document.getElementById('apptPillName').textContent = appt.appointmentCode;
+                    document.getElementById('apptPillSub').textContent = appt.doctorName + ' · ' + fmtDate(appt.appointmentDate);
+                    document.getElementById('apptPill').classList.add('show');
+
+                    // Set doctor pill
+                    document.getElementById('fDoctor').value = appt.doctorId;
+                    document.getElementById('doctorPillName').textContent = appt.doctorName;
+                    document.getElementById('doctorPillSub').textContent = appt.specialization || '';
+                    document.getElementById('doctorPill').classList.add('show');
+
+                    // Pre-fill diagnosis from remarks
+                    if (appt.remarks) {
+                        document.getElementById('fDiagnosis').value = appt.remarks;
+                    }
+                });
+
+            // Pre-fill patient
+            if (patientId) {
+                fetch(`${HANDLER}?action=get_patients&q=`)
+                    .then(r => r.json())
+                    .then(res => {
+                        if (!res.success) return;
+                        const patient = res.data.find(p => p.id == patientId);
+                        if (!patient) return;
+                        document.getElementById('fPatient').value = patient.id;
+                        document.getElementById('patientPillName').textContent = patient.name;
+                        document.getElementById('patientPillSub').textContent = patient.patientCode;
+                        document.getElementById('patientPill').classList.add('show');
+                    });
+            }
+        }
+    });
 
 
     const fieldTimers = {};
@@ -1181,24 +1235,31 @@ require_once('../../app/config/config.php');
     function selectAppt(id, name, sub) {
         selectField('appt', id, name, sub);
 
-        // Auto-fill diagnosis from appointment remarks
         fetch(`${HANDLER}?action=get_appointment_details&apptId=${id}`)
             .then(r => r.json())
             .then(res => {
                 if (!res.success || !res.data) return;
                 const appt = res.data;
 
-                // Fill diagnosis if empty
+                // Auto-fill diagnosis from remarks
                 if (!document.getElementById('fDiagnosis').value && appt.remarks) {
                     document.getElementById('fDiagnosis').value = appt.remarks;
                 }
 
-                // Auto-fill doctor from appointment if doctor field is empty
-                if (!document.getElementById('fDoctor').value && appt.doctorId) {
+                // Auto-fill doctor
+                if (appt.doctorId) {
                     document.getElementById('fDoctor').value = appt.doctorId;
                     document.getElementById('doctorPillName').textContent = appt.doctorName;
                     document.getElementById('doctorPillSub').textContent = appt.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
+                }
+
+                // Auto-fill patient
+                if (appt.patientId) {
+                    document.getElementById('fPatient').value = appt.patientId;
+                    document.getElementById('patientPillName').textContent = appt.patientName;
+                    document.getElementById('patientPillSub').textContent = appt.patientCode || '';
+                    document.getElementById('patientPill').classList.add('show');
                 }
             });
     }
@@ -1340,6 +1401,7 @@ require_once('../../app/config/config.php');
         document.getElementById('fNotes').value = '';
         document.getElementById('fStatus').value = 'Draft';
         document.getElementById('editId').value = '';
+        document.getElementById('fFollowUpDate').value = '';
     }
 
     function openAddModal() {
@@ -1364,7 +1426,7 @@ require_once('../../app/config/config.php');
                 document.getElementById('fIcdCode').value = d.icdCode || '';
                 document.getElementById('fPrescription').value = d.prescription || '';
                 document.getElementById('fNotes').value = d.notes || '';
-                document.getElementById('fStatus').value = d.status;
+                document.getElementById('fFollowUpDate').value = d.followUpDate || '';
 
                 if (d.patientId) {
                     document.getElementById('fPatient').value = d.patientId;
@@ -1404,6 +1466,7 @@ require_once('../../app/config/config.php');
             prescription: document.getElementById('fPrescription').value,
             notes: document.getElementById('fNotes').value,
             status: document.getElementById('fStatus').value,
+            followUpDate: document.getElementById('fFollowUpDate').value || null,
         };
 
         if (!payload.patientId || !payload.doctorId) {
@@ -1452,13 +1515,14 @@ require_once('../../app/config/config.php');
                     <div class="detail-row"><span class="detail-label">Prescription</span>   <span class="detail-value" style="white-space:pre-line">${d.prescription||'—'}</span></div>
                     <div class="detail-row"><span class="detail-label">Notes</span>          <span class="detail-value" style="white-space:pre-line">${d.notes||'—'}</span></div>
                     <div class="detail-row"><span class="detail-label">Status</span>
-                        <span class="detail-value">
-                            <span style="background:${cfg.bg};color:${cfg.color};font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;">
-                                <span style="width:7px;height:7px;border-radius:50%;background:${cfg.dot};display:inline-block;"></span>${d.status}
-                            </span>
-                        </span>
-                    </div>
-                    <div class="detail-row"><span class="detail-label">Created</span>        <span class="detail-value">${fmtDate(d.createdAt?.slice(0,10))}</span></div>
+    <span class="detail-value">
+        <span style="background:${cfg.bg};color:${cfg.color};font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;">
+            <span style="width:7px;height:7px;border-radius:50%;background:${cfg.dot};display:inline-block;"></span>${d.status}
+        </span>
+    </span>
+</div>
+<div class="detail-row"><span class="detail-label">Follow-Up Date</span><span class="detail-value">${d.followUpDate ? fmtDate(d.followUpDate) : '—'}</span></div>
+<div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">${fmtDate(d.createdAt?.slice(0,10))}</span></div>
                 `;
                 const modal = new bootstrap.Modal(document.getElementById('viewModal'));
                 modal.show();

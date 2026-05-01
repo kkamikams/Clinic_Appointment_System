@@ -482,6 +482,12 @@ require_once('../../app/config/config.php');
         border: 1px solid var(--blue-100);
     }
 
+    .channel-chip.followup {
+        background: var(--amber-light);
+        color: var(--amber-dark);
+        border: 1px solid #fde68a;
+    }
+
     .action-btns {
         display: flex;
         gap: 5px;
@@ -765,11 +771,11 @@ require_once('../../app/config/config.php');
                 <input type="hidden" id="editId">
                 <div class="row g-3">
 
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <label class="form-label">Patient</label>
                         <div id="patientSection">
 
-                            <div style="display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px;">
+                            <div id="patientTabSwitcher" style="display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px;">
                                 <button type="button" id="tabExisting" onclick="switchPatientTab('existing')"
                                     style="flex:1;padding:.42rem .75rem;font-size:.78rem;font-weight:600;font-family:'DM Sans',sans-serif;border:none;cursor:pointer;background:var(--blue-600);color:#fff;transition:all .15s;">
                                     <i class="bi bi-search"></i> Search Existing
@@ -807,40 +813,75 @@ require_once('../../app/config/config.php');
                             </div>
 
                             <div id="containerNew" style="display:none;flex-direction:column;gap:6px;">
-                                <input type="text" class="form-control" id="fNewPatientName" placeholder="Full name *">
-                                <label class="form-label" style="margin-bottom:0;margin-top:4px;">Date of Birth</label>
-                                <input type="date" class="form-control" id="fNewPatientDOB">
-                                <input type="tel" class="form-control" id="fNewPatientContact" placeholder="Contact number">
-                                <input type="email" class="form-control" id="fNewPatientEmail" placeholder="Email address">
-                                <select class="form-select" id="fNewPatientGender">
-                                    <option value="">Select gender</option>
-                                    <option>Male</option>
-                                    <option>Female</option>
-                                    <option>Other</option>
-                                </select>
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+                                    <div>
+                                        <label class="form-label">First Name <span style="color:#ef4444;">*</span></label>
+                                        <input type="text" class="form-control" id="fNewPatientFirstName" placeholder="e.g. Juan">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Middle Name <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(Optional)</span></label>
+                                        <input type="text" class="form-control" id="fNewPatientMiddleName" placeholder="e.g. Santos">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Last Name <span style="color:#ef4444;">*</span></label>
+                                        <input type="text" class="form-control" id="fNewPatientLastName" placeholder="e.g. Dela Cruz">
+                                    </div>
+                                </div>
+                                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+                                    <div>
+                                        <label class="form-label">Date of Birth</label>
+                                        <input type="date" class="form-control" id="fNewPatientDOB">
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Gender</label>
+                                        <select class="form-select" id="fNewPatientGender">
+                                            <option value="">Select gender</option>
+                                            <option>Male</option>
+                                            <option>Female</option>
+                                            <option>Other</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="form-label">Contact Number</label>
+                                        <input type="tel" class="form-control" id="fNewPatientContact" placeholder="e.g. 09171234567">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Email Address</label>
+                                    <input type="email" class="form-control" id="fNewPatientEmail" placeholder="e.g. juan@gmail.com">
+                                </div>
                             </div>
 
                         </div>
                     </div>
 
-                    <div class="col-md-6">
+                    <div class="col-md-4" id="doctorCol">
                         <label class="form-label">Doctor</label>
-                        <select class="form-select" id="fDoctor" required onchange="loadAdminSlots()">
+                        <select class="form-select" id="fDoctor" required onchange="loadAdminSlots(); loadModalDoctorSchedule()">
                             <option value="">Select doctor…</option>
                         </select>
+                        <div id="modalDoctorScheduleBox" style="display:none;margin-top:8px;background:var(--blue-50);border:1px solid var(--blue-100);border-radius:var(--radius-sm);padding:.65rem .85rem;">
+                            <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--blue-600);margin-bottom:.5rem;display:flex;align-items:center;gap:5px;">
+                                <i class="bi bi-clock"></i> Available Schedule
+                            </div>
+                            <div id="modalDoctorScheduleList" style="display:flex;flex-direction:column;gap:4px;"></div>
+                        </div>
                     </div>
+
                     <div class="col-md-4">
                         <label class="form-label">Date</label>
-                        <input type="date" class="form-control" id="fDate" required onchange="loadAdminSlots()">
+                        <input type="date" class="form-control" id="fDate" required onchange="loadAdminSlots()" style="width:100%;">
                     </div>
-                    <div class="col-md-4">
+
+                    <div class="col-md-6">
                         <label class="form-label">Time</label>
                         <input type="hidden" id="fTime">
                         <div id="adminSlotsContainer">
                             <div style="font-size:.78rem;color:var(--text-muted);">Select a doctor and date first.</div>
                         </div>
                     </div>
-                    <div class="col-md-4">
+
+                    <div class="col-md-3">
                         <label class="form-label">Channel</label>
                         <select class="form-select" id="fChannel">
                             <option>Walk-in</option>
@@ -849,7 +890,8 @@ require_once('../../app/config/config.php');
                             <option>Referral</option>
                         </select>
                     </div>
-                    <div class="col-md-4">
+
+                    <div class="col-md-3">
                         <label class="form-label">Status</label>
                         <select class="form-select" id="fStatus">
                             <option>Pending</option>
@@ -858,10 +900,12 @@ require_once('../../app/config/config.php');
                             <option>Cancelled</option>
                         </select>
                     </div>
-                    <div class="col-12">
+
+                    <div class="col-md-6">
                         <label class="form-label">Remarks</label>
                         <textarea class="form-control" id="fRemarks" rows="2" placeholder="Optional notes…"></textarea>
                     </div>
+
                 </div>
             </div>
             <div class="modal-footer">
@@ -1074,18 +1118,6 @@ require_once('../../app/config/config.php');
             });
     }
 
-    function switchPatientTab(tab) {
-        const isExisting = tab === 'existing';
-        document.getElementById('tabExisting').style.background = isExisting ? 'var(--blue-600)' : 'var(--surface)';
-        document.getElementById('tabExisting').style.color = isExisting ? '#fff' : 'var(--text-body)';
-        document.getElementById('tabNew').style.background = isExisting ? 'var(--surface)' : 'var(--blue-600)';
-        document.getElementById('tabNew').style.color = isExisting ? 'var(--text-body)' : '#fff';
-        document.getElementById('containerExisting').style.display = isExisting ? 'flex' : 'none';
-        document.getElementById('containerNew').style.display = isExisting ? 'none' : 'flex';
-        if (isExisting) clearNewPatientFields();
-        else clearSelectedPatient();
-    }
-
     let patientSearchTimer = null;
 
     function debouncePatientSearch() {
@@ -1144,7 +1176,9 @@ require_once('../../app/config/config.php');
     }
 
     function clearNewPatientFields() {
-        ['fNewPatientName', 'fNewPatientDOB', 'fNewPatientContact', 'fNewPatientEmail'].forEach(id => {
+        ['fNewPatientFirstName', 'fNewPatientMiddleName', 'fNewPatientLastName',
+            'fNewPatientDOB', 'fNewPatientContact', 'fNewPatientEmail'
+        ].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.value = '';
         });
@@ -1233,20 +1267,23 @@ require_once('../../app/config/config.php');
                 `<img src="${r.patPhoto}" alt="">` :
                 initials(r.patientName || '??');
             return `<tr>
-                <td><a href="#" class="appt-id">${r.appointmentCode}</a></td>
+               <td>
+    <a href="#" class="appt-id">${r.appointmentCode}</a>
+    ${r.followUpCode ? `<div style="font-size:.65rem;font-weight:600;color:var(--amber-dark);margin-top:2px;">${r.followUpCode}</div>` : ''}
+</td>
                 <td><div class="pat-cell">
                     <div class="pat-avatar" style="background:${bg};color:${fg}">${avatarHtml}</div>
-                    <span class="pat-name">${r.patientName || '—'}</span>
+<span class="pat-name">${r.patientName || '—'}</span>
                 </div></td>
                 <td>${r.doctorName || '—'}</td>
                 <td>${r.specialization || '—'}</td>
                 <td>${fmtDate(r.appointmentDate)}</td>
                 <td><div class="time-cell"><i class="bi bi-clock"></i>${fmtTime(r.appointmentTime)}</div></td>
-                <td><span class="channel-chip">${r.channel}</span></td>
+                <td><span class="channel-chip ${r.followUpDate ? 'followup' : ''}">${r.followUpDate ? 'Follow-up' : r.channel}</span></td>
                 <td>${statusDropdown(r.id, r.status)}</td>
                 <td><div class="action-btns">
-    <button class="btn-act" title="View"   onclick="viewAppt(${r.id})"><i class="bi bi-eye"></i></button>
-    <button class="btn-act" title="Edit"   onclick="editAppt(${r.id})"><i class="bi bi-pencil"></i></button>
+    <button class="btn-act" title="Edit" onclick="editAppt(${r.id})"><i class="bi bi-pencil"></i></button>
+    <button class="btn-act" title="View" onclick="viewAppt(${r.id})"><i class="bi bi-eye"></i></button>
 </div></td>
             </tr>`;
         }).join('');
@@ -1304,8 +1341,11 @@ require_once('../../app/config/config.php');
         document.getElementById('fChannel').value = 'Walk-in';
         document.getElementById('fStatus').value = 'Pending';
         document.getElementById('fRemarks').value = '';
+        document.getElementById('modalDoctorScheduleBox').style.display = 'none';
+        document.getElementById('modalDoctorScheduleList').innerHTML = '';
         document.getElementById('adminSlotsContainer').innerHTML =
             '<div style="font-size:.78rem;color:var(--text-muted);">Select a doctor and date first.</div>';
+        document.getElementById('patientTabSwitcher').style.display = 'flex';
         switchPatientTab('existing');
         clearSelectedPatient();
         clearNewPatientFields();
@@ -1316,7 +1356,7 @@ require_once('../../app/config/config.php');
         fetch(`${HANDLER}?action=get&id=${id}`)
             .then(r => r.json())
             .then(res => {
-                if (!res.success) return alert('Could not load appointment.');
+                if (!res.success) return showToast('Could not load appointment.', 'error');
                 const d = res.data;
                 document.getElementById('apptModalTitle').textContent = 'Edit Appointment';
                 document.getElementById('saveBtnLabel').textContent = 'Update Appointment';
@@ -1328,6 +1368,7 @@ require_once('../../app/config/config.php');
                 document.getElementById('fRemarks').value = d.remarks || '';
 
                 switchPatientTab('existing');
+                document.getElementById('patientTabSwitcher').style.display = 'none'; // hide tabs when editing
                 if (d.patientId) {
                     document.getElementById('fPatient').value = d.patientId;
                     document.getElementById('selPatName').textContent = d.patientName || '—';
@@ -1335,6 +1376,7 @@ require_once('../../app/config/config.php');
                     document.getElementById('selectedPatientCard').style.display = 'block';
                 }
 
+                loadModalDoctorSchedule();
                 loadAdminSlots();
                 setTimeout(() => {
                     const existing = d.appointmentTime.slice(0, 5);
@@ -1350,14 +1392,17 @@ require_once('../../app/config/config.php');
     function saveAppointment() {
         const id = document.getElementById('editId').value;
         const isNew = document.getElementById('containerNew').style.display !== 'none';
-        const newName = document.getElementById('fNewPatientName')?.value.trim();
+        const newFirstName = document.getElementById('fNewPatientFirstName')?.value.trim();
+        const newMiddleName = document.getElementById('fNewPatientMiddleName')?.value.trim();
+        const newLastName = document.getElementById('fNewPatientLastName')?.value.trim();
+        const newName = [newFirstName, newMiddleName, newLastName].filter(Boolean).join(' ');
 
-        if (isNew && !newName) {
-            alert('Please enter the new patient name.');
+        if (isNew && (!newFirstName || !newLastName)) {
+            showToast('Please fill in all required fields.', 'error');
             return;
         }
         if (!isNew && !document.getElementById('fPatient').value) {
-            alert('Please search and select a patient.');
+            showToast('Please search and select a patient.', 'error');
             return;
         }
 
@@ -1378,10 +1423,9 @@ require_once('../../app/config/config.php');
         };
 
         if (!payload.doctorId || !payload.appointmentDate || !payload.appointmentTime) {
-            alert('Please fill in all required fields.');
+            showToast('Please fill in Doctor, Date and Time.', 'error');
             return;
         }
-
         fetch(`${HANDLER}?action=${id ? 'edit' : 'add'}`, {
                 method: 'POST',
                 headers: {
@@ -1403,7 +1447,7 @@ require_once('../../app/config/config.php');
                     loadAppointments(1);
                     showToast('Appointment saved successfully!', 'success');
                 } else {
-                    alert('Failed to save. Please try again.');
+                    showToast('Failed to save. Please try again.', 'error');
                 }
             });
     }
@@ -1412,7 +1456,7 @@ require_once('../../app/config/config.php');
         fetch(`${HANDLER}?action=get&id=${id}`)
             .then(r => r.json())
             .then(res => {
-                if (!res.success) return alert('Could not load appointment.');
+                if (!res.success) return showToast('Could not load appointment.', 'error');
                 const d = res.data;
                 const cfg = STATUS_CONFIG[d.status] || {
                     bg: '#f3f4f6',
@@ -1446,12 +1490,12 @@ require_once('../../app/config/config.php');
                         if (!container) return;
                         if (!res.data) {
                             container.innerHTML = `
-                                <div style="display:flex;align-items:center;gap:8px;">
-                                    <span style="font-size:.8rem;color:var(--text-muted);">No medical record linked.</span>
-                                    <a href="medical_records" style="font-size:.78rem;color:var(--blue-600);font-weight:600;text-decoration:none;">
-                                        <i class="bi bi-plus-lg"></i> Create one
-                                    </a>
-                                </div>`;
+    <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:.8rem;color:var(--text-muted);">No medical record linked.</span>
+        <a href="medical_records?apptId=${id}&patientId=${d.patientId}" style="font-size:.78rem;color:var(--blue-600);font-weight:600;text-decoration:none;">
+            <i class="bi bi-plus-lg"></i> Create one
+        </a>
+    </div>`;
                         } else {
                             const r = res.data;
                             const recCfg = {
@@ -1514,10 +1558,10 @@ require_once('../../app/config/config.php');
                     container.innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">No slots available for this day.</div>';
                     return;
                 }
-                let html = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">';
+                let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;">';
                 res.slots.forEach(slot => {
                     html += `<button type="button" data-val="${slot.value}"
-    style="border:1px solid var(--border);border-radius:8px;padding:4px 10px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-body);cursor:pointer;${!slot.available ? 'text-decoration:line-through;opacity:.5;cursor:not-allowed;color:var(--text-muted);' : ''}"
+    style="border:1px solid var(--border);border-radius:8px;padding:4px 0;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-body);cursor:pointer;width:calc(20% - 5px);text-align:center;${!slot.available ? 'text-decoration:line-through;opacity:.5;cursor:not-allowed;color:var(--text-muted);' : ''}"
     ${!slot.available ? 'disabled' : ''}
     onclick="selectAdminSlot('${slot.value}', this)">${slot.label}</button>`;
                 });
@@ -1526,6 +1570,41 @@ require_once('../../app/config/config.php');
             })
             .catch(() => {
                 container.innerHTML = '<div style="font-size:.78rem;color:var(--red);">Failed to load slots.</div>';
+            });
+    }
+
+    function loadModalDoctorSchedule() {
+        const docId = document.getElementById('fDoctor').value;
+        const box = document.getElementById('modalDoctorScheduleBox');
+        const list = document.getElementById('modalDoctorScheduleList');
+
+        if (!docId) {
+            box.style.display = 'none';
+            return;
+        }
+
+        fetch(`${HANDLER}?action=get_doctor_schedule&doctorId=${docId}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.data || !res.data.length) {
+                    box.style.display = 'none';
+                    return;
+                }
+                list.innerHTML = res.data.map(s => {
+                    const fmt = t => {
+                        const [h, m] = t.split(':');
+                        const hr = parseInt(h);
+                        return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+                    };
+                    return `<div style="display:flex;justify-content:space-between;font-size:.78rem;">
+                    <span style="font-weight:600;color:var(--text-dark);">${s.dayOfWeek}</span>
+                    <span style="color:var(--text-body);">${fmt(s.shiftStart)} – ${fmt(s.shiftEnd)}</span>
+                </div>`;
+                }).join('');
+                box.style.display = 'block';
+            })
+            .catch(() => {
+                box.style.display = 'none';
             });
     }
 
@@ -1560,7 +1639,7 @@ require_once('../../app/config/config.php');
                     bootstrap.Modal.getInstance(document.getElementById('cancelModal')).hide();
                     loadAppointments(currentPage);
                 } else {
-                    alert('Failed to cancel. Please try again.');
+                    showToast('Failed to cancel. Please try again.', 'error');
                 }
             });
     }
@@ -1576,6 +1655,30 @@ require_once('../../app/config/config.php');
         el.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${msg}`;
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 3500);
+    }
+
+    function switchPatientTab(tab) {
+        const isExisting = tab === 'existing';
+        document.getElementById('tabExisting').style.background = isExisting ? 'var(--blue-600)' : 'var(--surface)';
+        document.getElementById('tabExisting').style.color = isExisting ? '#fff' : 'var(--text-body)';
+        document.getElementById('tabNew').style.background = isExisting ? 'var(--surface)' : 'var(--blue-600)';
+        document.getElementById('tabNew').style.color = isExisting ? 'var(--text-body)' : '#fff';
+        document.getElementById('containerExisting').style.display = isExisting ? 'flex' : 'none';
+        document.getElementById('containerNew').style.display = isExisting ? 'none' : 'flex';
+
+        // Resize patient + doctor columns based on tab
+        const patientCol = document.getElementById('patientSection').closest('.col-12, .col-md-6, [class*="col-"]');
+        const doctorCol = document.getElementById('doctorCol');
+        if (isExisting) {
+            patientCol.className = 'col-md-6';
+            doctorCol.className = 'col-md-6';
+        } else {
+            patientCol.className = 'col-12';
+            doctorCol.className = 'col-md-6 offset-md-0';
+        }
+
+        if (isExisting) clearNewPatientFields();
+        else clearSelectedPatient();
     }
 </script>
 

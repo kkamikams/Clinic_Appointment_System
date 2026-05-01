@@ -416,10 +416,20 @@ $doctors = $conn->query("
                 <!-- Patient Info -->
                 <div class="form-section-label mb-3"><i class="bi bi-person-fill"></i> Patient Information</div>
                 <div class="row g-3 mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label">Patient Name <span class="req">*</span></label>
-                        <input type="text" id="patientName" class="form-control"
-                            value="" placeholder="e.g. Juan dela Cruz" oninput="updateSummary()">
+                    <div class="col-md-4">
+                        <label class="form-label">First Name <span class="req">*</span></label>
+                        <input type="text" id="firstName" class="form-control"
+                            value="" placeholder="e.g. Juan" oninput="updateSummary()">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Middle Name</label>
+                        <input type="text" id="middleName" class="form-control"
+                            value="" placeholder="e.g. Santos">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Last Name <span class="req">*</span></label>
+                        <input type="text" id="lastName" class="form-control"
+                            value="" placeholder="e.g. dela Cruz" oninput="updateSummary()">
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Date of Birth</label>
@@ -466,7 +476,7 @@ $doctors = $conn->query("
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Doctor <span class="req">*</span></label>
-                        <select id="doctorSelect" class="form-select" onchange="updateSummary(); loadSlots()">
+                        <select id="doctorSelect" class="form-select" onchange="updateSummary(); loadSlots(); loadDoctorSchedule()">
                             <option value="">Select Doctor</option>
                             <?php foreach ($doctors as $doc): ?>
                                 <option value="<?= $doc['id'] ?>"
@@ -476,6 +486,12 @@ $doctors = $conn->query("
                                 </option>
                             <?php endforeach; ?>
                         </select>
+                        <div id="doctorScheduleBox" style="display:none;margin-top:8px;background:var(--blue-50);border:1px solid var(--blue-100);border-radius:var(--radius-sm);padding:.65rem .85rem;">
+                            <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--blue-600);margin-bottom:.5rem;">
+                                <i class="bi bi-clock"></i> Available Schedule
+                            </div>
+                            <div id="doctorScheduleList" style="display:flex;flex-direction:column;gap:4px;"></div>
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Appointment Date <span class="req">*</span></label>
@@ -566,7 +582,11 @@ $doctors = $conn->query("
                 el.className = 's-placeholder';
             }
         };
-        set('sum-patient', document.getElementById('patientName').value, 'Not entered');
+        const fn = document.getElementById('firstName').value.trim();
+        const mn = document.getElementById('middleName').value.trim();
+        const ln = document.getElementById('lastName').value.trim();
+        const fullName = [fn, mn, ln].filter(Boolean).join(' ');
+        set('sum-patient', fullName, 'Not entered');
         set('sum-spec', document.getElementById('deptSelect').value, 'Not selected');
         const docSel = document.getElementById('doctorSelect');
         set('sum-doctor', docSel.options[docSel.selectedIndex]?.text || '', 'Not selected');
@@ -588,6 +608,38 @@ $doctors = $conn->query("
                 hf = hh % 12 || 12;
             set('sum-time', `${hf}:${m} ${ap}`, '');
         } else set('sum-time', '', 'Not selected');
+    }
+
+    function loadDoctorSchedule() {
+        const docId = document.getElementById('doctorSelect').value;
+        const box = document.getElementById('doctorScheduleBox');
+        const list = document.getElementById('doctorScheduleList');
+
+        if (!docId) {
+            box.style.display = 'none';
+            return;
+        }
+
+        fetch(`${HANDLER}?action=get_doctor_schedule&doctorId=${docId}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.data.length) {
+                    box.style.display = 'none';
+                    return;
+                }
+                list.innerHTML = res.data.map(s => {
+                    const fmt = t => {
+                        const [h, m] = t.split(':');
+                        const hr = parseInt(h);
+                        return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+                    };
+                    return `<div style="display:flex;justify-content:space-between;font-size:.78rem;">
+                    <span style="font-weight:600;color:var(--text-dark);">${s.dayOfWeek}</span>
+                    <span style="color:var(--text-body);">${fmt(s.shiftStart)} – ${fmt(s.shiftEnd)}</span>
+                </div>`;
+                }).join('');
+                box.style.display = 'block';
+            });
     }
 
     function filterDoctors() {
@@ -632,12 +684,20 @@ $doctors = $conn->query("
     }
 
     function submitForm() {
-        const name = document.getElementById('patientName').value.trim();
+        window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+        });
+        const firstName = document.getElementById('firstName').value.trim();
+        const middleName = document.getElementById('middleName').value.trim();
+        const lastName = document.getElementById('lastName').value.trim();
+        const name = [firstName, middleName, lastName].filter(Boolean).join(' ');
         const doctor = document.getElementById('doctorSelect').value;
         const date = document.getElementById('apptDate').value;
         const time = document.getElementById('apptTime').value;
-        if (!name || !doctor || !date || !time) {
-            showAlert('error', 'Please fill in all required fields and select a time slot.');
+
+        if (!firstName || !lastName || !doctor || !date || !time) {
+            showAlert('error', 'Please fill in all required fields.');
             return;
         }
         const btn = document.getElementById('submitBtn');
@@ -647,6 +707,9 @@ $doctors = $conn->query("
         const payload = {
             patientId: document.getElementById('patientId')?.value || '',
             patientName: name,
+            firstName: firstName,
+            middleName: middleName,
+            lastName: lastName,
             dateOfBirth: document.getElementById('dateOfBirth').value,
             contact: document.getElementById('contactNumber').value,
             email: document.getElementById('emailAddress').value || '<?= $userEmail ?>',
@@ -699,7 +762,7 @@ $doctors = $conn->query("
     }
 
     function resetForm() {
-        document.querySelectorAll('#patientName,#dateOfBirth,#contactNumber,#apptNotes').forEach(el => el.value = '');
+        document.querySelectorAll('#firstName,#middleName,#lastName,#dateOfBirth,#contactNumber,#apptNotes').forEach(el => el.value = '');
         document.getElementById('emailAddress').value = '';
         document.getElementById('gender').value = '';
         document.getElementById('deptSelect').value = '';

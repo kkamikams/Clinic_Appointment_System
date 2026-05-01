@@ -5,12 +5,28 @@ include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
 
+$todayName = date('l');
+$currentTime = date('H:i:s');
+
+// Auto-sync doctor status based on schedule and current time
+$conn->query("
+    UPDATE doctors d
+    SET d.status = CASE
+        WHEN EXISTS (
+            SELECT 1 FROM doctorSchedules ds 
+            WHERE ds.doctorId = d.id 
+            AND ds.dayOfWeek = '$todayName'
+            AND '$currentTime' >= ds.shiftStart
+            AND '$currentTime' <= ds.shiftEnd
+        ) THEN 'On Duty'
+        ELSE 'Off Duty'
+    END
+    WHERE d.employmentStatus = 'Active' AND d.status != 'Break'
+");
 $totalDoctors = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus != 'Inactive'")->fetch_row()[0];
 $onDuty       = $conn->query("SELECT COUNT(*) FROM doctors WHERE status = 'On Duty' AND employmentStatus = 'Active'")->fetch_row()[0];
 $onLeave      = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus = 'On Leave'")->fetch_row()[0];
 $totalSpecs   = $conn->query("SELECT COUNT(DISTINCT specialization) FROM doctors WHERE employmentStatus != 'Inactive'")->fetch_row()[0];
-
-$todayName = date('l');
 
 $sql = "
     SELECT
@@ -1045,7 +1061,12 @@ function scheduleLabel($days, $start, $end)
                             data-avatar-bg="<?= $bg ?>"
                             data-avatar-color="<?= $col ?>"
                             data-emp-status="<?= htmlspecialchars($d['employmentStatus']) ?>">
-                            <td><?= htmlspecialchars($d['doctorCode']) ?></td>
+                            <td style="white-space:nowrap">
+                                <span style="color:#2563eb;font-weight:600;font-size:.83rem;cursor:pointer;"
+                                    onclick="viewDoctor(this.closest('tr'))">
+                                    <?= htmlspecialchars($d['doctorCode']) ?>
+                                </span>
+                            </td>
                             <td>
                                 <div class="doc-cell">
                                     <div class="doc-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $initials ?></div>
@@ -1353,7 +1374,7 @@ function scheduleLabel($days, $start, $end)
         const apptList = document.getElementById('vpApptList');
         apptList.innerHTML = '<div class="vp-empty">Loading appointments…</div>';
 
-        fetch('get_doctor_appointments.php?doctor_id=' + d.dbid)
+        fetch('/Clinic_Appointment_System/app/controllers/get_doctor_appointments.php?doctor_id=' + d.dbid)
             .then(r => r.json())
             .then(appts => {
                 if (!appts.length) {

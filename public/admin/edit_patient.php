@@ -551,11 +551,6 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                             <option <?= $p['status'] === 'Inactive'   ? 'selected' : '' ?>>Inactive</option>
                         </select>
                     </div>
-                    <div class="field">
-                        <label>Follow-up Date</label>
-                        <input type="date" name="follow_up_date"
-                            value="<?= htmlspecialchars($p['followUpDate'] ?? '') ?>">
-                    </div>
                 </div>
 
                 <div class="form-divider"></div>
@@ -610,7 +605,7 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         const data = new FormData(e.target);
         data.set('condition', document.querySelector('input[name="condition"]:checked')?.value || 'Stable');
 
-        fetch('/Clinic_Appointment_System/app/controllers/update_patient.php', {
+        fetch('../../app/controllers/update_patient.php', {
                 method: 'POST',
                 body: data
             })

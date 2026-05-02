@@ -516,6 +516,32 @@ require_once('../../app/config/config.php');
         border-color: #fca5a5;
     }
 
+    .field-locked {
+        opacity: .55;
+        pointer-events: none;
+        user-select: none;
+        cursor: not-allowed;
+        background: var(--surface) !important;
+    }
+
+    .lock-banner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: var(--amber-light);
+        border: 1px solid #fde68a;
+        border-radius: var(--radius-sm);
+        padding: .5rem .85rem;
+        font-size: .78rem;
+        font-weight: 600;
+        color: var(--amber-dark);
+        margin-bottom: 1rem;
+    }
+
+    .lock-banner i {
+        font-size: .85rem;
+    }
+
     .tbl-loading {
         display: none;
         position: absolute;
@@ -787,13 +813,9 @@ require_once('../../app/config/config.php');
                             </div>
 
                             <div id="containerExisting" style="display:flex;flex-direction:column;gap:8px;">
-                                <div style="position:relative;">
-                                    <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem;pointer-events:none;"></i>
-                                    <input type="text" id="patientSearchInput" class="form-control"
-                                        placeholder="Type name or patient code…"
-                                        style="padding-left:2rem;"
-                                        oninput="debouncePatientSearch()" autocomplete="off">
-                                </div>
+                                <input type="text" id="patientSearchInput" class="form-control"
+                                    placeholder="Type name or patient code…"
+                                    oninput="debouncePatientSearch()" autocomplete="off">
                                 <div id="patientSearchResults"
                                     style="display:none;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;max-height:180px;overflow-y:auto;"></div>
                                 <div id="selectedPatientCard"
@@ -829,8 +851,12 @@ require_once('../../app/config/config.php');
                                 </div>
                                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
                                     <div>
-                                        <label class="form-label">Date of Birth</label>
-                                        <input type="date" class="form-control" id="fNewPatientDOB">
+                                        <label class="form-label">
+                                            Date of Birth
+                                            <span style="color:#ef4444;">*</span>
+                                        </label>
+                                        <input type="date" class="form-control" id="fNewPatientDOB"
+                                            max="<?php echo date('Y-m-d'); ?>">
                                     </div>
                                     <div>
                                         <label class="form-label">Gender</label>
@@ -1038,33 +1064,47 @@ require_once('../../app/config/config.php');
             .catch(() => loadAppointments(currentPage));
     }
 
+    const STATUS_FLOW = {
+        'Pending': ['Pending', 'In Progress', 'Cancelled'],
+        'In Progress': ['In Progress', 'Completed', 'Cancelled'],
+        'Completed': ['Completed'],
+        'Cancelled': ['Cancelled'],
+    };
+
     function statusDropdown(id, current) {
         const cfg = STATUS_CONFIG[current] || {
             dot: '#9ca3af',
             bg: '#f3f4f6',
             color: '#374151'
         };
-        const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => `
-            <div class="status-opt" onclick="pickApptStatus(this,'${label}',${id})">
+        const allowed = STATUS_FLOW[current] || [current];
+        const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => {
+            const isAllowed = allowed.includes(label);
+            const isActive = label === current;
+            return `
+            <div class="status-opt"
+                style="${!isAllowed ? 'opacity:.35;pointer-events:none;cursor:not-allowed;' : ''}"
+                onclick="${isAllowed && !isActive ? `pickApptStatus(this,'${label}',${id})` : ''}">
                 <span class="dot" style="background:${c.dot};"></span>
-                ${label}
-            </div>
-        `).join('');
-
-        return `
-            <div class="status-cell">
-                <button class="badge-btn" onclick="toggleStatusDrop(this)">
-                    <span class="appt-badge"
-                        style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;letter-spacing:.03em;">
-                        ${current}
-                    </span>
-                    <span class="badge-caret">▾</span>
-                </button>
-                <div class="status-dropdown">
-                    ${opts}
-                </div>
+                ${label}${isActive ? ' (Current)' : ''}
             </div>
         `;
+        }).join('');
+
+        return `
+        <div class="status-cell">
+            <button class="badge-btn" onclick="toggleStatusDrop(this)">
+                <span class="appt-badge"
+                    style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;letter-spacing:.03em;">
+                    ${current}
+                </span>
+                <span class="badge-caret">▾</span>
+            </button>
+            <div class="status-dropdown">
+                ${opts}
+            </div>
+        </div>
+    `;
     }
 
     function toggleAllDates() {
@@ -1282,7 +1322,7 @@ require_once('../../app/config/config.php');
                 <td><span class="channel-chip ${r.followUpDate ? 'followup' : ''}">${r.followUpDate ? 'Follow-up' : r.channel}</span></td>
                 <td>${statusDropdown(r.id, r.status)}</td>
                 <td><div class="action-btns">
-    <button class="btn-act" title="Edit" onclick="editAppt(${r.id})"><i class="bi bi-pencil"></i></button>
+    <button class="btn-act" title="Edit" onclick="${r.isFollowUp == 1 ? `editFollowUp(${r.followUpId})` : `editAppt(${r.id})`}"><i class="bi bi-pencil"></i></button>
     <button class="btn-act" title="View" onclick="viewAppt(${r.id})"><i class="bi bi-eye"></i></button>
 </div></td>
             </tr>`;
@@ -1297,6 +1337,74 @@ require_once('../../app/config/config.php');
         const rate = s.total ? Math.round((s['Completed'] / s.total) * 100) : 0;
         document.getElementById('statTotalSub').textContent = allDates ? 'All appointments' : 'Appointments on selected date';
         document.getElementById('statCompletedSub').textContent = `${rate}% completion rate`;
+    }
+
+    function editFollowUp(followUpId) {
+        fetch(`${HANDLER}?action=get_followup&id=${followUpId}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) return showToast('Could not load follow-up.', 'error');
+                const d = res.data;
+                const status = d.status;
+
+                document.getElementById('apptModalTitle').textContent = 'Edit Follow-up';
+                document.getElementById('saveBtnLabel').textContent = 'Update Follow-up';
+                document.getElementById('editId').value = d.id;
+                document.getElementById('fDate').value = d.followUpDate;
+                document.getElementById('fDoctor').value = d.doctorId;
+                document.getElementById('fChannel').value = 'Follow-up';
+                document.getElementById('fStatus').value = d.status;
+                document.getElementById('fRemarks').value = d.reason || '';
+
+                switchPatientTab('existing');
+                document.getElementById('patientTabSwitcher').style.display = 'none';
+                if (d.patientId) {
+                    document.getElementById('fPatient').value = d.patientId;
+                    document.getElementById('selPatName').textContent = d.patientName || '—';
+                    document.getElementById('selPatMeta').textContent = '';
+                    document.getElementById('selectedPatientCard').style.display = 'block';
+                    document.getElementById('selectedPatientCard').style.background = 'var(--surface)'; // ADD
+                    document.getElementById('selectedPatientCard').style.border = '1px solid var(--border)'; // ADD
+                }
+                // Lock patient fields
+                const patInput = document.getElementById('patientSearchInput');
+                const clearBtn = document.querySelector('#selectedPatientCard button');
+                patInput.disabled = true;
+                patInput.style.display = 'none';
+                if (clearBtn) clearBtn.style.setProperty('display', 'none');
+                document.getElementById('selectedPatientCard').style.display = 'block';
+
+                // Lock everything except remarks for Completed/Cancelled
+                const locked = ['Completed', 'Cancelled'].includes(status);
+                ['fDate', 'fDoctor', 'fChannel', 'fStatus'].forEach(id => {
+                    const el = document.getElementById(id);
+                    el.disabled = locked;
+                    el.classList.toggle('field-locked', locked);
+                });
+                document.getElementById('fRemarks').disabled = false;
+                document.getElementById('fRemarks').classList.remove('field-locked');
+
+                const modalBody = document.querySelector('#apptModal .modal-body');
+                const oldBanner = modalBody.querySelector('.lock-banner');
+                if (oldBanner) oldBanner.remove();
+                if (!locked) {
+                    modalBody.insertAdjacentHTML('afterbegin', `
+        <div class="lock-banner" style="background:var(--blue-50);border-color:var(--blue-200);color:var(--blue-700);">
+            <i class="bi bi-info-circle-fill"></i> Patient cannot be changed after booking. All other fields are editable.
+        </div>`);
+                }
+
+                // Load doctor schedule box
+                loadModalDoctorSchedule();
+
+                // Load slots and pre-select the existing time
+                loadAdminSlots(d.appointmentTime.slice(0, 5));
+
+                // Set fTime so save works
+                document.getElementById('fTime').value = d.appointmentTime ? d.appointmentTime.slice(0, 5) : '';
+
+                new bootstrap.Modal(document.getElementById('apptModal')).show();
+            });
     }
 
     function renderPagination(total, page, limit) {
@@ -1345,7 +1453,27 @@ require_once('../../app/config/config.php');
         document.getElementById('modalDoctorScheduleList').innerHTML = '';
         document.getElementById('adminSlotsContainer').innerHTML =
             '<div style="font-size:.78rem;color:var(--text-muted);">Select a doctor and date first.</div>';
+        document.getElementById('adminSlotsContainer').classList.remove('field-locked');
         document.getElementById('patientTabSwitcher').style.display = 'flex';
+
+        // Reset any locks left from edit mode
+        document.getElementById('fDoctor').disabled = false;
+        document.getElementById('fDoctor').classList.remove('field-locked');
+        document.getElementById('patientSearchInput').disabled = false;
+        document.getElementById('patientSearchInput').style.display = '';
+        document.getElementById('selectedPatientCard').classList.remove('field-locked');
+        document.getElementById('selectedPatientCard').style.background = ''; // ADD
+        document.getElementById('selectedPatientCard').style.border = ''; // ADD
+        const cancelBtn = document.querySelector('#selectedPatientCard button');
+        if (cancelBtn) cancelBtn.style.removeProperty('display');
+        ['fDate', 'fChannel', 'fStatus'].forEach(id => {
+            const el = document.getElementById(id);
+            el.disabled = false;
+            el.classList.remove('field-locked');
+        });
+        const oldBanner = document.querySelector('#apptModal .modal-body .lock-banner');
+        if (oldBanner) oldBanner.remove();
+
         switchPatientTab('existing');
         clearSelectedPatient();
         clearNewPatientFields();
@@ -1358,6 +1486,45 @@ require_once('../../app/config/config.php');
             .then(res => {
                 if (!res.success) return showToast('Could not load appointment.', 'error');
                 const d = res.data;
+                const status = d.status;
+
+                // Lock rules per status
+                const rules = {
+                    'Pending': {
+                        patient: false,
+                        doctor: true,
+                        datetime: true,
+                        channel: true,
+                        apptStatus: true,
+                        remarks: true
+                    },
+                    'In Progress': {
+                        patient: false,
+                        doctor: false,
+                        datetime: false,
+                        channel: true,
+                        apptStatus: true,
+                        remarks: true
+                    },
+                    'Completed': {
+                        patient: false,
+                        doctor: false,
+                        datetime: false,
+                        channel: false,
+                        apptStatus: false,
+                        remarks: true
+                    },
+                    'Cancelled': {
+                        patient: false,
+                        doctor: false,
+                        datetime: false,
+                        channel: false,
+                        apptStatus: false,
+                        remarks: true
+                    },
+                };
+                const rule = rules[status] || rules['Pending'];
+
                 document.getElementById('apptModalTitle').textContent = 'Edit Appointment';
                 document.getElementById('saveBtnLabel').textContent = 'Update Appointment';
                 document.getElementById('editId').value = d.id;
@@ -1367,23 +1534,137 @@ require_once('../../app/config/config.php');
                 document.getElementById('fStatus').value = d.status;
                 document.getElementById('fRemarks').value = d.remarks || '';
 
+                // Patient
                 switchPatientTab('existing');
-                document.getElementById('patientTabSwitcher').style.display = 'none'; // hide tabs when editing
+                document.getElementById('patientTabSwitcher').style.display = 'none';
                 if (d.patientId) {
                     document.getElementById('fPatient').value = d.patientId;
                     document.getElementById('selPatName').textContent = d.patientName || '—';
                     document.getElementById('selPatMeta').textContent = '';
                     document.getElementById('selectedPatientCard').style.display = 'block';
+                    document.getElementById('selectedPatientCard').style.background = 'var(--surface)';
+                    document.getElementById('selectedPatientCard').style.border = '1px solid var(--border)';
+                }
+                const patInput = document.getElementById('patientSearchInput');
+                const clearBtn = document.querySelector('#selectedPatientCard button');
+                if (rule.patient) {
+                    patInput.disabled = false;
+                    patInput.style.display = '';
+                    if (clearBtn) clearBtn.style.removeProperty('display');
+                    document.getElementById('selectedPatientCard').classList.remove('field-locked');
+                } else {
+                    patInput.disabled = true;
+                    patInput.style.display = 'none';
+                    if (clearBtn) clearBtn.style.setProperty('display', 'none');
+                    document.getElementById('selectedPatientCard').style.display = 'block';
+                }
+
+                // Doctor
+                const docEl = document.getElementById('fDoctor');
+                if (rule.doctor === true) {
+                    docEl.disabled = false;
+                    docEl.classList.remove('field-locked');
+                } else if (rule.doctor === 'confirm') {
+                    docEl.disabled = false;
+                    docEl.classList.remove('field-locked');
+                    docEl.onchange = function() {
+                        if (!confirm('Changing the doctor will reload available slots. Continue?')) {
+                            this.value = d.doctorId;
+                            return;
+                        }
+                        loadAdminSlots();
+                        loadModalDoctorSchedule();
+                    };
+                } else {
+                    docEl.disabled = true;
+                    docEl.classList.add('field-locked');
+                }
+
+                // Date & Time
+                const dateEl = document.getElementById('fDate');
+                const slotsEl = document.getElementById('adminSlotsContainer');
+                if (rule.datetime) {
+                    dateEl.disabled = false;
+                    dateEl.classList.remove('field-locked');
+                    slotsEl.classList.remove('field-locked');
+                } else {
+                    dateEl.disabled = true;
+                    dateEl.classList.add('field-locked');
+                    slotsEl.classList.add('field-locked');
+                }
+
+                // Channel
+                const chanEl = document.getElementById('fChannel');
+                if (rule.channel) {
+                    chanEl.disabled = false;
+                    chanEl.classList.remove('field-locked');
+                } else {
+                    chanEl.disabled = true;
+                    chanEl.classList.add('field-locked');
+                }
+
+                // Status dropdown
+                const statEl = document.getElementById('fStatus');
+                if (rule.apptStatus) {
+                    statEl.disabled = false;
+                    statEl.classList.remove('field-locked');
+                } else {
+                    statEl.disabled = true;
+                    statEl.classList.add('field-locked');
+                }
+
+                // Remarks always editable
+                document.getElementById('fRemarks').disabled = false;
+                document.getElementById('fRemarks').classList.remove('field-locked');
+
+                // Lock banner
+                const modalBody = document.querySelector('#apptModal .modal-body');
+                const oldBanner = modalBody.querySelector('.lock-banner');
+                if (oldBanner) oldBanner.remove();
+
+                const banners = {
+                    'Pending': {
+                        icon: 'bi-info-circle-fill',
+                        style: 'background:var(--blue-50);border-color:var(--blue-200);color:var(--blue-700);',
+                        msg: 'Patient cannot be changed after booking. All other fields are editable.'
+                    },
+                    'In Progress': {
+                        icon: 'bi-exclamation-circle-fill',
+                        style: 'background:var(--amber-light);border-color:#fde68a;color:var(--amber-dark);',
+                        msg: 'Appointment is in progress. Date and time are locked.'
+                    },
+                    'Completed': {
+                        icon: 'bi-lock-fill',
+                        style: 'background:var(--amber-light);border-color:#fde68a;color:var(--amber-dark);',
+                        msg: 'Appointment is Completed. Only remarks can be edited.'
+                    },
+                    'Cancelled': {
+                        icon: 'bi-lock-fill',
+                        style: 'background:var(--red-light);border-color:#fca5a5;color:var(--red-dark);',
+                        msg: 'Appointment is Cancelled. Only remarks can be edited.'
+                    },
+                };
+                const b = banners[status];
+                if (b) {
+                    modalBody.insertAdjacentHTML('afterbegin', `
+                    <div class="lock-banner" style="${b.style}">
+                        <i class="bi ${b.icon}"></i> ${b.msg}
+                    </div>`);
                 }
 
                 loadModalDoctorSchedule();
-                loadAdminSlots();
-                setTimeout(() => {
-                    const existing = d.appointmentTime.slice(0, 5);
-                    document.querySelectorAll('#adminSlotsContainer button').forEach(b => {
-                        if (b.dataset.val === existing) selectAdminSlot(existing, b);
-                    });
-                }, 800);
+
+                if (rule.datetime) {
+                    loadAdminSlots(d.appointmentTime.slice(0, 5));
+                } else {
+                    const t = d.appointmentTime.slice(0, 5);
+                    const [h, m] = t.split(':');
+                    const hr = parseInt(h);
+                    const label = `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+                    document.getElementById('fTime').value = t;
+                    document.getElementById('adminSlotsContainer').innerHTML =
+                        `<div style="display:inline-block;background:var(--blue-600);color:#fff;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;font-family:'DM Sans',sans-serif;">${label}</div>`;
+                }
 
                 new bootstrap.Modal(document.getElementById('apptModal')).show();
             });
@@ -1397,8 +1678,9 @@ require_once('../../app/config/config.php');
         const newLastName = document.getElementById('fNewPatientLastName')?.value.trim();
         const newName = [newFirstName, newMiddleName, newLastName].filter(Boolean).join(' ');
 
-        if (isNew && (!newFirstName || !newLastName)) {
-            showToast('Please fill in all required fields.', 'error');
+        const newDOB = document.getElementById('fNewPatientDOB')?.value;
+        if (isNew && (!newFirstName || !newLastName || !newDOB)) {
+            showToast('Please fill in First Name, Last Name, and Date of Birth.', 'error');
             return;
         }
         if (!isNew && !document.getElementById('fPatient').value) {
@@ -1426,7 +1708,8 @@ require_once('../../app/config/config.php');
             showToast('Please fill in Doctor, Date and Time.', 'error');
             return;
         }
-        fetch(`${HANDLER}?action=${id ? 'edit' : 'add'}`, {
+        const isFollowUp = document.getElementById('apptModalTitle').textContent === 'Edit Follow-up';
+        fetch(`${HANDLER}?action=${id ? (isFollowUp ? 'edit_followup' : 'edit') : 'add'}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1437,13 +1720,6 @@ require_once('../../app/config/config.php');
             .then(res => {
                 if (res.success) {
                     bootstrap.Modal.getInstance(document.getElementById('apptModal')).hide();
-                    if (showAllDates) {
-                        showAllDates = false;
-                        document.getElementById('btnAllDates').classList.remove('active');
-                        document.getElementById('apptDate').disabled = false;
-                        document.getElementById('apptDate').style.opacity = '1';
-                    }
-                    document.getElementById('apptDate').value = payload.appointmentDate;
                     loadAppointments(1);
                     showToast('Appointment saved successfully!', 'success');
                 } else {
@@ -1538,7 +1814,7 @@ require_once('../../app/config/config.php');
             });
     }
 
-    function loadAdminSlots() {
+    function loadAdminSlots(preselect = '') {
         const docId = document.getElementById('fDoctor').value;
         const date = document.getElementById('fDate').value;
         const container = document.getElementById('adminSlotsContainer');
@@ -1558,15 +1834,19 @@ require_once('../../app/config/config.php');
                     container.innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">No slots available for this day.</div>';
                     return;
                 }
-                let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;">';
+                let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;width:100%;">';
                 res.slots.forEach(slot => {
                     html += `<button type="button" data-val="${slot.value}"
-    style="border:1px solid var(--border);border-radius:8px;padding:4px 0;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-body);cursor:pointer;width:calc(20% - 5px);text-align:center;${!slot.available ? 'text-decoration:line-through;opacity:.5;cursor:not-allowed;color:var(--text-muted);' : ''}"
+    style="border:1px solid var(--border);border-radius:8px;padding:6px 4px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-dark);cursor:pointer;width:100%;text-align:center;font-weight:600;${!slot.available ? 'text-decoration:line-through;opacity:.45;cursor:not-allowed;color:var(--text-muted);background:#e5e7eb;border-color:#d1d5db;' : ''}"
     ${!slot.available ? 'disabled' : ''}
     onclick="selectAdminSlot('${slot.value}', this)">${slot.label}</button>`;
                 });
                 html += '</div>';
                 container.innerHTML = html;
+                if (preselect) {
+                    const btn = container.querySelector(`button[data-val="${preselect}"]`);
+                    if (btn) selectAdminSlot(preselect, btn);
+                }
             })
             .catch(() => {
                 container.innerHTML = '<div style="font-size:.78rem;color:var(--red);">Failed to load slots.</div>';
@@ -1611,12 +1891,12 @@ require_once('../../app/config/config.php');
     function selectAdminSlot(value, btn) {
         document.querySelectorAll('#adminSlotsContainer button').forEach(b => {
             b.style.background = 'var(--surface)';
-            b.style.color = 'var(--text-body)';
+            b.style.color = 'var(--text-dark)'; // ← fix
             b.style.borderColor = 'var(--border)';
         });
-        btn.style.background = 'var(--blue-600)';
+        btn.style.background = 'var(--blue-700)';
         btn.style.color = '#fff';
-        btn.style.borderColor = 'var(--blue-600)';
+        btn.style.borderColor = 'var(--blue-700)';
         document.getElementById('fTime').value = value;
     }
 

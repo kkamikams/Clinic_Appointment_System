@@ -46,6 +46,116 @@ require_once('../../app/config/config.php');
         --shadow-lg: 0 8px 30px rgba(0, 0, 0, .10);
     }
 
+    .field-tag {
+        font-size: .6rem;
+        font-weight: 600;
+        padding: 1px 6px;
+        border-radius: 4px;
+        margin-left: 5px;
+        vertical-align: middle;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+    }
+
+    .field-tag.req {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .field-tag.opt {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    /* Audit trail timeline */
+    .audit-trail {
+        margin-top: 1.25rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+    }
+
+    .audit-items-wrap {
+        max-height: 180px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    .audit-trail-title {
+        font-size: .64rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+        color: var(--text-muted);
+        margin-bottom: .75rem;
+    }
+
+    .audit-item {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        padding: .35rem 0;
+        font-size: .78rem;
+        border-left: 2px solid var(--border);
+        padding-left: 12px;
+        margin-left: 4px;
+        position: relative;
+    }
+
+    .audit-item::before {
+        content: '';
+        position: absolute;
+        left: -5px;
+        top: 10px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--border);
+        border: 2px solid #fff;
+    }
+
+    .audit-item.create::before {
+        background: var(--green);
+    }
+
+    .audit-item.edit::before {
+        background: var(--blue-500);
+    }
+
+    .audit-item.status::before {
+        background: var(--amber);
+    }
+
+    .audit-action {
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+
+    .audit-who {
+        color: var(--text-muted);
+        font-size: .72rem;
+    }
+
+    .audit-arrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: .7rem;
+    }
+
+    .audit-arrow .from {
+        background: #fef3c7;
+        color: #92400e;
+        padding: 1px 6px;
+        border-radius: 4px;
+    }
+
+    .audit-arrow .to {
+        background: #d1fae5;
+        color: #065f46;
+        padding: 1px 6px;
+        border-radius: 4px;
+    }
+
     .page-records,
     .page-records * {
         font-family: 'DM Sans', sans-serif;
@@ -707,6 +817,40 @@ require_once('../../app/config/config.php');
         margin-top: 6px;
     }
 
+    .selected-pill.locked {
+        background: var(--surface);
+        border-color: var(--border);
+        cursor: not-allowed;
+        opacity: .85;
+    }
+
+    .selected-pill.locked::after {
+        content: '';
+    }
+
+    .finalized-notice {
+        display: none;
+        align-items: center;
+        gap: 10px;
+        background: var(--amber-light);
+        border: 1px solid #fde68a;
+        border-radius: var(--radius-sm);
+        padding: .65rem 1rem;
+        font-size: .8rem;
+        font-weight: 600;
+        color: var(--amber-dark);
+        margin-bottom: .75rem;
+    }
+
+    .finalized-notice.show {
+        display: flex;
+    }
+
+    .finalized-notice i {
+        font-size: .95rem;
+        flex-shrink: 0;
+    }
+
     .selected-pill.show {
         display: flex;
     }
@@ -832,6 +976,10 @@ require_once('../../app/config/config.php');
             </div>
             <div class="modal-body">
                 <input type="hidden" id="editId">
+                <div class="finalized-notice" id="finalizedNotice">
+                    <i class="bi bi-lock-fill"></i>
+                    <span>Record is Finalized. Patient, Doctor, Linked Appointment, Type, Diagnosis, ICD Code, and Prescription are locked.</span>
+                </div>
                 <div class="row g-3">
 
                     <div class="col-md-6">
@@ -884,8 +1032,8 @@ require_once('../../app/config/config.php');
                             <small style="text-transform:none;letter-spacing:0;font-weight:400;">(optional)</small>
                         </label>
                         <div class="live-search-wrap">
-                            <div style="position:relative;">
-                                <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem;pointer-events:none;"></i>
+                            <div id="apptInputWrap" style="position:relative;">
+                                <i class="bi bi-search" id="apptSearchIcon" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem;pointer-events:none;"></i>
                                 <input type="text" id="apptInput" class="form-control"
                                     placeholder="Type appointment code…"
                                     style="padding-left:2rem;"
@@ -915,11 +1063,11 @@ require_once('../../app/config/config.php');
                     </div>
 
                     <div class="col-md-8">
-                        <label class="form-label">Diagnosis</label>
+                        <label class="form-label">Diagnosis <span class="field-tag req">Required</span></label>
                         <input type="text" class="form-control" id="fDiagnosis" placeholder="e.g. Hypertension Stage 1">
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">ICD Code</label>
+                        <label class="form-label">ICD Code <span class="field-tag opt">Optional</span></label>
                         <input type="text" class="form-control" id="fIcdCode" placeholder="e.g. I10">
                     </div>
                     <div class="col-12">
@@ -931,7 +1079,7 @@ require_once('../../app/config/config.php');
                         <textarea class="form-control" id="fNotes" rows="2" placeholder="Additional notes…"></textarea>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Follow-Up Date <small style="text-transform:none;letter-spacing:0;font-weight:400;">(optional)</small></label>
+                        <label class="form-label">Follow-Up Date <span class="field-tag opt">Optional</span></label>
                         <input type="date" class="form-control" id="fFollowUpDate">
                     </div>
                     <div class="col-md-4">
@@ -1178,16 +1326,30 @@ require_once('../../app/config/config.php');
             bg: '#f3f4f6',
             color: '#374151'
         };
-        const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => `
-            <div class="status-opt" onclick="pickRecStatus(this,'${label}',${id})">
-                <span class="dot" style="background:${c.dot};"></span>${label}
-            </div>`).join('');
+
+        const STATUS_FLOW = {
+            'Draft': ['Draft', 'Finalized'],
+            'Finalized': ['Finalized'],
+        };
+        const allowed = STATUS_FLOW[current] || [current];
+
+        const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => {
+            const isAllowed = allowed.includes(label);
+            const isActive = label === current;
+            return `
+            <div class="status-opt"
+                style="${!isAllowed ? 'opacity:.35;pointer-events:none;cursor:not-allowed;' : ''}"
+                onclick="${isAllowed && !isActive ? `pickRecStatus(this,'${label}',${id})` : ''}">
+                <span class="dot" style="background:${c.dot};"></span>
+                ${label}${isActive ? ' <span style="font-size:.68rem;opacity:.6;">(Current)</span>' : ''}
+            </div>`;
+        }).join('');
 
         return `<div class="status-cell">
             <button class="badge-btn" onclick="toggleStatusDrop(this)">
-                <span class="rec-badge" style="background:${cfg.bg};color:${cfg.color};">
-                    <span class="badge-dot" style="width:7px;height:7px;border-radius:50%;background:${cfg.dot};display:inline-block;flex-shrink:0;"></span>
-<span class="badge-label">${current}</span>
+                <span class="rec-badge badge-label" style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;letter-spacing:.03em;">
+                    ${current}
+                </span>
                 <span class="badge-caret">▾</span>
             </button>
             <div class="status-dropdown">${opts}</div>
@@ -1208,8 +1370,7 @@ require_once('../../app/config/config.php');
 
         badge.style.background = cfg.bg;
         badge.style.color = cfg.color;
-        badge.querySelector('.badge-dot').style.background = cfg.dot;
-        badge.querySelector('.badge-label').textContent = newStatus;
+        badge.textContent = newStatus;
         dd.classList.remove('open');
 
         const fd = new FormData();
@@ -1356,8 +1517,9 @@ require_once('../../app/config/config.php');
                 <td>${fmtDate(r.createdAt?.slice(0,10))}</td>
                 <td>${statusDropdown(r.id, r.status)}</td>
                 <td><div class="action-btns">
-                    <button class="btn-act" title="View"   onclick="viewRecord(${r.id})"><i class="bi bi-eye"></i></button>
-                    <button class="btn-act" title="Edit"   onclick="editRecord(${r.id})"><i class="bi bi-pencil"></i></button>
+                    <button class="btn-act" title="Edit" onclick="editRecord(${r.id})"><i class="bi bi-pencil"></i></button>
+                    <button class="btn-act" title="View" onclick="viewRecord(${r.id})"><i class="bi bi-eye"></i></button>
+                </div></td>
             </tr>`;
         }).join('');
     }
@@ -1392,6 +1554,76 @@ require_once('../../app/config/config.php');
         wrap.appendChild(btn('Next ›', page < pages ? page + 1 : null));
     }
 
+    function lockAppt(lock) {
+        const wrap = document.getElementById('apptInputWrap');
+        const pill = document.getElementById('apptPill');
+        const clearBtn = document.querySelector('#apptPill .pill-clear');
+        const input = document.getElementById('apptInput');
+
+        input.disabled = lock;
+        wrap.style.display = lock ? 'none' : '';
+        if (clearBtn) clearBtn.style.display = lock ? 'none' : '';
+
+        if (lock) {
+            // Show pill without blue styling — plain locked look
+            pill.classList.remove('locked');
+            pill.style.background = 'var(--surface)';
+            pill.style.border = '1px solid var(--border)';
+            pill.style.cursor = 'not-allowed';
+        } else {
+            // Restore normal pill styling
+            pill.style.background = '';
+            pill.style.border = '';
+            pill.style.cursor = '';
+            pill.classList.remove('locked');
+        }
+    }
+
+    function showFinalizedNotice(show) {
+        document.getElementById('finalizedNotice').classList.toggle('show', show);
+    }
+
+    function lockPatientDoctor(lock) {
+        ['patient', 'doctor'].forEach(field => {
+            const inputId = field === 'patient' ? 'patientInput' : 'doctorInput';
+            const pillId = field === 'patient' ? 'patientPill' : 'doctorPill';
+            const nameId = field === 'patient' ? 'patientPillName' : 'doctorPillName';
+            const subId = field === 'patient' ? 'patientPillSub' : 'doctorPillSub';
+            const clearBtn = document.querySelector(`#${pillId} .pill-clear`);
+            const inputWrap = document.getElementById(inputId).closest('div');
+
+            if (lock) {
+                // Hide search input wrapper and pill, show plain text box
+                inputWrap.style.display = 'none';
+                document.getElementById(pillId).classList.remove('show');
+
+                const name = document.getElementById(nameId).textContent;
+                const sub = document.getElementById(subId).textContent;
+                const existingBox = document.getElementById(field + 'LockedBox');
+                if (!existingBox) {
+                    const box = document.createElement('input');
+                    box.type = 'text';
+                    box.id = field + 'LockedBox';
+                    box.className = 'form-control';
+                    box.value = name + (sub ? ' (' + sub + ')' : '');
+                    box.disabled = true;
+                    box.style.cssText = 'background:var(--surface);color:var(--text-dark);font-weight:600;cursor:not-allowed;';
+                    inputWrap.parentNode.appendChild(box);
+                } else {
+                    existingBox.value = name + (sub ? ' (' + sub + ')' : '');
+                    existingBox.style.display = '';
+                }
+            } else {
+                // Restore search input, hide locked box
+                inputWrap.style.display = '';
+                const existingBox = document.getElementById(field + 'LockedBox');
+                if (existingBox) existingBox.style.display = 'none';
+                if (clearBtn) clearBtn.style.display = '';
+                document.getElementById(pillId).classList.remove('show', 'locked');
+            }
+        });
+    }
+
     function resetModal() {
         ['patient', 'doctor', 'appt'].forEach(f => clearField(f));
         document.getElementById('fType').value = 'Consultation';
@@ -1406,6 +1638,17 @@ require_once('../../app/config/config.php');
 
     function openAddModal() {
         resetModal();
+        lockPatientDoctor(false);
+        lockAppt(false);
+        showFinalizedNotice(false);
+        // also unlock any finalized-locked fields
+        ['fDiagnosis', 'fIcdCode', 'fPrescription', 'fType', 'fStatus'].forEach(fid => {
+            const el = document.getElementById(fid);
+            el.disabled = false;
+            el.style.opacity = '';
+            el.style.cursor = '';
+            el.style.background = '';
+        });
         document.getElementById('recModalTitle').textContent = 'New Medical Record';
         document.getElementById('saveBtnLabel').textContent = 'Save Record';
         new bootstrap.Modal(document.getElementById('recModal')).show();
@@ -1421,6 +1664,8 @@ require_once('../../app/config/config.php');
                 document.getElementById('recModalTitle').textContent = 'Edit Medical Record';
                 document.getElementById('saveBtnLabel').textContent = 'Update Record';
                 document.getElementById('editId').value = d.id;
+                document.getElementById('fStatus').value = d.status || 'Draft';
+                document.getElementById('fStatus').dataset.original = d.status || 'Draft';
                 document.getElementById('fType').value = d.recordType;
                 document.getElementById('fDiagnosis').value = d.diagnosis || '';
                 document.getElementById('fIcdCode').value = d.icdCode || '';
@@ -1449,24 +1694,90 @@ require_once('../../app/config/config.php');
                     document.getElementById('apptPill').classList.add('show');
                 }
 
+                const isFinalized = d.status === 'Finalized';
+
+                lockPatientDoctor(true);
+                lockAppt(true); // always lock Linked Appointment on edit, regardless of status
+                showFinalizedNotice(isFinalized);
+                // Lock clinical fields when Finalized
+                ['fDiagnosis', 'fIcdCode', 'fPrescription', 'fType'].forEach(fid => {
+                    const el = document.getElementById(fid);
+                    el.disabled = isFinalized;
+                    el.style.opacity = isFinalized ? '.7' : '';
+                    el.style.cursor = isFinalized ? 'not-allowed' : '';
+                    el.style.background = isFinalized ? 'var(--surface)' : '';
+                });
+
+                // Lock Status (prevent Finalized → Draft regression)
+                const fStatus = document.getElementById('fStatus');
+                fStatus.disabled = isFinalized;
+                fStatus.style.opacity = isFinalized ? '.7' : '';
+                fStatus.style.cursor = isFinalized ? 'not-allowed' : '';
+                fStatus.style.background = isFinalized ? 'var(--surface)' : '';
+
+                // Notes & Follow-up Date remain editable in both states
+
                 new bootstrap.Modal(document.getElementById('recModal')).show();
             });
     }
 
     function saveRecord() {
         const id = document.getElementById('editId').value;
+        const diagnosis = document.getElementById('fDiagnosis').value.trim();
+        const icdCode = document.getElementById('fIcdCode').value.trim();
+        const followUp = document.getElementById('fFollowUpDate').value;
+        const status = document.getElementById('fStatus').value;
+
+        // ── Validation 1: Diagnosis required ────────────────────────────────────
+        if (!diagnosis) {
+            showFieldError('fDiagnosis', 'Diagnosis is required before saving.');
+            return;
+        }
+
+        // ── Validation 2: ICD Code format check when provided ───────────────────
+        if (icdCode) {
+            // ICD-10 format: letter + 2 digits + optional decimal + more digits
+            const icdPattern = /^[A-Z][0-9]{1,3}(\.[0-9A-Z]{0,4})?$/i;
+            if (!icdPattern.test(icdCode)) {
+                showFieldError('fIcdCode', 'ICD code format looks wrong (e.g. I10, J18.9). Double-check it matches your diagnosis.');
+                return;
+            }
+        }
+
+        // ── Validation 3: Follow-up date must be in the future ──────────────────
+        if (followUp) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const followDt = new Date(followUp + 'T00:00:00');
+            if (followDt <= today) {
+                showFieldError('fFollowUpDate', 'Follow-up date must be a future date.');
+                return;
+            }
+        }
+
+        // ── Finalize confirmation ────────────────────────────────────────────────
+        if (status === 'Finalized' && !id) {
+            if (!confirm('Finalizing will lock this record and prevent editing of clinical fields. Continue?')) return;
+        }
+        if (status === 'Finalized' && id) {
+            const origStatus = document.getElementById('fStatus').dataset.original;
+            if (origStatus !== 'Finalized') {
+                if (!confirm('Finalizing will lock this record permanently. Are you sure?')) return;
+            }
+        }
+
         const payload = {
             id: id || undefined,
             patientId: document.getElementById('fPatient').value,
             doctorId: document.getElementById('fDoctor').value,
             appointmentId: document.getElementById('fAppointment').value || null,
             recordType: document.getElementById('fType').value,
-            diagnosis: document.getElementById('fDiagnosis').value,
-            icdCode: document.getElementById('fIcdCode').value,
+            diagnosis,
+            icdCode,
             prescription: document.getElementById('fPrescription').value,
             notes: document.getElementById('fNotes').value,
-            status: document.getElementById('fStatus').value,
-            followUpDate: document.getElementById('fFollowUpDate').value || null,
+            status,
+            followUpDate: followUp || null,
         };
 
         if (!payload.patientId || !payload.doctorId) {
@@ -1491,6 +1802,31 @@ require_once('../../app/config/config.php');
                     alert('Failed to save. Please try again.');
                 }
             });
+    }
+
+    function showFieldError(fieldId, msg) {
+        const el = document.getElementById(fieldId);
+        el.style.borderColor = 'var(--red)';
+        el.style.background = 'var(--red-light)';
+        el.focus();
+
+        // Remove existing error tip if any
+        const prev = el.parentNode.querySelector('.field-err');
+        if (prev) prev.remove();
+
+        const tip = document.createElement('div');
+        tip.className = 'field-err';
+        tip.style.cssText = 'font-size:.72rem;color:var(--red-dark);margin-top:4px;display:flex;align-items:center;gap:5px;';
+        tip.innerHTML = `<i class="bi bi-exclamation-circle-fill"></i> ${msg}`;
+        el.parentNode.appendChild(tip);
+
+        // Auto-clear on next input
+        el.addEventListener('input', function clear() {
+            el.style.borderColor = '';
+            el.style.background = '';
+            tip.remove();
+            el.removeEventListener('input', clear);
+        });
     }
 
     function viewRecord(id, print = false) {
@@ -1523,6 +1859,7 @@ require_once('../../app/config/config.php');
 </div>
 <div class="detail-row"><span class="detail-label">Follow-Up Date</span><span class="detail-value">${d.followUpDate ? fmtDate(d.followUpDate) : '—'}</span></div>
 <div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">${fmtDate(d.createdAt?.slice(0,10))}</span></div>
+${renderAuditTrail(d.auditLog || [])}
                 `;
                 const modal = new bootstrap.Modal(document.getElementById('viewModal'));
                 modal.show();
@@ -1574,6 +1911,35 @@ require_once('../../app/config/config.php');
         el.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${msg}`;
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 3500);
+    }
+
+    function renderAuditTrail(log) {
+        if (!log.length) return '';
+        const typeClass = {
+            'create': 'create',
+            'edit': 'edit',
+            'status': 'status'
+        };
+        const items = log.map(entry => {
+            let detail = '';
+            if (entry.type === 'status') {
+                detail = `<span class="audit-arrow">
+                <span class="from">${entry.from}</span>
+                <i class="bi bi-arrow-right" style="font-size:.65rem;color:var(--text-muted);"></i>
+                <span class="to">${entry.to}</span>
+            </span>`;
+            }
+            return `<div class="audit-item ${typeClass[entry.type] || 'edit'}">
+            <div>
+                <div class="audit-action">${entry.action} ${detail}</div>
+                <div class="audit-who">${entry.by} &middot; ${entry.at}</div>
+            </div>
+        </div>`;
+        }).join('');
+        return `<div class="audit-trail">
+        <div class="audit-trail-title"><i class="bi bi-clock-history"></i> Change History (${log.length})</div>
+        <div class="audit-items-wrap">${items}</div>
+    </div>`;
     }
 </script>
 

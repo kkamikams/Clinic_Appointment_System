@@ -1,4 +1,8 @@
 <?php
+
+ini_set('display_errors', 1);
+
+error_reporting(E_ALL);
 session_start();
 
 if (!isset($_SESSION['user_id'])) {
@@ -652,7 +656,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 </div>
             </div>
             <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
-                <a href="my_appointments.php" style="background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);padding:.4rem 1rem;font-size:.78rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:5px;">
+                <a href="my_appointments" style="background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);padding:.4rem 1rem;font-size:.78rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:5px;">
                     <i class="bi bi-eye"></i> View
                 </a>
             </div>
@@ -660,22 +664,22 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
     <?php endif; ?>
 
     <div class="stat-strip">
-        <a href="my_appointments.php" class="stat-card">
+        <a href="my_appointments" class="stat-card">
             <div class="sc-label">Total Appointments</div>
             <div class="sc-num"><?= $totalAppts ?></div>
             <div class="sc-sub">All time bookings</div>
         </a>
-        <a href="my_appointments.php?status=upcoming" class="stat-card">
+        <a href="my_appointments?status=upcoming" class="stat-card">
             <div class="sc-label">Upcoming</div>
             <div class="sc-num"><?= $upcomingAppts ?></div>
             <div class="sc-sub">Scheduled sessions</div>
         </a>
-        <a href="my_appointments.php?status=Pending" class="stat-card">
+        <a href="my_appointments?status=Pending" class="stat-card">
             <div class="sc-label">Pending</div>
             <div class="sc-num"><?= $pendingAppts ?></div>
             <div class="sc-sub">Awaiting confirmation</div>
         </a>
-        <a href="medical_records.php" class="stat-card">
+        <a href="medical_records" class="stat-card">
             <div class="sc-label">Medical Records</div>
             <div class="sc-num"><?= $totalRecords ?></div>
             <div class="sc-sub">Your health records</div>
@@ -695,8 +699,8 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 <li class="dropdown-header text-start">
                                     <h6>Actions</h6>
                                 </li>
-                                <li><a class="dropdown-item" href="my_appointments.php">View All Appointments</a></li>
-                                <li><a class="dropdown-item" href="book_appointment.php">Book New</a></li>
+                                <li><a class="dropdown-item" href="my_appointments">View All Appointments</a></li>
+                                <li><a class="dropdown-item" href="book_appointment">Book New</a></li>
                             </ul>
                         </div>
                         <div class="card-body">
@@ -776,8 +780,8 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 <li class="dropdown-header text-start">
                                     <h6>Actions</h6>
                                 </li>
-                                <li><a class="dropdown-item" href="my_appointments.php">View All</a></li>
-                                <li><a class="dropdown-item" href="book_appointment.php">Book New</a></li>
+                                <li><a class="dropdown-item" href="my_appointments">View All</a></li>
+                                <li><a class="dropdown-item" href="book_appointment">Book New</a></li>
                             </ul>
                         </div>
                         <div class="card-body">
@@ -787,7 +791,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 <div class="no-data">
                                     <i class="bi bi-calendar-x"></i>
                                     No appointment history yet.<br>
-                                    <a href="book_appointment.php" style="color:var(--blue-600);font-weight:600">Book your first appointment →</a>
+                                    <a href="book_appointment" style="color:var(--blue-600);font-weight:600">Book your first appointment →</a>
                                 </div>
                             <?php else: ?>
                                 <table class="table table-borderless">
@@ -806,7 +810,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                             $sCls = $statusMap[$appt['status']] ?? 'bg-secondary';
                                         ?>
                                             <tr>
-                                                <td><a href="my_appointments.php" style="font-weight:700;color:var(--blue-700);font-size:.8rem;text-decoration:none"><?= htmlspecialchars($appt['appointmentCode']) ?></a></td>
+                                                <td><a href="my_appointments" style="font-weight:700;color:var(--blue-700);font-size:.8rem;text-decoration:none"><?= htmlspecialchars($appt['appointmentCode']) ?></a></td>
                                                 <td>
                                                     <div style="font-weight:600;color:var(--text-dark);font-size:.82rem"><?= htmlspecialchars($appt['doctorName']) ?></div>
                                                     <div style="font-size:.67rem;color:var(--text-muted)"><?= htmlspecialchars($appt['specialization']) ?></div>
@@ -819,7 +823,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                     </tbody>
                                 </table>
                                 <div style="text-align:center;padding-top:.5rem">
-                                    <a href="my_appointments.php" style="font-size:.78rem;color:var(--blue-600);font-weight:600">View all appointments →</a>
+                                    <a href="my_appointments" style="font-size:.78rem;color:var(--blue-600);font-weight:600">View all appointments →</a>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -834,7 +838,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 <li class="dropdown-header text-start">
                                     <h6>Actions</h6>
                                 </li>
-                                <li><a class="dropdown-item" href="medical_records.php">View All Records</a></li>
+                                <li><a class="dropdown-item" href="medical_records">View All Records</a></li>
                             </ul>
                         </div>
                         <div class="card-body">
@@ -878,7 +882,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                     </tbody>
                                 </table>
                                 <div style="text-align:center;padding-top:.5rem">
-                                    <a href="medical_records.php" style="font-size:.78rem;color:var(--blue-600);font-weight:600">View all records →</a>
+                                    <a href="medical_records" style="font-size:.78rem;color:var(--blue-600);font-weight:600">View all records →</a>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -895,7 +899,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                     <i class="bi bi-calendar-plus"></i>
 
                     <p>Choose from our available doctors and book your slot in minutes.</p>
-                    <a href="book_appointment.php" class="btn-book" style="padding:.28rem .6rem;font-size:.72rem;width:auto;display:inline-flex"><i class="bi bi-plus-lg"></i> Book Now</a>
+                    <a href="book_appointment" class="btn-book" style="padding:.28rem .6rem;font-size:.72rem;width:auto;display:inline-flex"><i class="bi bi-plus-lg"></i> Book Now</a>
                 </div>
             </div>
 
@@ -906,7 +910,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                         <li class="dropdown-header text-start">
                             <h6>Actions</h6>
                         </li>
-                        <li><a class="dropdown-item" href="book_appointment.php">Book Appointment</a></li>
+                        <li><a class="dropdown-item" href="book_appointment">Book Appointment</a></li>
                     </ul>
                 </div>
                 <div class="card-body">
@@ -933,7 +937,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                             <?php endforeach; ?>
                         </div>
                         <div style="text-align:center;margin-top:.85rem">
-                            <a href="book_appointment.php" class="btn-book" style="font-size:.78rem;padding:.4rem 1rem">
+                            <a href="book_appointment" class="btn-book" style="font-size:.78rem;padding:.4rem 1rem">
                                 <i class="bi bi-calendar-plus"></i> Book a Slot
                             </a>
                         </div>

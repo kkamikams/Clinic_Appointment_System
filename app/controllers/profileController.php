@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($stmt->execute()) {
                         $_SESSION['authUser']['fullName'] = trim($firstName . ' ' . $middleName . ' ' . $lastName);
                         $_SESSION['authUser']['username'] = $username;
-                        $success = "Profile updated successfully.";
+                        $_SESSION['profile_success'] = "Profile updated successfully.";
 
                         // Always sync profilePic from DB after update
                         $syncStmt = $conn->prepare("SELECT profilePic FROM users WHERE id = ?");
@@ -101,6 +101,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $syncStmt->execute();
                         $syncData = $syncStmt->get_result()->fetch_assoc();
                         $_SESSION['authUser']['profilePic'] = $syncData['profilePic'] ?? null;
+
+                        echo "<script>window.location.href='" . $_SERVER['PHP_SELF'] . "';</script>";
+                        exit();
                     } else {
                         $error = "Something went wrong. Please try again.";
                     }

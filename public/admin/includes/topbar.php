@@ -1,8 +1,8 @@
 <header id="header" class="header fixed-top d-flex align-items-center">
 
   <div class="d-flex align-items-center justify-content-between">
-    <a href="index.html" class="logo d-flex align-items-center">
-      <img src="assets/img/logo.png" alt="">
+    <a href="index" class="logo d-flex align-items-center">
+      <img src="<?= $base ?>assets/img/logo.png" alt="">
       <span class="d-none d-lg-block" style="font-family:'DM Serif Display',serif;font-style:italic;font-size:1.55rem;color:#2563eb;letter-spacing:-.01em;">Queue</span>
     </a>
     <i class="bi bi-list toggle-sidebar-btn"></i>
@@ -16,15 +16,13 @@
   </div>
 
   <?php
-  $fullName  = $_SESSION['authUser']['fullName'] ?? 'Guest';
-  $userRole  = $_SESSION['userRole'] ?? 'user';
-
+  $fullName = $_SESSION['authUser']['fullName'] ?? 'Guest';
+  $userRole = $_SESSION['userRole'] ?? 'user';
 
   $nameParts = explode(' ', $fullName);
   $shortName = count($nameParts) >= 2
     ? strtoupper(substr($nameParts[0], 0, 1)) . '. ' . end($nameParts)
     : $fullName;
-
 
   $initials = strtoupper(substr($nameParts[0], 0, 1));
   if (count($nameParts) >= 2) {
@@ -68,7 +66,7 @@
             <?php endif; ?>
           </div>
 
-          <span class="d-none d-md-block dropdown-toggle" style="font-size: 1rem; font-weight: 600; color: #333;">
+          <span class="d-none d-md-block dropdown-toggle" style="font-size:1rem;font-weight:600;color:#333;">
             <?= htmlspecialchars($shortName) ?>
           </span>
         </a>

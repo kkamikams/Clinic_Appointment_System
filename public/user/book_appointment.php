@@ -125,6 +125,16 @@ $doctors = $conn->query("
         font-size: .75rem;
     }
 
+    .slot-btn:disabled,
+    .slot-btn.disabled-slot {
+        opacity: .45;
+        cursor: not-allowed;
+        text-decoration: line-through;
+        background: #e5e7eb;
+        border-color: #d1d5db;
+        color: var(--text-muted);
+    }
+
     .main-card {
         background: var(--card);
         border: 1px solid var(--border);
@@ -668,8 +678,8 @@ $doctors = $conn->query("
                 }
                 let html = '<div class="slot-grid">';
                 res.slots.forEach(slot => {
-                    html += `<button type="button" class="slot-btn" ${!slot.available ? 'disabled' : ''}
-                        onclick="selectSlot('${slot.value}','${slot.label}',this)">${slot.label}</button>`;
+                    html += `<button type="button" class="slot-btn${!slot.available ? ' disabled-slot' : ''}" ${!slot.available ? 'disabled' : ''}
+    onclick="selectSlot('${slot.value}','${slot.label}',this)">${slot.label}</button>`;
                 });
                 html += '</div>';
                 document.getElementById('slotsContainer').innerHTML = html;

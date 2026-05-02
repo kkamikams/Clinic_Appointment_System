@@ -5,6 +5,7 @@ require_once('../config/config.php');
 
 header('Content-Type: application/json');
 $action = $_GET['action'] ?? '';
+$changedBy = trim(($_SESSION['authUser']['firstName'] ?? '') . ' ' . ($_SESSION['authUser']['lastName'] ?? 'Admin'));
 
 function logActivity($conn, $type, $desc, $refId = null, $refType = null)
 {
@@ -223,13 +224,37 @@ switch ($action) {
             LIMIT 1
         ")->fetch_assoc();
 
+        if ($row) {
+            $rid = (int)$row['id'];
+            $auditLog = [];
+            $logs = $conn->query("
+                SELECT action, changedBy, changedAt, oldValue, newValue
+                FROM medicalRecordAudit
+                WHERE recordId = $rid
+                ORDER BY changedAt DESC
+            ");
+            if ($logs) {
+                while ($l = $logs->fetch_assoc()) {
+                    $auditLog[] = [
+                        'action' => $l['action'],
+                        'by'     => $l['changedBy'] ?? 'Admin',
+                        'at'     => date('M j, g:i A', strtotime($l['changedAt'])),
+                        'type'   => $l['action'] === 'Created' ? 'create'
+                            : ($l['action'] === 'Status Changed' ? 'status' : 'edit'),
+                        'from'   => $l['oldValue'] ?? '',
+                        'to'     => $l['newValue'] ?? '',
+                    ];
+                }
+            }
+            $row['auditLog'] = $auditLog;
+        }
+
         echo json_encode(
             $row
                 ? ['success' => true,  'data' => $row]
                 : ['success' => false, 'message' => 'Record not found']
         );
         break;
-
     case 'add':
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') break;
 
@@ -264,7 +289,10 @@ switch ($action) {
 
         if ($ok) {
             $newId = $conn->insert_id;
-            logActivity($conn, 'New Record', "Medical record $code created", $newId, 'Record');
+            $conn->query("
+                INSERT INTO medicalRecordAudit (recordId, action, changedBy, changedAt)
+                VALUES ($newId, 'Created', '$changedBy', NOW())
+            ");
 
             if ($followUpRaw) {
                 $folLast     = $conn->query("SELECT MAX(CAST(SUBSTRING_INDEX(followUpCode, '-', -1) AS UNSIGNED)) FROM followups")->fetch_row()[0];
@@ -345,6 +373,12 @@ switch ($action) {
         }
         // ────────────────────────────────────────────────────────────────────
 
+        if ($ok) {
+            $conn->query("
+                INSERT INTO medicalRecordAudit (recordId, action, changedBy, changedAt)
+                VALUES ($id, 'Edited', '$changedBy', NOW())
+            ");
+        }
         echo json_encode(['success' => (bool)$ok, 'error' => $ok ? null : $conn->error]);
         break;
 
@@ -359,8 +393,20 @@ switch ($action) {
             break;
         }
 
-        $s  = $conn->real_escape_string($status);
+        $s = $conn->real_escape_string($status);
+
+        // Capture old status BEFORE updating
+        $oldStatus = $conn->query("SELECT status FROM medicalRecords WHERE id=$id")->fetch_row()[0] ?? '';
+
         $ok = $conn->query("UPDATE medicalRecords SET status='$s', updatedAt=NOW() WHERE id=$id");
+
+        if ($ok && $oldStatus !== $status) {
+            $oldEsc = $conn->real_escape_string($oldStatus);
+            $conn->query("
+                INSERT INTO medicalRecordAudit (recordId, action, changedBy, changedAt, oldValue, newValue)
+                VALUES ($id, 'Status Changed', '$changedBy', NOW(), '$oldEsc', '$s')
+            ");
+        }
 
         echo json_encode(['success' => (bool)$ok, 'stats' => getStats($conn)]);
         break;

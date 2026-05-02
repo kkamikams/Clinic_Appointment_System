@@ -116,8 +116,9 @@ switch ($action) {
         CONCAT('Dr. ',COALESCE(d.firstName,''),' ',COALESCE(d.lastName,'')) AS doctorName,
         d.specialization,
         NULL AS followUpDate,
-NULL AS followUpCode,
-0 AS isFollowUp
+        NULL AS followUpCode,
+        0 AS isFollowUp,
+        NULL AS followUpId
 
     FROM appointments a
     LEFT JOIN patients p ON p.id = a.patientId
@@ -136,7 +137,8 @@ NULL AS followUpCode,
         d.specialization,
         f.followUpDate AS followUpDate,
         f.followUpCode AS followUpCode,
-        1 AS isFollowUp
+        1 AS isFollowUp,
+        f.id AS followUpId
 
     FROM followups f
     JOIN appointments a ON a.id = f.appointmentId
@@ -195,6 +197,26 @@ NULL AS followUpCode,
         echo json_encode(['success' => !!$row, 'data' => $row]);
         break;
 
+    case 'get_followup':
+        $id  = (int)($_GET['id'] ?? 0);
+        $row = $conn->query("
+        SELECT f.*,
+               a.appointmentCode,
+               a.appointmentTime,
+               a.doctorId,
+               CONCAT(COALESCE(p.firstName,''),' ',COALESCE(p.lastName,'')) AS patientName,
+               CONCAT('Dr. ',COALESCE(d.firstName,''),' ',COALESCE(d.lastName,'')) AS doctorName,
+               d.specialization,
+               a.id AS appointmentId
+        FROM followups f
+        JOIN appointments a ON a.id = f.appointmentId
+        LEFT JOIN patients p ON p.id = f.patientId
+        LEFT JOIN doctors  d ON d.id = a.doctorId
+        WHERE f.id = $id
+    ")->fetch_assoc();
+        echo json_encode(['success' => !!$row, 'data' => $row]);
+        break;
+
     case 'add':
         $body            = json_decode(file_get_contents('php://input'), true);
         $doctorId        = (int) ($body['doctorId'] ?? 0);
@@ -215,17 +237,19 @@ NULL AS followUpCode,
             $email     = $conn->real_escape_string(trim($body['patientEmail']   ?? ''));
             $gender    = in_array($body['patientGender'] ?? '', ['Male', 'Female', 'Other'])
                 ? $body['patientGender'] : 'Other';
+            $dob       = $conn->real_escape_string(trim($body['patientDOB'] ?? ''));
+            $dobSql    = $dob ? "'$dob'" : 'NULL';
             $max       = (int) $conn->query("SELECT MAX(id) FROM patients")->fetch_row()[0];
             $pCode     = 'PAT-' . date('Y') . '-' . str_pad($max + 1, 3, '0', STR_PAD_LEFT);
             $conn->query("
-                INSERT INTO patients (patientCode, firstName, lastName, gender, contactNumber, emailAddress, status, patientCondition)
-                VALUES (
-                    '$pCode','$firstName','$lastName','$gender',
-                    " . ($contact ? "'$contact'" : 'NULL') . ",
-                    " . ($email   ? "'$email'"   : 'NULL') . ",
-                    'Active','Stable'
-                )
-            ");
+    INSERT INTO patients (patientCode, firstName, lastName, gender, dateOfBirth, contactNumber, emailAddress, status, patientCondition)
+    VALUES (
+        '$pCode','$firstName','$lastName','$gender',$dobSql,
+        " . ($contact ? "'$contact'" : 'NULL') . ",
+        " . ($email   ? "'$email'"   : 'NULL') . ",
+        'Active','Stable'
+    )
+");
             $patientId = $conn->insert_id;
         }
 
@@ -279,6 +303,23 @@ NULL AS followUpCode,
         } else {
             echo json_encode(['success' => false, 'message' => $conn->error]);
         }
+        break;
+
+    case 'edit_followup':
+        $body   = json_decode(file_get_contents('php://input'), true);
+        $id     = (int)($body['id'] ?? 0);
+        $date   = $conn->real_escape_string($body['appointmentDate'] ?? '');
+        $status = $conn->real_escape_string($body['status'] ?? 'Pending');
+        $reason = $conn->real_escape_string($body['remarks'] ?? '');
+
+        if (!$id) {
+            echo json_encode(['success' => false]);
+            break;
+        }
+
+        $conn->query("UPDATE followups SET followUpDate='$date', status='$status', reason='$reason', updatedAt=NOW() WHERE id=$id");
+        logActivity($conn, 'followup_update', "Follow-up updated (status: $status)", $id, 'Followup');
+        echo json_encode(['success' => true]);
         break;
 
     case 'cancel':

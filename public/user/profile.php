@@ -5,6 +5,12 @@ include('./includes/topbar.php');
 include('./includes/sidebar.php');
 require_once('../../app/controllers/profileController.php');
 
+$flashSuccess = '';
+if (!empty($_SESSION['profile_success'])) {
+    $flashSuccess = $_SESSION['profile_success'];
+    unset($_SESSION['profile_success']);
+}
+
 // Fetch user from DB using session id
 $userId = isset($_SESSION['authUser']['user_id']) ? $_SESSION['authUser']['user_id'] : 0;
 $stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
@@ -247,12 +253,10 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
     <div style="background:#fff;border-radius:20px;padding:2rem;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;margin:1rem;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
             <h3 style="margin:0;font-size:1.1rem;font-weight:700;">Edit Profile</h3>
-            <button onclick="document.getElementById('editModal').style.display='none'"
-                style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#6b7280;">&times;</button>
         </div>
 
-        <?php if (!empty($success)): ?>
-            <div style="background:#d1fae5;color:#065f46;padding:10px 14px;border-radius:10px;margin-bottom:1rem;font-size:0.85rem;"><?php echo $success; ?></div>
+        <?php if (!empty($flashSuccess)): ?>
+            <div style="background:#d1fae5;color:#065f46;padding:10px 14px;border-radius:10px;margin-bottom:1rem;font-size:0.85rem;"><?php echo $flashSuccess; ?></div>
         <?php endif; ?>
         <?php if (!empty($error)): ?>
             <div style="background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:10px;margin-bottom:1rem;font-size:0.85rem;"><?php echo $error; ?></div>
@@ -356,10 +360,24 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
     }
 </script>
 
-<!-- Auto-open modal if there's an error/success after submit -->
-<?php if (!empty($error) || !empty($success)): ?>
+<?php if (!empty($error) || !empty($flashSuccess)): ?>
     <script>
         document.getElementById('editModal').style.display = 'flex';
+    </script>
+<?php endif; ?>
+
+<?php if (!empty($flashSuccess)): ?>
+    <script>
+        setTimeout(function() {
+            const modal = document.getElementById('editModal');
+            modal.style.transition = 'opacity 0.3s ease';
+            modal.style.opacity = '0';
+            setTimeout(function() {
+                modal.style.display = 'none';
+                modal.style.opacity = '1';
+                modal.style.transition = '';
+            }, 300);
+        }, 1500);
     </script>
 <?php endif; ?>
 

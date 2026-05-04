@@ -68,7 +68,6 @@ $doctors = $conn->query("
         --shadow-lg: 0 8px 30px rgba(0, 0, 0, .10);
     }
 
-    /* Scope font only — do NOT apply box-sizing here as it breaks Bootstrap grid */
     .page-book {
         font-family: 'DM Sans', sans-serif;
     }
@@ -359,11 +358,34 @@ $doctors = $conn->query("
         font-size: .8rem;
     }
 
-    /* Fix sticky sidebar */
     .sidebar-sticky-col {
         position: sticky;
         top: 80px;
         align-self: flex-start;
+    }
+
+    /* ── Field error styles ── */
+    .field-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .field-wrap.field-error .form-control,
+    .field-wrap.field-error .form-select {
+        border-color: var(--red) !important;
+        background: #fff8f8;
+    }
+
+    .field-err-msg {
+        font-size: .68rem;
+        color: var(--red);
+        display: none;
+        margin-top: 2px;
+    }
+
+    .field-wrap.field-error .field-err-msg {
+        display: block;
     }
 
     @keyframes fadeUp {
@@ -428,8 +450,12 @@ $doctors = $conn->query("
                 <div class="row g-3 mb-4">
                     <div class="col-md-4">
                         <label class="form-label">First Name <span class="req">*</span></label>
-                        <input type="text" id="firstName" class="form-control"
-                            value="" placeholder="e.g. Juan" oninput="updateSummary()">
+                        <div class="field-wrap" id="wrap-firstName">
+                            <input type="text" id="firstName" class="form-control"
+                                value="" placeholder="e.g. Juan"
+                                oninput="updateSummary(); clearFieldError('wrap-firstName')">
+                            <span class="field-err-msg">First name is required.</span>
+                        </div>
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Middle Name</label>
@@ -438,31 +464,51 @@ $doctors = $conn->query("
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Last Name <span class="req">*</span></label>
-                        <input type="text" id="lastName" class="form-control"
-                            value="" placeholder="e.g. dela Cruz" oninput="updateSummary()">
+                        <div class="field-wrap" id="wrap-lastName">
+                            <input type="text" id="lastName" class="form-control"
+                                value="" placeholder="e.g. dela Cruz"
+                                oninput="updateSummary(); clearFieldError('wrap-lastName')">
+                            <span class="field-err-msg">Last name is required.</span>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Date of Birth</label>
-                        <input type="date" id="dateOfBirth" class="form-control" value="">
+                        <label class="form-label">Date of Birth <span class="req">*</span></label>
+                        <div class="field-wrap" id="wrap-dateOfBirth">
+                            <input type="date" id="dateOfBirth" class="form-control" value=""
+                                onchange="clearFieldError('wrap-dateOfBirth')">
+                            <span class="field-err-msg">Date of birth is required.</span>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Contact Number</label>
-                        <input type="tel" id="contactNumber" class="form-control"
-                            value="" placeholder="e.g. 09171234567">
+                        <label class="form-label">Contact Number <span class="req">*</span></label>
+                        <div class="field-wrap" id="wrap-contactNumber">
+                            <input type="tel" id="contactNumber" class="form-control"
+                                value="" placeholder="e.g. 09171234567"
+                                oninput="clearFieldError('wrap-contactNumber')">
+                            <span class="field-err-msg">Contact number is required.</span>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Email Address</label>
-                        <input type="email" id="emailAddress" class="form-control"
-                            value="" placeholder="e.g. patient@email.com">
+                        <label class="form-label">Email Address <span class="req">*</span></label>
+                        <div class="field-wrap" id="wrap-emailAddress">
+                            <input type="email" id="emailAddress" class="form-control"
+                                value="" placeholder="e.g. patient@email.com"
+                                oninput="clearFieldError('wrap-emailAddress')">
+                            <span class="field-err-msg">Email address is required.</span>
+                        </div>
                     </div>
                     <div class="col-md-6">
-                        <label class="form-label">Gender</label>
-                        <select id="gender" class="form-select">
-                            <option value="">Select Gender</option>
-                            <option>Male</option>
-                            <option>Female</option>
-                            <option>Other</option>
-                        </select>
+                        <label class="form-label">Gender <span class="req">*</span></label>
+                        <div class="field-wrap" id="wrap-gender">
+                            <select id="gender" class="form-select"
+                                onchange="clearFieldError('wrap-gender')">
+                                <option value="">Select Gender</option>
+                                <option>Male</option>
+                                <option>Female</option>
+                                <option>Other</option>
+                            </select>
+                            <span class="field-err-msg">Please select a gender.</span>
+                        </div>
                     </div>
                 </div>
 
@@ -471,31 +517,39 @@ $doctors = $conn->query("
                 <div class="row g-3 mb-4">
                     <div class="col-md-6">
                         <label class="form-label">Specialization <span class="req">*</span></label>
-                        <select id="deptSelect" class="form-select" onchange="updateSummary(); filterDoctors()">
-                            <option value="">Select Specialization</option>
-                            <?php
-                            $specs = $conn->query("
-                                SELECT DISTINCT specialization FROM doctors
-                                WHERE employmentStatus='Active' AND specialization IS NOT NULL AND specialization!=''
-                                ORDER BY specialization
-                            ")->fetch_all(MYSQLI_ASSOC);
-                            foreach ($specs as $spec): ?>
-                                <option><?= htmlspecialchars($spec['specialization']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                        <div class="field-wrap" id="wrap-deptSelect">
+                            <select id="deptSelect" class="form-select"
+                                onchange="updateSummary(); filterDoctors(); clearFieldError('wrap-deptSelect')">
+                                <option value="">Select Specialization</option>
+                                <?php
+                                $specs = $conn->query("
+                                    SELECT DISTINCT specialization FROM doctors
+                                    WHERE employmentStatus='Active' AND specialization IS NOT NULL AND specialization!=''
+                                    ORDER BY specialization
+                                ")->fetch_all(MYSQLI_ASSOC);
+                                foreach ($specs as $spec): ?>
+                                    <option><?= htmlspecialchars($spec['specialization']) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <span class="field-err-msg">Please select a specialization.</span>
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Doctor <span class="req">*</span></label>
-                        <select id="doctorSelect" class="form-select" onchange="updateSummary(); loadSlots(); loadDoctorSchedule()">
-                            <option value="">Select Doctor</option>
-                            <?php foreach ($doctors as $doc): ?>
-                                <option value="<?= $doc['id'] ?>"
-                                    data-dept="<?= htmlspecialchars($doc['department'] ?? '') ?>"
-                                    data-spec="<?= htmlspecialchars($doc['specialization']) ?>">
-                                    Dr. <?= htmlspecialchars($doc['name']) ?> (<?= htmlspecialchars($doc['specialization']) ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
+                        <div class="field-wrap" id="wrap-doctorSelect">
+                            <select id="doctorSelect" class="form-select"
+                                onchange="updateSummary(); loadSlots(); loadDoctorSchedule(); clearFieldError('wrap-doctorSelect')">
+                                <option value="">Select Doctor</option>
+                                <?php foreach ($doctors as $doc): ?>
+                                    <option value="<?= $doc['id'] ?>"
+                                        data-dept="<?= htmlspecialchars($doc['department'] ?? '') ?>"
+                                        data-spec="<?= htmlspecialchars($doc['specialization']) ?>">
+                                        Dr. <?= htmlspecialchars($doc['name']) ?> (<?= htmlspecialchars($doc['specialization']) ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <span class="field-err-msg">Please select a doctor.</span>
+                        </div>
                         <div id="doctorScheduleBox" style="display:none;margin-top:8px;background:var(--blue-50);border:1px solid var(--blue-100);border-radius:var(--radius-sm);padding:.65rem .85rem;">
                             <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--blue-600);margin-bottom:.5rem;">
                                 <i class="bi bi-clock"></i> Available Schedule
@@ -505,7 +559,11 @@ $doctors = $conn->query("
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Appointment Date <span class="req">*</span></label>
-                        <input type="date" id="apptDate" class="form-control" onchange="updateSummary(); loadSlots()">
+                        <div class="field-wrap" id="wrap-apptDate">
+                            <input type="date" id="apptDate" class="form-control"
+                                onchange="updateSummary(); loadSlots(); clearFieldError('wrap-apptDate')">
+                            <span class="field-err-msg">Please select a date.</span>
+                        </div>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Appointment Time <span class="req">*</span></label>
@@ -515,6 +573,7 @@ $doctors = $conn->query("
                                 Select a doctor and date to see available slots.
                             </div>
                         </div>
+                        <span class="field-err-msg" id="time-err-msg" style="display:none;">Please select a time slot.</span>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Type of Visit</label>
@@ -549,7 +608,6 @@ $doctors = $conn->query("
         <!-- RIGHT: Summary + Reminders (sticky) -->
         <div class="col-lg-4 sidebar-sticky-col">
 
-            <!-- Appointment Summary -->
             <div class="summary-card mb-3">
                 <h6><i class="bi bi-clipboard2-pulse-fill"></i> Appointment Summary</h6>
                 <div class="summary-item"><span class="s-label">Patient</span><span id="sum-patient" class="s-placeholder">Not entered</span></div>
@@ -560,7 +618,6 @@ $doctors = $conn->query("
                 <div class="summary-item"><span class="s-label">Notes</span><span id="sum-notes" class="s-placeholder">None</span></div>
             </div>
 
-            <!-- Reminders -->
             <div class="main-card" style="padding:1.25rem">
                 <div class="form-section-label mb-2"><i class="bi bi-info-circle-fill"></i> Reminders</div>
                 <ul style="font-size:.8rem;color:var(--text-body);padding-left:1.1rem;margin:0;line-height:1.8">
@@ -580,6 +637,14 @@ $doctors = $conn->query("
 <script>
     const HANDLER = '../../app/controllers/bookapp_handler.php';
     const allDoctors = <?= json_encode($doctors) ?>;
+
+    function markFieldError(wrapperId) {
+        document.getElementById(wrapperId)?.classList.add('field-error');
+    }
+
+    function clearFieldError(wrapperId) {
+        document.getElementById(wrapperId)?.classList.remove('field-error');
+    }
 
     function updateSummary() {
         const set = (id, val, fb) => {
@@ -690,26 +755,50 @@ $doctors = $conn->query("
         document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         document.getElementById('apptTime').value = value;
+        document.getElementById('time-err-msg').style.display = 'none';
         updateSummary();
     }
 
     function submitForm() {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
-        const firstName = document.getElementById('firstName').value.trim();
-        const middleName = document.getElementById('middleName').value.trim();
-        const lastName = document.getElementById('lastName').value.trim();
-        const name = [firstName, middleName, lastName].filter(Boolean).join(' ');
-        const doctor = document.getElementById('doctorSelect').value;
-        const date = document.getElementById('apptDate').value;
-        const time = document.getElementById('apptTime').value;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
 
-        if (!firstName || !lastName || !doctor || !date || !time) {
+        const firstName = document.getElementById('firstName').value.trim();
+        const lastName  = document.getElementById('lastName').value.trim();
+        const doctor    = document.getElementById('doctorSelect').value;
+        const date      = document.getElementById('apptDate').value;
+        const time      = document.getElementById('apptTime').value;
+        const spec      = document.getElementById('deptSelect').value;
+
+        const dob     = document.getElementById('dateOfBirth').value;
+        const contact = document.getElementById('contactNumber').value.trim();
+        const email   = document.getElementById('emailAddress').value.trim();
+        const gender  = document.getElementById('gender').value;
+
+        let hasError = false;
+
+        if (!firstName) { markFieldError('wrap-firstName');    hasError = true; }
+        if (!lastName)  { markFieldError('wrap-lastName');     hasError = true; }
+        if (!dob)       { markFieldError('wrap-dateOfBirth');  hasError = true; }
+        if (!contact)   { markFieldError('wrap-contactNumber'); hasError = true; }
+        if (!email)     { markFieldError('wrap-emailAddress'); hasError = true; }
+        if (!gender)    { markFieldError('wrap-gender');       hasError = true; }
+        if (!spec)      { markFieldError('wrap-deptSelect');   hasError = true; }
+        if (!doctor)    { markFieldError('wrap-doctorSelect'); hasError = true; }
+        if (!date)      { markFieldError('wrap-apptDate');     hasError = true; }
+        if (!time) {
+            document.getElementById('time-err-msg').style.display = 'block';
+            hasError = true;
+        }
+
+        if (hasError) {
             showAlert('error', 'Please fill in all required fields.');
+            document.querySelector('.field-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
+
+        const middleName = document.getElementById('middleName').value.trim();
+        const name = [firstName, middleName, lastName].filter(Boolean).join(' ');
+
         const btn = document.getElementById('submitBtn');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Booking…';
@@ -730,11 +819,10 @@ $doctors = $conn->query("
             channel: document.getElementById('channel').value,
             remarks: document.getElementById('apptNotes').value,
         };
+
         fetch(`${HANDLER}?action=book`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }).then(r => r.json()).then(res => {
             btn.disabled = false;
@@ -744,10 +832,7 @@ $doctors = $conn->query("
                 document.getElementById('successCode').textContent = `Reference: ${res.appointmentCode}`;
                 showAlert('success');
                 resetForm();
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             } else {
                 showAlert('error', res.message || 'Failed to book. Please try again.');
             }
@@ -781,6 +866,8 @@ $doctors = $conn->query("
         document.getElementById('apptTime').value = '';
         document.getElementById('channel').value = 'Online';
         document.getElementById('slotsContainer').innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">Select a doctor and date to see available slots.</div>';
+        document.getElementById('time-err-msg').style.display = 'none';
+        document.querySelectorAll('.field-wrap').forEach(w => w.classList.remove('field-error'));
         const patIdEl = document.getElementById('patientId');
         if (patIdEl) patIdEl.value = '';
         updateSummary();

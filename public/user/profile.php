@@ -35,7 +35,6 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
 ?>
 
 <style>
-    /* ── shared font ── */
     .profile-wrapper,
     .profile-wrapper *,
     #editModal,
@@ -44,7 +43,6 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
         box-sizing: border-box;
     }
 
-    /* ── hero card ── */
     .profile-wrapper { max-width: 720px; margin: 1.5rem auto; }
 
     .profile-hero {
@@ -63,7 +61,6 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
     .profile-hero-name  { font-size: 1.5rem; font-weight: 700; color: #fff; letter-spacing: -.02em; margin: 0; }
     .profile-hero-role  { font-size: .75rem; color: rgba(255,255,255,.75); margin-top: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; }
 
-    /* ── info body ── */
     .profile-body {
         background: #fff; border: 1px solid #eaecf4; border-radius: 20px;
         margin-top: -2rem; padding: 2.5rem 2rem 2rem;
@@ -82,23 +79,14 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
     .profile-info-value { font-size: .88rem; font-weight: 600; color: #111827; word-break: break-word; }
     .profile-badge { display: inline-block; background: #dbeafe; color: #1d4ed8; font-size: .7rem; font-weight: 700; padding: 3px 12px; border-radius: 20px; letter-spacing: .04em; text-transform: capitalize; }
 
-    /* ══════════════════════════════════════════════
-       Edit-modal field validation styles
-       (same pattern as book_appointment / patient / doctors)
-    ══════════════════════════════════════════════ */
-
-    /* Wrapper that holds input + error message */
+    /* ── Field validation styles ── */
     .m-field-wrap { display: flex; flex-direction: column; gap: 4px; }
-
-    /* Input/select inside an errored wrapper → red border */
     .m-field-wrap.field-error input,
     .m-field-wrap.field-error select {
         border-color: #ef4444 !important;
         background: #fff8f8 !important;
         box-shadow: 0 0 0 2px rgba(239,68,68,.10);
     }
-
-    /* Per-field error message — hidden by default */
     .m-field-err {
         font-size: .68rem;
         color: #ef4444;
@@ -108,32 +96,31 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
     }
     .m-field-wrap.field-error .m-field-err { display: block; }
 
-    /* "Please fill in all required fields." — sticky bottom inside the modal scroll area */
-    .modal-banner-error {
+    /* ── Green success banner ── */
+    .modal-banner-success {
         display: none;
         position: sticky;
         bottom: 0;
         align-items: center;
         gap: 7px;
-        background: #9b1c1c;
+        background: #166534;
         color: #fff;
         font-size: .75rem;
         font-weight: 600;
         border-radius: 999px;
         padding: .4rem 1rem;
-        box-shadow: 0 2px 10px rgba(120,20,20,.2);
+        box-shadow: 0 2px 10px rgba(22,101,52,.25);
         width: fit-content;
         margin: .6rem 0 0 auto;
         animation: mFadeUp .22s ease both;
     }
-    .modal-banner-error i { font-size: .75rem; flex-shrink: 0; }
+    .modal-banner-success i { font-size: .75rem; flex-shrink: 0; }
 
     @keyframes mFadeUp {
         from { opacity: 0; transform: translateY(6px); }
         to   { opacity: 1; transform: translateY(0);   }
     }
 
-    /* shared modal input style */
     .m-input {
         width: 100%;
         padding: 9px 12px;
@@ -250,21 +237,12 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
                 style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#9ca3af;line-height:1;">✕</button>
         </div>
 
-        <?php if (!empty($flashSuccess)): ?>
-            <div style="background:#d1fae5;color:#065f46;padding:10px 14px;border-radius:10px;margin-bottom:1rem;font-size:.85rem;">
-                <?= $flashSuccess ?>
-            </div>
-        <?php endif; ?>
         <?php if (!empty($error)): ?>
             <div style="background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:10px;margin-bottom:1rem;font-size:.85rem;">
                 <?= $error ?>
             </div>
         <?php endif; ?>
 
-        <!--
-            novalidate → disables the browser's native "Please fill out this field." tooltip.
-            We handle all validation ourselves via JS.
-        -->
         <form id="editForm" method="POST" action="" enctype="multipart/form-data" novalidate>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -364,6 +342,7 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
                 <div>
                     <label class="m-label">New Password</label>
                     <input type="password" name="newPassword" id="mNewPass" class="m-input"
+                        value="" autocomplete="new-password"
                         oninput="mClear('mwrap-confirmPass')">
                 </div>
 
@@ -379,9 +358,8 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
 
             </div><!-- /grid -->
 
-            <!-- ── Modal footer: action buttons ── -->
+            <!-- ── Modal footer ── -->
             <div style="margin-top:1.5rem;">
-
                 <div style="display:flex;gap:10px;justify-content:flex-end;">
                     <button type="button" onclick="closeEditModal()"
                         style="padding:9px 20px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;font-weight:600;cursor:pointer;font-size:.88rem;">
@@ -396,42 +374,33 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
 
         </form>
 
-        <!-- Sticky banner — stays visible at bottom of modal while scrolling -->
-        <div class="modal-banner-error" id="modalBannerError">
-            <i class="bi bi-exclamation-circle-fill"></i>
-            Please fill in all required fields.
+        <!-- ── Green success banner ── -->
+        <div class="modal-banner-success" id="modalBannerSuccess">
+            ✓ Changes saved successfully!
         </div>
 
     </div>
 </div>
 
 <script>
-    /* ── Modal open / close ── */
     function openEditModal() {
         document.getElementById('editModal').style.display = 'flex';
     }
 
     function closeEditModal() {
         document.getElementById('editModal').style.display = 'none';
-        // Reset all validation state when closing
         document.querySelectorAll('.m-field-wrap').forEach(w => w.classList.remove('field-error'));
-        document.getElementById('modalBannerError').style.display = 'none';
+        document.getElementById('modalBannerSuccess').style.display = 'none';
     }
 
-    /* ── Per-field clear (called from oninput) ── */
     function mClear(wrapperId) {
         document.getElementById(wrapperId)?.classList.remove('field-error');
-        // Hide banner once user starts fixing fields
-        const anyErr = document.querySelector('.m-field-wrap.field-error');
-        if (!anyErr) document.getElementById('modalBannerError').style.display = 'none';
     }
 
-    /* ── Mark a field as invalid ── */
     function mMark(wrapperId) {
         document.getElementById(wrapperId)?.classList.add('field-error');
     }
 
-    /* ── Validate + submit ── */
     function submitEditForm() {
         const firstName = document.getElementById('mFirstName').value.trim();
         const lastName  = document.getElementById('mLastName').value.trim();
@@ -442,13 +411,11 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
 
         let hasError = false;
 
-        // Required fields
         if (!firstName) { mMark('mwrap-firstName'); hasError = true; }
         if (!lastName)  { mMark('mwrap-lastName');  hasError = true; }
         if (!username)  { mMark('mwrap-username');  hasError = true; }
         if (!email)     { mMark('mwrap-email');     hasError = true; }
 
-        // Password match (only if user typed something in New Password)
         if (newPass && newPass !== confPass) {
             document.getElementById('mConfirmPassErr').textContent = 'Passwords do not match.';
             mMark('mwrap-confirmPass');
@@ -456,22 +423,15 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
         }
 
         if (hasError) {
-            // Show the pill banner inside the modal
-            const banner = document.getElementById('modalBannerError');
-            banner.style.display = 'flex';
-
-            // Scroll the modal body to the first error
             const firstErr = document.querySelector('#editForm .field-error');
             if (firstErr) firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
-        // All valid — hide banner and submit
-        document.getElementById('modalBannerError').style.display = 'none';
+        // All valid — submit the form (success banner shown by PHP after reload)
         document.getElementById('editForm').submit();
     }
 
-    /* ── Profile photo preview ── */
     function previewPhoto(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -484,7 +444,7 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
     }
 </script>
 
-<?php if (!empty($error) || !empty($flashSuccess)): ?>
+<?php if (!empty($error)): ?>
 <script>
     document.getElementById('editModal').style.display = 'flex';
 </script>
@@ -492,14 +452,22 @@ $dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['creat
 
 <?php if (!empty($flashSuccess)): ?>
 <script>
+    // Open modal and show green success banner
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'flex';
+
+    const banner = document.getElementById('modalBannerSuccess');
+    banner.style.display = 'flex';
+
+    // Auto-close modal after 1.5 s with fade
     setTimeout(function () {
-        const modal = document.getElementById('editModal');
         modal.style.transition = 'opacity 0.3s ease';
         modal.style.opacity = '0';
         setTimeout(function () {
             modal.style.display = 'none';
             modal.style.opacity = '1';
             modal.style.transition = '';
+            banner.style.display = 'none';
         }, 300);
     }, 1500);
 </script>

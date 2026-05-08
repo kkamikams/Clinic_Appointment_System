@@ -63,9 +63,9 @@ $doctors = $conn->query("
         --red-dark: #991b1b;
         --radius: 16px;
         --radius-sm: 10px;
-        --shadow: 0 1px 3px rgba(0, 0, 0, .06), 0 1px 2px rgba(0, 0, 0, .04);
-        --shadow-md: 0 4px 16px rgba(0, 0, 0, .07);
-        --shadow-lg: 0 8px 30px rgba(0, 0, 0, .10);
+        --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+        --shadow-md: 0 4px 16px rgba(0,0,0,.07);
+        --shadow-lg: 0 8px 30px rgba(0,0,0,.10);
     }
 
     .page-book {
@@ -124,16 +124,6 @@ $doctors = $conn->query("
         font-size: .75rem;
     }
 
-    .slot-btn:disabled,
-    .slot-btn.disabled-slot {
-        opacity: .45;
-        cursor: not-allowed;
-        text-decoration: line-through;
-        background: #e5e7eb;
-        border-color: #d1d5db;
-        color: var(--text-muted);
-    }
-
     .main-card {
         background: var(--card);
         border: 1px solid var(--border);
@@ -153,7 +143,7 @@ $doctors = $conn->query("
     }
 
     .form-label .req {
-        color: #ef4444;
+        color: var(--red);
         margin-left: 2px;
     }
 
@@ -166,6 +156,7 @@ $doctors = $conn->query("
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         padding: .55rem .85rem;
+        width: 100%;
         transition: border-color .2s, box-shadow .2s, background .2s;
     }
 
@@ -173,7 +164,7 @@ $doctors = $conn->query("
     .form-select:focus {
         border-color: var(--blue-400);
         background: #fff;
-        box-shadow: 0 0 0 3px rgba(96, 165, 250, .15);
+        box-shadow: 0 0 0 3px rgba(96,165,250,.15);
         outline: none;
     }
 
@@ -187,6 +178,69 @@ $doctors = $conn->query("
         resize: vertical;
     }
 
+    /* ─── Field validation wrappers ─── */
+    .field-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    /* Red border on the input/select when the wrapper has .field-error */
+    .field-wrap.field-error .form-control,
+    .field-wrap.field-error .form-select {
+        border-color: var(--red) !important;
+        background: #fff8f8 !important;
+        box-shadow: 0 0 0 2px rgba(239,68,68,.10);
+    }
+
+    /* Per-field error message — hidden by default, shown when .field-error */
+    .field-err-msg {
+        font-size: .68rem;
+        color: var(--red);
+        font-weight: 500;
+        display: none;
+        margin-top: 1px;
+    }
+
+    .field-wrap.field-error .field-err-msg {
+        display: block;
+    }
+
+    /* Time-slot specific error (no wrapper) */
+    .slot-err-msg {
+        font-size: .68rem;
+        color: var(--red);
+        font-weight: 500;
+        margin-top: 4px;
+        display: none;
+    }
+
+    /* ─── General "fill required fields" banner — fixed bottom-right pill ─── */
+    .form-banner-error {
+        display: none;
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        z-index: 9999;
+        align-items: center;
+        gap: 10px;
+        background: #9b1c1c;        /* dark muted red — not too bright */
+        color: #fff;
+        font-size: .84rem;
+        font-weight: 600;
+        border-radius: 999px;       /* pill shape */
+        padding: .65rem 1.4rem;
+        box-shadow: 0 4px 20px rgba(120,20,20,.25);
+        animation: fadeUp .22s ease both;
+        pointer-events: none;       /* don't block clicks behind it */
+    }
+
+    .form-banner-error i {
+        font-size: .9rem;
+        flex-shrink: 0;
+    }
+
+    /* ─── Submit / cancel buttons ─── */
     .btn-submit {
         background: var(--blue-600);
         color: #fff;
@@ -205,7 +259,7 @@ $doctors = $conn->query("
 
     .btn-submit:hover {
         background: var(--blue-700);
-        box-shadow: 0 4px 14px rgba(37, 99, 235, .3);
+        box-shadow: 0 4px 14px rgba(37,99,235,.3);
         transform: translateY(-1px);
     }
 
@@ -229,6 +283,7 @@ $doctors = $conn->query("
         background: var(--surface);
     }
 
+    /* ─── Success / error alerts (top of page) ─── */
     .alert-success-custom {
         background: var(--green-light);
         border: 1px solid #6ee7b7;
@@ -243,9 +298,7 @@ $doctors = $conn->query("
         animation: fadeUp .25s ease;
     }
 
-    .alert-success-custom i {
-        font-size: 1.1rem;
-    }
+    .alert-success-custom i { font-size: 1.1rem; }
 
     .alert-error-custom {
         background: var(--red-light);
@@ -260,6 +313,7 @@ $doctors = $conn->query("
         font-weight: 500;
     }
 
+    /* ─── Appointment summary card ─── */
     .summary-card {
         background: var(--blue-50);
         border: 1px solid var(--blue-100);
@@ -287,9 +341,7 @@ $doctors = $conn->query("
         border-bottom: 1px solid var(--blue-100);
     }
 
-    .summary-item:last-child {
-        border-bottom: none;
-    }
+    .summary-item:last-child { border-bottom: none; }
 
     .summary-item .s-label {
         font-size: .65rem;
@@ -311,6 +363,7 @@ $doctors = $conn->query("
         font-style: italic;
     }
 
+    /* ─── Time slots ─── */
     .slot-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -345,10 +398,14 @@ $doctors = $conn->query("
         border-color: var(--blue-600);
     }
 
-    .slot-btn:disabled {
-        opacity: .4;
+    .slot-btn:disabled,
+    .slot-btn.disabled-slot {
+        opacity: .45;
         cursor: not-allowed;
         text-decoration: line-through;
+        background: #e5e7eb;
+        border-color: #d1d5db;
+        color: var(--text-muted);
     }
 
     .slots-loading {
@@ -358,60 +415,21 @@ $doctors = $conn->query("
         font-size: .8rem;
     }
 
+    /* ─── Sticky sidebar ─── */
     .sidebar-sticky-col {
         position: sticky;
         top: 80px;
         align-self: flex-start;
     }
 
-    /* ── Field error styles ── */
-    .field-wrap {
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-    }
-
-    .field-wrap.field-error .form-control,
-    .field-wrap.field-error .form-select {
-        border-color: var(--red) !important;
-        background: #fff8f8;
-    }
-
-    .field-err-msg {
-        font-size: .68rem;
-        color: var(--red);
-        display: none;
-        margin-top: 2px;
-    }
-
-    .field-wrap.field-error .field-err-msg {
-        display: block;
-    }
-
     @keyframes fadeUp {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0);    }
     }
 
     @media (min-width: 992px) {
-        .col-lg-8 {
-            flex: 0 0 auto;
-            width: 66.66667%;
-            max-width: 66.66667%;
-        }
-
-        .col-lg-4 {
-            flex: 0 0 auto;
-            width: 33.33333%;
-            max-width: 33.33333%;
-        }
+        .col-lg-8 { flex: 0 0 auto; width: 66.66667%; max-width: 66.66667%; }
+        .col-lg-4 { flex: 0 0 auto; width: 33.33333%; max-width: 33.33333%; }
     }
 </style>
 
@@ -427,6 +445,7 @@ $doctors = $conn->query("
 
 <section class="section page-book">
 
+    <!-- Top-level success / error alerts -->
     <div id="successAlert" class="alert-success-custom mb-4" style="display:none">
         <i class="bi bi-check-circle-fill"></i>
         <div>
@@ -441,80 +460,106 @@ $doctors = $conn->query("
 
     <div class="row g-4 align-items-start">
 
-        <!-- LEFT: Form -->
+        <!-- ═══════════════════════════════════════════
+             LEFT: Form
+        ════════════════════════════════════════════ -->
         <div class="col-lg-8">
             <div class="main-card">
 
-                <!-- Patient Info -->
-                <div class="form-section-label mb-3"><i class="bi bi-person-fill"></i> Patient Information</div>
+                <!-- Hidden patient id (populated if logged-in patient found) -->
+                <input type="hidden" id="patientId" value="<?= $patientRow['id'] ?? '' ?>">
+
+                <!-- ── Patient Information ── -->
+                <div class="form-section-label mb-3">
+                    <i class="bi bi-person-fill"></i> Patient Information
+                </div>
+
                 <div class="row g-3 mb-4">
+
                     <div class="col-md-4">
                         <label class="form-label">First Name <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-firstName">
                             <input type="text" id="firstName" class="form-control"
-                                value="" placeholder="e.g. Juan"
+                                value="<?= htmlspecialchars($patientRow['firstName'] ?? '') ?>"
+                                placeholder="e.g. Juan"
                                 oninput="updateSummary(); clearFieldError('wrap-firstName')">
                             <span class="field-err-msg">First name is required.</span>
                         </div>
                     </div>
+
                     <div class="col-md-4">
                         <label class="form-label">Middle Name</label>
                         <input type="text" id="middleName" class="form-control"
-                            value="" placeholder="e.g. Santos">
+                            value="<?= htmlspecialchars($patientRow['middleName'] ?? '') ?>"
+                            placeholder="e.g. Santos">
                     </div>
+
                     <div class="col-md-4">
                         <label class="form-label">Last Name <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-lastName">
                             <input type="text" id="lastName" class="form-control"
-                                value="" placeholder="e.g. dela Cruz"
+                                value="<?= htmlspecialchars($patientRow['lastName'] ?? '') ?>"
+                                placeholder="e.g. dela Cruz"
                                 oninput="updateSummary(); clearFieldError('wrap-lastName')">
                             <span class="field-err-msg">Last name is required.</span>
                         </div>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Date of Birth <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-dateOfBirth">
-                            <input type="date" id="dateOfBirth" class="form-control" value=""
+                            <input type="date" id="dateOfBirth" class="form-control"
+                                value="<?= htmlspecialchars($patientRow['dateOfBirth'] ?? '') ?>"
                                 onchange="clearFieldError('wrap-dateOfBirth')">
                             <span class="field-err-msg">Date of birth is required.</span>
                         </div>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Contact Number <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-contactNumber">
                             <input type="tel" id="contactNumber" class="form-control"
-                                value="" placeholder="e.g. 09171234567"
+                                value="<?= htmlspecialchars($patientRow['contactNumber'] ?? '') ?>"
+                                placeholder="e.g. 09171234567"
                                 oninput="clearFieldError('wrap-contactNumber')">
                             <span class="field-err-msg">Contact number is required.</span>
                         </div>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Email Address <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-emailAddress">
                             <input type="email" id="emailAddress" class="form-control"
-                                value="" placeholder="e.g. patient@email.com"
+                                value="<?= htmlspecialchars($patientRow['emailAddress'] ?? $userEmail) ?>"
+                                placeholder="e.g. patient@email.com"
                                 oninput="clearFieldError('wrap-emailAddress')">
                             <span class="field-err-msg">Email address is required.</span>
                         </div>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Gender <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-gender">
                             <select id="gender" class="form-select"
                                 onchange="clearFieldError('wrap-gender')">
                                 <option value="">Select Gender</option>
-                                <option>Male</option>
-                                <option>Female</option>
-                                <option>Other</option>
+                                <option <?= ($patientRow['gender'] ?? '') === 'Male'   ? 'selected' : '' ?>>Male</option>
+                                <option <?= ($patientRow['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+                                <option <?= ($patientRow['gender'] ?? '') === 'Other'  ? 'selected' : '' ?>>Other</option>
                             </select>
                             <span class="field-err-msg">Please select a gender.</span>
                         </div>
                     </div>
+
+                </div><!-- /.row patient info -->
+
+                <!-- ── Appointment Details ── -->
+                <div class="form-section-label mb-3">
+                    <i class="bi bi-calendar2-check-fill"></i> Appointment Details
                 </div>
 
-                <!-- Appointment Details -->
-                <div class="form-section-label mb-3"><i class="bi bi-calendar2-check-fill"></i> Appointment Details</div>
                 <div class="row g-3 mb-4">
+
                     <div class="col-md-6">
                         <label class="form-label">Specialization <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-deptSelect">
@@ -524,7 +569,8 @@ $doctors = $conn->query("
                                 <?php
                                 $specs = $conn->query("
                                     SELECT DISTINCT specialization FROM doctors
-                                    WHERE employmentStatus='Active' AND specialization IS NOT NULL AND specialization!=''
+                                    WHERE employmentStatus='Active'
+                                      AND specialization IS NOT NULL AND specialization!=''
                                     ORDER BY specialization
                                 ")->fetch_all(MYSQLI_ASSOC);
                                 foreach ($specs as $spec): ?>
@@ -534,6 +580,7 @@ $doctors = $conn->query("
                             <span class="field-err-msg">Please select a specialization.</span>
                         </div>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Doctor <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-doctorSelect">
@@ -550,6 +597,8 @@ $doctors = $conn->query("
                             </select>
                             <span class="field-err-msg">Please select a doctor.</span>
                         </div>
+
+                        <!-- Doctor schedule preview box -->
                         <div id="doctorScheduleBox" style="display:none;margin-top:8px;background:var(--blue-50);border:1px solid var(--blue-100);border-radius:var(--radius-sm);padding:.65rem .85rem;">
                             <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--blue-600);margin-bottom:.5rem;">
                                 <i class="bi bi-clock"></i> Available Schedule
@@ -557,6 +606,7 @@ $doctors = $conn->query("
                             <div id="doctorScheduleList" style="display:flex;flex-direction:column;gap:4px;"></div>
                         </div>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Appointment Date <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-apptDate">
@@ -565,16 +615,20 @@ $doctors = $conn->query("
                             <span class="field-err-msg">Please select a date.</span>
                         </div>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Appointment Time <span class="req">*</span></label>
                         <input type="hidden" id="apptTime">
+                        <!-- Slot buttons are injected here -->
                         <div id="slotsContainer">
                             <div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">
                                 Select a doctor and date to see available slots.
                             </div>
                         </div>
-                        <span class="field-err-msg" id="time-err-msg" style="display:none;">Please select a time slot.</span>
+                        <!-- Time-slot error message (no field-wrap needed; standalone) -->
+                        <span class="slot-err-msg" id="time-err-msg">Please select a time slot.</span>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Type of Visit</label>
                         <select id="channel" class="form-select">
@@ -584,10 +638,14 @@ $doctors = $conn->query("
                             <option value="Referral">Referral</option>
                         </select>
                     </div>
+
+                </div><!-- /.row appointment details -->
+
+                <!-- ── Additional Notes ── -->
+                <div class="form-section-label mb-3">
+                    <i class="bi bi-card-text"></i> Additional Notes
                 </div>
 
-                <!-- Notes -->
-                <div class="form-section-label mb-3"><i class="bi bi-card-text"></i> Additional Notes</div>
                 <div class="row g-3 mb-4">
                     <div class="col-12">
                         <label class="form-label">Notes / Remarks</label>
@@ -597,25 +655,33 @@ $doctors = $conn->query("
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2 pt-2 border-top" style="border-color:var(--border)!important">
-                    <button class="btn-cancel-form" onclick="resetForm()"><i class="bi bi-x-lg"></i> Cancel</button>
-                    <button class="btn-submit" id="submitBtn" onclick="submitForm()"><i class="bi bi-calendar-check"></i> Book Appointment</button>
+                <!-- ── Footer: action buttons ── -->
+                <div class="d-flex justify-content-end gap-2 pt-2 border-top"
+                     style="border-color:var(--border)!important">
+                    <button class="btn-cancel-form" onclick="resetForm()">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </button>
+                    <button class="btn-submit" id="submitBtn" onclick="submitForm()">
+                        <i class="bi bi-calendar-check"></i> Book Appointment
+                    </button>
                 </div>
 
             </div><!-- /.main-card -->
         </div><!-- /.col-lg-8 -->
 
-        <!-- RIGHT: Summary + Reminders (sticky) -->
+        <!-- ═══════════════════════════════════════════
+             RIGHT: Summary + Reminders (sticky)
+        ════════════════════════════════════════════ -->
         <div class="col-lg-4 sidebar-sticky-col">
 
             <div class="summary-card mb-3">
                 <h6><i class="bi bi-clipboard2-pulse-fill"></i> Appointment Summary</h6>
-                <div class="summary-item"><span class="s-label">Patient</span><span id="sum-patient" class="s-placeholder">Not entered</span></div>
-                <div class="summary-item"><span class="s-label">Specialization</span><span id="sum-spec" class="s-placeholder">Not selected</span></div>
-                <div class="summary-item"><span class="s-label">Doctor</span><span id="sum-doctor" class="s-placeholder">Not selected</span></div>
-                <div class="summary-item"><span class="s-label">Date</span><span id="sum-date" class="s-placeholder">Not selected</span></div>
-                <div class="summary-item"><span class="s-label">Time</span><span id="sum-time" class="s-placeholder">Not selected</span></div>
-                <div class="summary-item"><span class="s-label">Notes</span><span id="sum-notes" class="s-placeholder">None</span></div>
+                <div class="summary-item"><span class="s-label">Patient</span>   <span id="sum-patient" class="s-placeholder">Not entered</span></div>
+                <div class="summary-item"><span class="s-label">Specialization</span><span id="sum-spec"    class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Doctor</span>    <span id="sum-doctor"  class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Date</span>      <span id="sum-date"    class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Time</span>      <span id="sum-time"    class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Notes</span>     <span id="sum-notes"   class="s-placeholder">None</span></div>
             </div>
 
             <div class="main-card" style="padding:1.25rem">
@@ -632,76 +698,103 @@ $doctors = $conn->query("
 
     </div><!-- /.row -->
 
+
 </section>
 
+<!-- Fixed bottom-right "Please fill in all required fields." pill — same as add_patient / add_doctors -->
+<div class="form-banner-error" id="formBannerError">
+    <i class="bi bi-exclamation-circle-fill"></i>
+    Please fill in all required fields.
+</div>
+
 <script>
-    const HANDLER = '../../app/controllers/bookapp_handler.php';
+    const HANDLER    = '../../app/controllers/bookapp_handler.php';
     const allDoctors = <?= json_encode($doctors) ?>;
 
+    /* ─────────────────────────────────────────────────────────
+       Validation helpers
+    ───────────────────────────────────────────────────────── */
+
+    /**
+     * Add the .field-error class to a wrapper — makes the border red
+     * and reveals the per-field error message below the input.
+     */
     function markFieldError(wrapperId) {
         document.getElementById(wrapperId)?.classList.add('field-error');
     }
 
+    /**
+     * Remove the .field-error class from a wrapper — clears the red
+     * border and hides the per-field error message.
+     * Called from oninput / onchange on each field.
+     */
     function clearFieldError(wrapperId) {
         document.getElementById(wrapperId)?.classList.remove('field-error');
     }
 
+    /** Show / hide the amber "Please fill in all required fields." pill. */
+    function showBanner(show) {
+        const el = document.getElementById('formBannerError');
+        el.style.display = show ? 'flex' : 'none';
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       Live summary panel
+    ───────────────────────────────────────────────────────── */
     function updateSummary() {
         const set = (id, val, fb) => {
             const el = document.getElementById(id);
-            if (val && val.trim()) {
-                el.textContent = val;
-                el.className = 's-value';
+            if (val && String(val).trim()) {
+                el.textContent  = val;
+                el.className    = 's-value';
             } else {
-                el.textContent = fb;
-                el.className = 's-placeholder';
+                el.textContent  = fb;
+                el.className    = 's-placeholder';
             }
         };
+
         const fn = document.getElementById('firstName').value.trim();
         const mn = document.getElementById('middleName').value.trim();
         const ln = document.getElementById('lastName').value.trim();
-        const fullName = [fn, mn, ln].filter(Boolean).join(' ');
-        set('sum-patient', fullName, 'Not entered');
-        set('sum-spec', document.getElementById('deptSelect').value, 'Not selected');
+        set('sum-patient', [fn, mn, ln].filter(Boolean).join(' '), 'Not entered');
+        set('sum-spec',    document.getElementById('deptSelect').value, 'Not selected');
+
         const docSel = document.getElementById('doctorSelect');
         set('sum-doctor', docSel.options[docSel.selectedIndex]?.text || '', 'Not selected');
-        set('sum-notes', document.getElementById('apptNotes').value, 'None');
+        set('sum-notes',  document.getElementById('apptNotes').value, 'None');
+
         const rawDate = document.getElementById('apptDate').value;
         if (rawDate) {
             const d = new Date(rawDate + 'T00:00:00');
-            set('sum-date', d.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            }), '');
-        } else set('sum-date', '', 'Not selected');
+            set('sum-date', d.toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' }), '');
+        } else {
+            set('sum-date', '', 'Not selected');
+        }
+
         const rawTime = document.getElementById('apptTime').value;
         if (rawTime) {
             const [h, m] = rawTime.split(':');
-            const hh = parseInt(h),
-                ap = hh >= 12 ? 'PM' : 'AM',
-                hf = hh % 12 || 12;
+            const hh = parseInt(h), ap = hh >= 12 ? 'PM' : 'AM', hf = hh % 12 || 12;
             set('sum-time', `${hf}:${m} ${ap}`, '');
-        } else set('sum-time', '', 'Not selected');
+        } else {
+            set('sum-time', '', 'Not selected');
+        }
     }
 
+    /* ─────────────────────────────────────────────────────────
+       Doctor schedule & slot loading
+    ───────────────────────────────────────────────────────── */
     function loadDoctorSchedule() {
         const docId = document.getElementById('doctorSelect').value;
-        const box = document.getElementById('doctorScheduleBox');
-        const list = document.getElementById('doctorScheduleList');
+        const box   = document.getElementById('doctorScheduleBox');
+        const list  = document.getElementById('doctorScheduleList');
 
-        if (!docId) {
-            box.style.display = 'none';
-            return;
-        }
+        if (!docId) { box.style.display = 'none'; return; }
 
         fetch(`${HANDLER}?action=get_doctor_schedule&doctorId=${docId}`)
             .then(r => r.json())
             .then(res => {
-                if (!res.success || !res.data.length) {
-                    box.style.display = 'none';
-                    return;
-                }
+                if (!res.success || !res.data.length) { box.style.display = 'none'; return; }
                 list.innerHTML = res.data.map(s => {
                     const fmt = t => {
                         const [h, m] = t.split(':');
@@ -709,9 +802,9 @@ $doctors = $conn->query("
                         return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
                     };
                     return `<div style="display:flex;justify-content:space-between;font-size:.78rem;">
-                    <span style="font-weight:600;color:var(--text-dark);">${s.dayOfWeek}</span>
-                    <span style="color:var(--text-body);">${fmt(s.shiftStart)} – ${fmt(s.shiftEnd)}</span>
-                </div>`;
+                                <span style="font-weight:600;color:var(--text-dark);">${s.dayOfWeek}</span>
+                                <span style="color:var(--text-body);">${fmt(s.shiftStart)} – ${fmt(s.shiftEnd)}</span>
+                            </div>`;
                 }).join('');
                 box.style.display = 'block';
             });
@@ -719,32 +812,45 @@ $doctors = $conn->query("
 
     function filterDoctors() {
         const dept = document.getElementById('deptSelect').value;
-        const sel = document.getElementById('doctorSelect');
+        const sel  = document.getElementById('doctorSelect');
         sel.innerHTML = '<option value="">Select Doctor</option>';
-        allDoctors.filter(d => !dept || d.specialization === dept).forEach(d => {
-            sel.insertAdjacentHTML('beforeend',
-                `<option value="${d.id}" data-dept="${d.department||''}" data-spec="${d.specialization}">Dr. ${d.name} (${d.specialization})</option>`);
-        });
+        allDoctors
+            .filter(d => !dept || d.specialization === dept)
+            .forEach(d => {
+                sel.insertAdjacentHTML('beforeend',
+                    `<option value="${d.id}" data-dept="${d.department||''}" data-spec="${d.specialization}">Dr. ${d.name} (${d.specialization})</option>`
+                );
+            });
         document.getElementById('apptTime').value = '';
-        document.getElementById('slotsContainer').innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">Select a doctor and date to see available slots.</div>';
+        document.getElementById('slotsContainer').innerHTML =
+            '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">Select a doctor and date to see available slots.</div>';
         updateSummary();
     }
 
     function loadSlots() {
         const docId = document.getElementById('doctorSelect').value;
-        const date = document.getElementById('apptDate').value;
+        const date  = document.getElementById('apptDate').value;
         if (!docId || !date) return;
-        document.getElementById('slotsContainer').innerHTML = '<div class="slots-loading"><i class="bi bi-clock"></i> Loading slots…</div>';
+
+        document.getElementById('slotsContainer').innerHTML =
+            '<div class="slots-loading"><i class="bi bi-clock"></i> Loading slots…</div>';
+
         fetch(`${HANDLER}?action=get_slots&doctorId=${docId}&date=${date}`)
-            .then(r => r.json()).then(res => {
+            .then(r => r.json())
+            .then(res => {
                 if (!res.success || !res.slots.length) {
-                    document.getElementById('slotsContainer').innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">No slots available for this day.</div>';
+                    document.getElementById('slotsContainer').innerHTML =
+                        '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">No slots available for this day.</div>';
                     return;
                 }
                 let html = '<div class="slot-grid">';
                 res.slots.forEach(slot => {
-                    html += `<button type="button" class="slot-btn${!slot.available ? ' disabled-slot' : ''}" ${!slot.available ? 'disabled' : ''}
-    onclick="selectSlot('${slot.value}','${slot.label}',this)">${slot.label}</button>`;
+                    html += `<button type="button"
+                        class="slot-btn${!slot.available ? ' disabled-slot' : ''}"
+                        ${!slot.available ? 'disabled' : ''}
+                        onclick="selectSlot('${slot.value}','${slot.label}',this)">
+                        ${slot.label}
+                    </button>`;
                 });
                 html += '</div>';
                 document.getElementById('slotsContainer').innerHTML = html;
@@ -755,80 +861,101 @@ $doctors = $conn->query("
         document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         document.getElementById('apptTime').value = value;
+        // Clear time error once user picks a slot
         document.getElementById('time-err-msg').style.display = 'none';
         updateSummary();
     }
 
+    /* ─────────────────────────────────────────────────────────
+       Form submission with full validation
+    ───────────────────────────────────────────────────────── */
     function submitForm() {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
+        // Collect values
         const firstName = document.getElementById('firstName').value.trim();
         const lastName  = document.getElementById('lastName').value.trim();
+        const dob       = document.getElementById('dateOfBirth').value;
+        const contact   = document.getElementById('contactNumber').value.trim();
+        const email     = document.getElementById('emailAddress').value.trim();
+        const gender    = document.getElementById('gender').value;
+        const spec      = document.getElementById('deptSelect').value;
         const doctor    = document.getElementById('doctorSelect').value;
         const date      = document.getElementById('apptDate').value;
         const time      = document.getElementById('apptTime').value;
-        const spec      = document.getElementById('deptSelect').value;
-
-        const dob     = document.getElementById('dateOfBirth').value;
-        const contact = document.getElementById('contactNumber').value.trim();
-        const email   = document.getElementById('emailAddress').value.trim();
-        const gender  = document.getElementById('gender').value;
 
         let hasError = false;
 
+        // ── Validate each required field ──
+        // Patient info
         if (!firstName) { markFieldError('wrap-firstName');    hasError = true; }
         if (!lastName)  { markFieldError('wrap-lastName');     hasError = true; }
         if (!dob)       { markFieldError('wrap-dateOfBirth');  hasError = true; }
         if (!contact)   { markFieldError('wrap-contactNumber'); hasError = true; }
         if (!email)     { markFieldError('wrap-emailAddress'); hasError = true; }
         if (!gender)    { markFieldError('wrap-gender');       hasError = true; }
-        if (!spec)      { markFieldError('wrap-deptSelect');   hasError = true; }
-        if (!doctor)    { markFieldError('wrap-doctorSelect'); hasError = true; }
-        if (!date)      { markFieldError('wrap-apptDate');     hasError = true; }
+
+        // Appointment details
+        if (!spec)   { markFieldError('wrap-deptSelect');   hasError = true; }
+        if (!doctor) { markFieldError('wrap-doctorSelect'); hasError = true; }
+        if (!date)   { markFieldError('wrap-apptDate');     hasError = true; }
+
+        // Time slot (no wrapper — uses standalone span)
         if (!time) {
             document.getElementById('time-err-msg').style.display = 'block';
             hasError = true;
         }
 
         if (hasError) {
-            showAlert('error', 'Please fill in all required fields.');
-            document.querySelector('.field-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            return;
+            // Show the amber "Please fill in all required fields." pill
+            showBanner(true);
+
+            // Scroll smoothly to the FIRST invalid field
+            const firstErr = document.querySelector('.field-error, #time-err-msg[style*="block"]');
+            if (firstErr) {
+                firstErr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return; // Stop — do not submit
         }
 
+        // All valid — hide the banner
+        showBanner(false);
+
+        // ── Build payload ──
         const middleName = document.getElementById('middleName').value.trim();
-        const name = [firstName, middleName, lastName].filter(Boolean).join(' ');
+        const name       = [firstName, middleName, lastName].filter(Boolean).join(' ');
 
         const btn = document.getElementById('submitBtn');
-        btn.disabled = true;
+        btn.disabled  = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Booking…';
 
         const payload = {
-            patientId: document.getElementById('patientId')?.value || '',
-            patientName: name,
-            firstName: firstName,
-            middleName: middleName,
-            lastName: lastName,
-            dateOfBirth: document.getElementById('dateOfBirth').value,
-            contact: document.getElementById('contactNumber').value,
-            email: document.getElementById('emailAddress').value || '<?= $userEmail ?>',
-            gender: document.getElementById('gender').value,
-            doctorId: doctor,
+            patientId:       document.getElementById('patientId')?.value || '',
+            patientName:     name,
+            firstName:       firstName,
+            middleName:      middleName,
+            lastName:        lastName,
+            dateOfBirth:     dob,
+            contact:         contact,
+            email:           email || '<?= $userEmail ?>',
+            gender:          gender,
+            doctorId:        doctor,
             appointmentDate: date,
             appointmentTime: time,
-            channel: document.getElementById('channel').value,
-            remarks: document.getElementById('apptNotes').value,
+            channel:         document.getElementById('channel').value,
+            remarks:         document.getElementById('apptNotes').value,
         };
 
         fetch(`${HANDLER}?action=book`, {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        }).then(r => r.json()).then(res => {
-            btn.disabled = false;
+            body:    JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(res => {
+            btn.disabled  = false;
             btn.innerHTML = '<i class="bi bi-calendar-check"></i> Book Appointment';
+
             if (res.success) {
-                document.getElementById('successMsg').textContent = 'Appointment booked successfully!';
+                document.getElementById('successMsg').textContent  = 'Appointment booked successfully!';
                 document.getElementById('successCode').textContent = `Reference: ${res.appointmentCode}`;
                 showAlert('success');
                 resetForm();
@@ -836,43 +963,77 @@ $doctors = $conn->query("
             } else {
                 showAlert('error', res.message || 'Failed to book. Please try again.');
             }
-        }).catch(() => {
-            btn.disabled = false;
+        })
+        .catch(() => {
+            btn.disabled  = false;
             btn.innerHTML = '<i class="bi bi-calendar-check"></i> Book Appointment';
             showAlert('error', 'Network error. Please try again.');
         });
     }
 
+    /* ─────────────────────────────────────────────────────────
+       Alert helpers (top-of-page banners)
+    ───────────────────────────────────────────────────────── */
     function showAlert(type, msg = '') {
         document.getElementById('successAlert').style.display = 'none';
-        document.getElementById('errorAlert').style.display = 'none';
+        document.getElementById('errorAlert').style.display   = 'none';
+
         if (type === 'success') {
             document.getElementById('successAlert').style.display = 'flex';
             setTimeout(() => document.getElementById('successAlert').style.display = 'none', 6000);
         } else {
-            document.getElementById('errorMsg').textContent = msg;
-            document.getElementById('errorAlert').style.display = 'flex';
+            document.getElementById('errorMsg').textContent        = msg;
+            document.getElementById('errorAlert').style.display    = 'flex';
             setTimeout(() => document.getElementById('errorAlert').style.display = 'none', 5000);
         }
     }
 
+    /* ─────────────────────────────────────────────────────────
+       Reset / clear the whole form
+    ───────────────────────────────────────────────────────── */
     function resetForm() {
-        document.querySelectorAll('#firstName,#middleName,#lastName,#dateOfBirth,#contactNumber,#apptNotes').forEach(el => el.value = '');
-        document.getElementById('emailAddress').value = '';
-        document.getElementById('gender').value = '';
-        document.getElementById('deptSelect').value = '';
-        document.getElementById('doctorSelect').value = '';
-        document.getElementById('apptDate').value = '';
-        document.getElementById('apptTime').value = '';
-        document.getElementById('channel').value = 'Online';
-        document.getElementById('slotsContainer').innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">Select a doctor and date to see available slots.</div>';
-        document.getElementById('time-err-msg').style.display = 'none';
+        // Clear text inputs
+        ['firstName','middleName','lastName','dateOfBirth',
+         'contactNumber','emailAddress','apptNotes'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+
+        // Reset selects
+        document.getElementById('gender').value       = '';
+        document.getElementById('deptSelect').value   = '';
+        document.getElementById('apptDate').value     = '';
+        document.getElementById('apptTime').value     = '';
+        document.getElementById('channel').value      = 'Online';
+
+        // Re-populate doctor list (show all)
+        filterDoctors();
+
+        // Clear slot container
+        document.getElementById('slotsContainer').innerHTML =
+            '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">Select a doctor and date to see available slots.</div>';
+
+        // Hide schedule box
+        document.getElementById('doctorScheduleBox').style.display = 'none';
+
+        // Clear ALL field-error states
         document.querySelectorAll('.field-wrap').forEach(w => w.classList.remove('field-error'));
+
+        // Hide time slot error
+        document.getElementById('time-err-msg').style.display = 'none';
+
+        // Hide the general banner
+        showBanner(false);
+
+        // Reset hidden patient id if needed
         const patIdEl = document.getElementById('patientId');
-        if (patIdEl) patIdEl.value = '';
+        if (patIdEl) patIdEl.value = '<?= $patientRow['id'] ?? '' ?>';
+
         updateSummary();
     }
 
+    /* ─────────────────────────────────────────────────────────
+       Init
+    ───────────────────────────────────────────────────────── */
     document.getElementById('apptDate').min = new Date().toISOString().split('T')[0];
     updateSummary();
 </script>

@@ -161,6 +161,30 @@ $dateJoined = (!empty($user['dateCreated'])) ? date('F j, Y', strtotime($user['d
         letter-spacing: 0.04em;
         text-transform: capitalize;
     }
+
+    /* ── Green success banner ── */
+    .modal-banner-success {
+        display: none;
+        position: sticky;
+        bottom: 0;
+        align-items: center;
+        gap: 7px;
+        background: #166534;
+        color: #fff;
+        font-size: .75rem;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: .4rem 1rem;
+        box-shadow: 0 2px 10px rgba(22,101,52,.25);
+        width: fit-content;
+        margin: .6rem 0 0 auto;
+        animation: mFadeUp .22s ease both;
+    }
+
+    @keyframes mFadeUp {
+        from { opacity: 0; transform: translateY(6px); }
+        to   { opacity: 1; transform: translateY(0);   }
+    }
 </style>
 
 <section class="section">
@@ -187,10 +211,10 @@ $dateJoined = (!empty($user['dateCreated'])) ? date('F j, Y', strtotime($user['d
                 </div>
             </div>
         </div>
+
         <div class="profile-body">
 
             <div class="profile-section-title">Personal Information</div>
-
             <div class="profile-info-grid">
                 <div class="profile-info-item">
                     <div class="profile-info-label">First Name</div>
@@ -255,9 +279,6 @@ $dateJoined = (!empty($user['dateCreated'])) ? date('F j, Y', strtotime($user['d
             <h3 style="margin:0;font-size:1.1rem;font-weight:700;">Edit Profile</h3>
         </div>
 
-        <?php if (!empty($flashSuccess)): ?>
-            <div style="background:#d1fae5;color:#065f46;padding:10px 14px;border-radius:10px;margin-bottom:1rem;font-size:0.85rem;"><?php echo $flashSuccess; ?></div>
-        <?php endif; ?>
         <?php if (!empty($error)): ?>
             <div style="background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:10px;margin-bottom:1rem;font-size:0.85rem;"><?php echo $error; ?></div>
         <?php endif; ?>
@@ -324,15 +345,16 @@ $dateJoined = (!empty($user['dateCreated'])) ? date('F j, Y', strtotime($user['d
                 </div>
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">New Password</label>
-                    <input type="password" name="newPassword"
+                    <input type="password" name="newPassword" value="" autocomplete="new-password"
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Confirm Password</label>
-                    <input type="password" name="confirmPassword"
+                    <input type="password" name="confirmPassword" value="" autocomplete="new-password"
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
             </div>
+
             <div style="margin-top:1.5rem;display:flex;gap:10px;justify-content:flex-end;">
                 <button type="button" onclick="document.getElementById('editModal').style.display='none'"
                     style="padding:9px 20px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;font-weight:600;cursor:pointer;font-size:0.88rem;">
@@ -344,6 +366,12 @@ $dateJoined = (!empty($user['dateCreated'])) ? date('F j, Y', strtotime($user['d
                 </button>
             </div>
         </form>
+
+        <!-- Green success banner -->
+        <div class="modal-banner-success" id="modalBannerSuccess">
+            ✓ Changes saved successfully!
+        </div>
+
     </div>
 </div>
 
@@ -360,7 +388,7 @@ $dateJoined = (!empty($user['dateCreated'])) ? date('F j, Y', strtotime($user['d
     }
 </script>
 
-<?php if (!empty($error) || !empty($flashSuccess)): ?>
+<?php if (!empty($error)): ?>
     <script>
         document.getElementById('editModal').style.display = 'flex';
     </script>
@@ -368,14 +396,20 @@ $dateJoined = (!empty($user['dateCreated'])) ? date('F j, Y', strtotime($user['d
 
 <?php if (!empty($flashSuccess)): ?>
     <script>
+        const modal = document.getElementById('editModal');
+        modal.style.display = 'flex';
+
+        const banner = document.getElementById('modalBannerSuccess');
+        banner.style.display = 'flex';
+
         setTimeout(function() {
-            const modal = document.getElementById('editModal');
             modal.style.transition = 'opacity 0.3s ease';
             modal.style.opacity = '0';
             setTimeout(function() {
                 modal.style.display = 'none';
                 modal.style.opacity = '1';
                 modal.style.transition = '';
+                banner.style.display = 'none';
             }, 300);
         }, 1500);
     </script>

@@ -387,7 +387,10 @@ require_once('../../app/config/config.php');
     }
 
     .toast-msg.warn {
-        background: #92400e;
+    background: #9b1c1c;
+    border-radius: 999px;
+    padding: .65rem 1.4rem;
+    box-shadow: 0 4px 20px rgba(120,20,20,.25);
     }
 
     .toast-msg.error {
@@ -585,7 +588,7 @@ require_once('../../app/config/config.php');
 
     function submitForm() {
         if (!validateForm()) {
-            showToast('Please fill in all required fields.', 'warn');
+            showToast('<i class="bi bi-exclamation-circle-fill"></i> Please fill in all required fields.', 'warn');
             document.querySelector('.has-error')?.scrollIntoView({
                 behavior: 'smooth',
                 block: 'center'

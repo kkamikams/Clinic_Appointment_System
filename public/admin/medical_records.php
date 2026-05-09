@@ -113,27 +113,12 @@ require_once('../../app/config/config.php');
         border: 2px solid #fff;
     }
 
-    .audit-item.create::before {
-        background: var(--green);
-    }
+    .audit-item.create::before { background: var(--green); }
+    .audit-item.edit::before   { background: var(--blue-500); }
+    .audit-item.status::before { background: var(--amber); }
 
-    .audit-item.edit::before {
-        background: var(--blue-500);
-    }
-
-    .audit-item.status::before {
-        background: var(--amber);
-    }
-
-    .audit-action {
-        font-weight: 600;
-        color: var(--text-dark);
-    }
-
-    .audit-who {
-        color: var(--text-muted);
-        font-size: .72rem;
-    }
+    .audit-action { font-weight: 600; color: var(--text-dark); }
+    .audit-who    { color: var(--text-muted); font-size: .72rem; }
 
     .audit-arrow {
         display: inline-flex;
@@ -142,19 +127,8 @@ require_once('../../app/config/config.php');
         font-size: .7rem;
     }
 
-    .audit-arrow .from {
-        background: #fef3c7;
-        color: #92400e;
-        padding: 1px 6px;
-        border-radius: 4px;
-    }
-
-    .audit-arrow .to {
-        background: #d1fae5;
-        color: #065f46;
-        padding: 1px 6px;
-        border-radius: 4px;
-    }
+    .audit-arrow .from { background: #fef3c7; color: #92400e; padding: 1px 6px; border-radius: 4px; }
+    .audit-arrow .to   { background: #d1fae5; color: #065f46; padding: 1px 6px; border-radius: 4px; }
 
     .page-records,
     .page-records * {
@@ -190,9 +164,7 @@ require_once('../../app/config/config.php');
     }
 
     @media(max-width:768px) {
-        .stat-strip {
-            grid-template-columns: repeat(2, 1fr);
-        }
+        .stat-strip { grid-template-columns: repeat(2, 1fr); }
     }
 
     .stat-card {
@@ -206,30 +178,11 @@ require_once('../../app/config/config.php');
         animation: fadeUp .32s ease both;
     }
 
-    .stat-card:hover {
-        box-shadow: var(--shadow-md);
-        transform: translateY(-1px);
-    }
-
-    .stat-card:nth-child(1) {
-        border-left-color: var(--blue-500);
-        animation-delay: .04s;
-    }
-
-    .stat-card:nth-child(2) {
-        border-left-color: var(--green);
-        animation-delay: .09s;
-    }
-
-    .stat-card:nth-child(3) {
-        border-left-color: var(--violet);
-        animation-delay: .14s;
-    }
-
-    .stat-card:nth-child(4) {
-        border-left-color: var(--amber);
-        animation-delay: .19s;
-    }
+    .stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+    .stat-card:nth-child(1) { border-left-color: var(--blue-500); animation-delay: .04s; }
+    .stat-card:nth-child(2) { border-left-color: var(--green);    animation-delay: .09s; }
+    .stat-card:nth-child(3) { border-left-color: var(--violet);   animation-delay: .14s; }
+    .stat-card:nth-child(4) { border-left-color: var(--amber);    animation-delay: .19s; }
 
     .stat-card .sc-label {
         font-size: .62rem;
@@ -248,11 +201,7 @@ require_once('../../app/config/config.php');
         line-height: 1;
     }
 
-    .stat-card .sc-sub {
-        font-size: .7rem;
-        color: var(--text-muted);
-        margin-top: .25rem;
-    }
+    .stat-card .sc-sub { font-size: .7rem; color: var(--text-muted); margin-top: .25rem; }
 
     .main-card {
         background: var(--card);
@@ -290,9 +239,7 @@ require_once('../../app/config/config.php');
         margin-left: 4px;
     }
 
-    .search-box {
-        position: relative;
-    }
+    .search-box { position: relative; }
 
     .search-box i {
         position: absolute;
@@ -317,10 +264,7 @@ require_once('../../app/config/config.php');
         transition: border-color .2s;
     }
 
-    .search-box input:focus {
-        border-color: var(--blue-400);
-        background: #fff;
-    }
+    .search-box input:focus { border-color: var(--blue-400); background: #fff; }
 
     .filter-select {
         border: 1px solid var(--border);
@@ -356,10 +300,7 @@ require_once('../../app/config/config.php');
         box-shadow: 0 2px 8px rgba(37, 99, 235, .25);
     }
 
-    .table {
-        width: 100%;
-        border-collapse: collapse;
-    }
+    .table { width: 100%; border-collapse: collapse; }
 
     .table thead th {
         font-size: .64rem;
@@ -379,30 +320,13 @@ require_once('../../app/config/config.php');
         padding: .7rem .6rem;
     }
 
-    .table tbody tr:last-child td {
-        border-bottom: none;
-    }
+    .table tbody tr:last-child td { border-bottom: none; }
+    .table tbody tr:hover td { background: var(--blue-50); }
 
-    .table tbody tr:hover td {
-        background: var(--blue-50);
-    }
+    .rec-id { font-weight: 700; color: var(--blue-700); font-size: .8rem; text-decoration: none; }
+    .rec-id:hover { color: var(--blue-600); }
 
-    .rec-id {
-        font-weight: 700;
-        color: var(--blue-700);
-        font-size: .8rem;
-        text-decoration: none;
-    }
-
-    .rec-id:hover {
-        color: var(--blue-600);
-    }
-
-    .pat-cell {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-    }
+    .pat-cell { display: flex; align-items: center; gap: 9px; }
 
     .pat-avatar {
         width: 32px;
@@ -418,27 +342,11 @@ require_once('../../app/config/config.php');
         overflow: hidden;
     }
 
-    .pat-avatar img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 50%;
-    }
+    .pat-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+    .pat-name { font-weight: 600; color: var(--text-dark); font-size: .82rem; }
+    .pat-sub  { font-size: .66rem; color: var(--text-muted); }
 
-    .pat-name {
-        font-weight: 600;
-        color: var(--text-dark);
-        font-size: .82rem;
-    }
-
-    .pat-sub {
-        font-size: .66rem;
-        color: var(--text-muted);
-    }
-
-    .diagnosis-cell {
-        max-width: 180px;
-    }
+    .diagnosis-cell { max-width: 180px; }
 
     .diag-text {
         font-size: .81rem;
@@ -448,54 +356,16 @@ require_once('../../app/config/config.php');
         text-overflow: ellipsis;
     }
 
-    .diag-icd {
-        font-size: .65rem;
-        color: var(--text-muted);
-        font-weight: 600;
-        letter-spacing: .04em;
-    }
+    .diag-icd { font-size: .65rem; color: var(--text-muted); font-weight: 600; letter-spacing: .04em; }
 
-    .rec-type-chip {
-        font-size: .63rem;
-        font-weight: 600;
-        padding: 2px 8px;
-        border-radius: 5px;
-    }
+    .rec-type-chip { font-size: .63rem; font-weight: 600; padding: 2px 8px; border-radius: 5px; }
+    .chip-consultation { background: var(--blue-50);     color: var(--blue-700);   border: 1px solid var(--blue-100); }
+    .chip-lab          { background: var(--violet-light); color: var(--violet-dark); border: 1px solid #ddd6fe; }
+    .chip-imaging      { background: var(--teal-light);   color: var(--teal-dark);   border: 1px solid #a5f3fc; }
+    .chip-prescription { background: var(--green-light);  color: var(--green-dark);  border: 1px solid #a7f3d0; }
+    .chip-other        { background: var(--amber-light);  color: var(--amber-dark);  border: 1px solid #fde68a; }
 
-    .chip-consultation {
-        background: var(--blue-50);
-        color: var(--blue-700);
-        border: 1px solid var(--blue-100);
-    }
-
-    .chip-lab {
-        background: var(--violet-light);
-        color: var(--violet-dark);
-        border: 1px solid #ddd6fe;
-    }
-
-    .chip-imaging {
-        background: var(--teal-light);
-        color: var(--teal-dark);
-        border: 1px solid #a5f3fc;
-    }
-
-    .chip-prescription {
-        background: var(--green-light);
-        color: var(--green-dark);
-        border: 1px solid #a7f3d0;
-    }
-
-    .chip-other {
-        background: var(--amber-light);
-        color: var(--amber-dark);
-        border: 1px solid #fde68a;
-    }
-
-    /* ── Status dropdown (identical to patients/appointments pages) ── */
-    .status-cell {
-        position: relative;
-    }
+    .status-cell { position: relative; }
 
     .badge-btn {
         cursor: pointer;
@@ -509,14 +379,8 @@ require_once('../../app/config/config.php');
         transition: opacity .15s;
     }
 
-    .badge-btn:hover {
-        opacity: .8;
-    }
-
-    .badge-caret {
-        font-size: .55rem;
-        opacity: .65;
-    }
+    .badge-btn:hover { opacity: .8; }
+    .badge-caret { font-size: .55rem; opacity: .65; }
 
     .status-dropdown {
         display: none;
@@ -533,9 +397,7 @@ require_once('../../app/config/config.php');
         animation: fadeUp .18s ease both;
     }
 
-    .status-dropdown.open {
-        display: block;
-    }
+    .status-dropdown.open { display: block; }
 
     .status-opt {
         display: flex;
@@ -550,17 +412,8 @@ require_once('../../app/config/config.php');
         transition: background .12s;
     }
 
-    .status-opt:hover {
-        background: var(--surface);
-    }
-
-    .status-opt .dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        display: inline-block;
-    }
+    .status-opt:hover { background: var(--surface); }
+    .status-opt .dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
 
     .rec-badge {
         font-family: 'DM Sans', sans-serif;
@@ -574,10 +427,7 @@ require_once('../../app/config/config.php');
         gap: 5px;
     }
 
-    .action-btns {
-        display: flex;
-        gap: 5px;
-    }
+    .action-btns { display: flex; gap: 5px; }
 
     .btn-act {
         background: none;
@@ -590,22 +440,10 @@ require_once('../../app/config/config.php');
         transition: all .15s;
     }
 
-    .btn-act:hover {
-        background: var(--blue-50);
-        color: var(--blue-600);
-        border-color: var(--blue-200);
-    }
+    .btn-act:hover     { background: var(--blue-50);  color: var(--blue-600); border-color: var(--blue-200); }
+    .btn-act.del:hover { background: var(--red-light); color: var(--red);      border-color: #fca5a5; }
 
-    .btn-act.del:hover {
-        background: var(--red-light);
-        color: var(--red);
-        border-color: #fca5a5;
-    }
-
-    .tbl-wrap {
-        position: relative;
-        overflow-x: auto;
-    }
+    .tbl-wrap { position: relative; overflow-x: auto; }
 
     .tbl-loading {
         display: none;
@@ -617,25 +455,10 @@ require_once('../../app/config/config.php');
         justify-content: center;
     }
 
-    .empty-state {
-        text-align: center;
-        padding: 3rem 1rem;
-        color: var(--text-muted);
-    }
+    .empty-state { text-align: center; padding: 3rem 1rem; color: var(--text-muted); }
+    .empty-state i { font-size: 2.5rem; display: block; margin-bottom: .75rem; opacity: .3; }
+    .empty-state p { font-size: .85rem; margin: 0; }
 
-    .empty-state i {
-        font-size: 2.5rem;
-        display: block;
-        margin-bottom: .75rem;
-        opacity: .3;
-    }
-
-    .empty-state p {
-        font-size: .85rem;
-        margin: 0;
-    }
-
-    /* Modal */
     .modal-content {
         border-radius: var(--radius);
         border: 1px solid var(--border);
@@ -643,25 +466,10 @@ require_once('../../app/config/config.php');
         font-family: 'DM Sans', sans-serif;
     }
 
-    .modal-header {
-        border-bottom: 1px solid var(--border);
-        padding: 1.1rem 1.4rem;
-    }
-
-    .modal-title {
-        font-size: .95rem;
-        font-weight: 700;
-        color: var(--text-dark);
-    }
-
-    .modal-body {
-        padding: 1.4rem;
-    }
-
-    .modal-footer {
-        border-top: 1px solid var(--border);
-        padding: .9rem 1.4rem;
-    }
+    .modal-header  { border-bottom: 1px solid var(--border); padding: 1.1rem 1.4rem; }
+    .modal-title   { font-size: .95rem; font-weight: 700; color: var(--text-dark); }
+    .modal-body    { padding: 1.4rem; }
+    .modal-footer  { border-top: 1px solid var(--border); padding: .9rem 1.4rem; }
 
     .form-label {
         font-size: .72rem;
@@ -707,9 +515,7 @@ require_once('../../app/config/config.php');
         transition: background .15s;
     }
 
-    .btn-secondary-sm:hover {
-        background: var(--border);
-    }
+    .btn-secondary-sm:hover { background: var(--border); }
 
     .detail-row {
         display: grid;
@@ -721,26 +527,11 @@ require_once('../../app/config/config.php');
         align-items: start;
     }
 
-    .detail-row:last-child {
-        border-bottom: none;
-    }
+    .detail-row:last-child { border-bottom: none; }
+    .detail-label { color: var(--text-muted); font-weight: 600; font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+    .detail-value { color: var(--text-dark); font-weight: 500; }
 
-    .detail-label {
-        color: var(--text-muted);
-        font-weight: 600;
-        font-size: .75rem;
-        text-transform: uppercase;
-        letter-spacing: .05em;
-    }
-
-    .detail-value {
-        color: var(--text-dark);
-        font-weight: 500;
-    }
-
-    .live-search-wrap {
-        position: relative;
-    }
+    .live-search-wrap { position: relative; }
 
     .live-results {
         display: none;
@@ -757,9 +548,7 @@ require_once('../../app/config/config.php');
         overflow-y: auto;
     }
 
-    .live-results.open {
-        display: block;
-    }
+    .live-results.open { display: block; }
 
     .live-item {
         display: flex;
@@ -772,13 +561,8 @@ require_once('../../app/config/config.php');
         transition: background .1s;
     }
 
-    .live-item:last-child {
-        border-bottom: none;
-    }
-
-    .live-item:hover {
-        background: var(--blue-50);
-    }
+    .live-item:last-child { border-bottom: none; }
+    .live-item:hover { background: var(--blue-50); }
 
     .live-avatar {
         width: 28px;
@@ -794,15 +578,8 @@ require_once('../../app/config/config.php');
         flex-shrink: 0;
     }
 
-    .live-name {
-        font-weight: 600;
-        color: var(--text-dark);
-    }
-
-    .live-sub {
-        font-size: .7rem;
-        color: var(--text-muted);
-    }
+    .live-name { font-weight: 600; color: var(--text-dark); }
+    .live-sub  { font-size: .7rem; color: var(--text-muted); }
 
     .selected-pill {
         display: none;
@@ -817,16 +594,11 @@ require_once('../../app/config/config.php');
         margin-top: 6px;
     }
 
-    .selected-pill.locked {
-        background: var(--surface);
-        border-color: var(--border);
-        cursor: not-allowed;
-        opacity: .85;
-    }
+    .selected-pill.locked  { background: var(--surface); border-color: var(--border); cursor: not-allowed; opacity: .85; }
+    .selected-pill.locked::after { content: ''; }
+    .selected-pill.show { display: flex; }
 
-    .selected-pill.locked::after {
-        content: '';
-    }
+    .pill-clear { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: .85rem; padding: 0 2px; line-height: 1; }
 
     .finalized-notice {
         display: none;
@@ -842,39 +614,12 @@ require_once('../../app/config/config.php');
         margin-bottom: .75rem;
     }
 
-    .finalized-notice.show {
-        display: flex;
-    }
-
-    .finalized-notice i {
-        font-size: .95rem;
-        flex-shrink: 0;
-    }
-
-    .selected-pill.show {
-        display: flex;
-    }
-
-    .pill-clear {
-        background: none;
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        font-size: .85rem;
-        padding: 0 2px;
-        line-height: 1;
-    }
+    .finalized-notice.show { display: flex; }
+    .finalized-notice i { font-size: .95rem; flex-shrink: 0; }
 
     @keyframes fadeUp {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0);    }
     }
 </style>
 
@@ -967,6 +712,7 @@ require_once('../../app/config/config.php');
 
 </section>
 
+<!-- ═══════════════════════════ ADD / EDIT MODAL ═══════════════════════════ -->
 <div class="modal fade" id="recModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -982,6 +728,7 @@ require_once('../../app/config/config.php');
                 </div>
                 <div class="row g-3">
 
+                    <!-- Patient -->
                     <div class="col-md-6">
                         <label class="form-label">Patient</label>
                         <div class="live-search-wrap">
@@ -1004,6 +751,7 @@ require_once('../../app/config/config.php');
                         </div>
                     </div>
 
+                    <!-- Doctor -->
                     <div class="col-md-6">
                         <label class="form-label">Doctor</label>
                         <div class="live-search-wrap">
@@ -1026,6 +774,7 @@ require_once('../../app/config/config.php');
                         </div>
                     </div>
 
+                    <!-- Linked Appointment -->
                     <div class="col-md-6">
                         <label class="form-label">
                             Linked Appointment
@@ -1051,9 +800,11 @@ require_once('../../app/config/config.php');
                         </div>
                     </div>
 
+                    <!-- Record Type -->
                     <div class="col-md-6">
                         <label class="form-label">Record Type</label>
                         <select class="form-select" id="fType">
+                            <option value="">Select Type</option>
                             <option>Consultation</option>
                             <option>Lab Result</option>
                             <option>Prescription</option>
@@ -1062,33 +813,46 @@ require_once('../../app/config/config.php');
                         </select>
                     </div>
 
+                    <!-- Diagnosis -->
                     <div class="col-md-8">
                         <label class="form-label">Diagnosis <span class="field-tag req">Required</span></label>
                         <input type="text" class="form-control" id="fDiagnosis" placeholder="e.g. Hypertension Stage 1">
                     </div>
+
+                    <!-- ICD Code -->
                     <div class="col-md-4">
                         <label class="form-label">ICD Code <span class="field-tag opt">Optional</span></label>
                         <input type="text" class="form-control" id="fIcdCode" placeholder="e.g. I10">
                     </div>
+
+                    <!-- Prescription -->
                     <div class="col-12">
-                        <label class="form-label">Prescription</label>
+                        <label class="form-label">Prescription <span class="field-tag req">Required</span></label>
                         <textarea class="form-control" id="fPrescription" rows="2" placeholder="Medications, dosage…"></textarea>
                     </div>
+
+                    <!-- Notes -->
                     <div class="col-12">
-                        <label class="form-label">Notes</label>
+                        <label class="form-label">Notes <span class="field-tag opt">Optional</span></label>
                         <textarea class="form-control" id="fNotes" rows="2" placeholder="Additional notes…"></textarea>
                     </div>
+
+                    <!-- Follow-Up Date -->
                     <div class="col-md-6">
                         <label class="form-label">Follow-Up Date <span class="field-tag opt">Optional</span></label>
                         <input type="date" class="form-control" id="fFollowUpDate">
                     </div>
+
+                    <!-- Status -->
                     <div class="col-md-4">
                         <label class="form-label">Status</label>
                         <select class="form-select" id="fStatus">
+                            <option value="">Select Status</option>
                             <option>Draft</option>
                             <option>Finalized</option>
                         </select>
                     </div>
+
                 </div>
             </div>
             <div class="modal-footer">
@@ -1101,6 +865,7 @@ require_once('../../app/config/config.php');
     </div>
 </div>
 
+<!-- VIEW MODAL -->
 <div class="modal fade" id="viewModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -1115,8 +880,8 @@ require_once('../../app/config/config.php');
         </div>
     </div>
 </div>
-</div>
 
+<!-- DELETE MODAL -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog modal-sm">
         <div class="modal-content">
@@ -1146,16 +911,8 @@ require_once('../../app/config/config.php');
     let searchTimer = null;
 
     const STATUS_CONFIG = {
-        'Draft': {
-            dot: '#f59e0b',
-            bg: '#fef3c7',
-            color: '#92400e'
-        },
-        'Finalized': {
-            dot: '#10b981',
-            bg: '#d1fae5',
-            color: '#065f46'
-        },
+        'Draft':     { dot: '#f59e0b', bg: '#fef3c7', color: '#92400e' },
+        'Finalized': { dot: '#10b981', bg: '#d1fae5', color: '#065f46' },
     };
 
     document.addEventListener('click', e => {
@@ -1168,39 +925,31 @@ require_once('../../app/config/config.php');
     document.addEventListener('DOMContentLoaded', () => {
         loadRecords(1);
 
-        const params = new URLSearchParams(window.location.search);
-        const apptId = params.get('apptId');
+        const params    = new URLSearchParams(window.location.search);
+        const apptId    = params.get('apptId');
         const patientId = params.get('patientId');
 
         if (apptId) {
             openAddModal();
 
-            // Pre-fill appointment
             fetch(`${HANDLER}?action=get_appointment_details&apptId=${apptId}`)
                 .then(r => r.json())
                 .then(res => {
                     if (!res.success || !res.data) return;
                     const appt = res.data;
-
-                    // Set appointment pill
-                    document.getElementById('fAppointment').value = appt.id;
+                    document.getElementById('fAppointment').value   = appt.id;
                     document.getElementById('apptPillName').textContent = appt.appointmentCode;
-                    document.getElementById('apptPillSub').textContent = appt.doctorName + ' · ' + fmtDate(appt.appointmentDate);
+                    document.getElementById('apptPillSub').textContent  = appt.doctorName + ' · ' + fmtDate(appt.appointmentDate);
                     document.getElementById('apptPill').classList.add('show');
 
-                    // Set doctor pill
-                    document.getElementById('fDoctor').value = appt.doctorId;
+                    document.getElementById('fDoctor').value           = appt.doctorId;
                     document.getElementById('doctorPillName').textContent = appt.doctorName;
-                    document.getElementById('doctorPillSub').textContent = appt.specialization || '';
+                    document.getElementById('doctorPillSub').textContent  = appt.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
 
-                    // Pre-fill diagnosis from remarks
-                    if (appt.remarks) {
-                        document.getElementById('fDiagnosis').value = appt.remarks;
-                    }
+                    if (appt.remarks) document.getElementById('fDiagnosis').value = appt.remarks;
                 });
 
-            // Pre-fill patient
             if (patientId) {
                 fetch(`${HANDLER}?action=get_patients&q=`)
                     .then(r => r.json())
@@ -1208,16 +957,16 @@ require_once('../../app/config/config.php');
                         if (!res.success) return;
                         const patient = res.data.find(p => p.id == patientId);
                         if (!patient) return;
-                        document.getElementById('fPatient').value = patient.id;
+                        document.getElementById('fPatient').value          = patient.id;
                         document.getElementById('patientPillName').textContent = patient.name;
-                        document.getElementById('patientPillSub').textContent = patient.patientCode;
+                        document.getElementById('patientPillSub').textContent  = patient.patientCode;
                         document.getElementById('patientPill').classList.add('show');
                     });
             }
         }
     });
 
-
+    /* ── Debounced live-search ── */
     const fieldTimers = {};
 
     function debounceField(field) {
@@ -1226,20 +975,16 @@ require_once('../../app/config/config.php');
     }
 
     function runFieldSearch(field) {
-        const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
+        const inputId   = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
         const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
-        const q = document.getElementById(inputId).value.trim();
+        const q   = document.getElementById(inputId).value.trim();
         const box = document.getElementById(resultsId);
 
-        if (!q) {
-            box.classList.remove('open');
-            box.innerHTML = '';
-            return;
-        }
+        if (!q) { box.classList.remove('open'); box.innerHTML = ''; return; }
 
         let url = '';
         if (field === 'patient') url = `${HANDLER}?action=get_patients&q=${encodeURIComponent(q)}`;
-        if (field === 'doctor') url = `${HANDLER}?action=get_doctors&q=${encodeURIComponent(q)}`;
+        if (field === 'doctor')  url = `${HANDLER}?action=get_doctors&q=${encodeURIComponent(q)}`;
         if (field === 'appt') {
             const patId = document.getElementById('fPatient').value;
             url = `${HANDLER}?action=get_appointments&q=${encodeURIComponent(q)}&patientId=${patId}`;
@@ -1266,78 +1011,74 @@ require_once('../../app/config/config.php');
                             <div><div class="live-name">${item.name}</div><div class="live-sub">${item.specialization}</div></div>
                         </div>`;
                     }
-                    // appointment
                     return `<div class="live-item" onclick="selectAppt(${item.id},'${esc(item.appointmentCode)}','${esc(item.doctorName+' · '+fmtDate(item.appointmentDate))}')">
-    <div class="live-avatar" style="background:var(--violet-light);color:var(--violet-dark);"><i class="bi bi-calendar2-check" style="font-size:.7rem;"></i></div>
-    <div><div class="live-name">${item.appointmentCode}</div><div class="live-sub">${item.doctorName} · ${fmtDate(item.appointmentDate)}</div></div>
-</div>`;
+                        <div class="live-avatar" style="background:var(--violet-light);color:var(--violet-dark);"><i class="bi bi-calendar2-check" style="font-size:.7rem;"></i></div>
+                        <div><div class="live-name">${item.appointmentCode}</div><div class="live-sub">${item.doctorName} · ${fmtDate(item.appointmentDate)}</div></div>
+                    </div>`;
                 }).join('');
                 box.classList.add('open');
             });
     }
 
     function selectField(field, id, name, sub) {
-        const hiddenId = field === 'patient' ? 'fPatient' : field === 'doctor' ? 'fDoctor' : 'fAppointment';
-        const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
-        const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
-        const pillId = field === 'patient' ? 'patientPill' : field === 'doctor' ? 'doctorPill' : 'apptPill';
-        const nameId = field === 'patient' ? 'patientPillName' : field === 'doctor' ? 'doctorPillName' : 'apptPillName';
-        const subId = field === 'patient' ? 'patientPillSub' : field === 'doctor' ? 'doctorPillSub' : 'apptPillSub';
+        const hiddenId  = field === 'patient' ? 'fPatient'      : field === 'doctor' ? 'fDoctor'      : 'fAppointment';
+        const inputId   = field === 'patient' ? 'patientInput'  : field === 'doctor' ? 'doctorInput'  : 'apptInput';
+        const resultsId = field === 'patient' ? 'patientResults': field === 'doctor' ? 'doctorResults': 'apptResults';
+        const pillId    = field === 'patient' ? 'patientPill'   : field === 'doctor' ? 'doctorPill'   : 'apptPill';
+        const nameId    = field === 'patient' ? 'patientPillName': field === 'doctor' ? 'doctorPillName': 'apptPillName';
+        const subId     = field === 'patient' ? 'patientPillSub': field === 'doctor' ? 'doctorPillSub': 'apptPillSub';
 
-        document.getElementById(hiddenId).value = id;
-        document.getElementById(inputId).value = '';
+        document.getElementById(hiddenId).value      = id;
+        document.getElementById(inputId).value       = '';
         document.getElementById(resultsId).classList.remove('open');
-        document.getElementById(nameId).textContent = name;
-        document.getElementById(subId).textContent = sub;
+        document.getElementById(nameId).textContent  = name;
+        document.getElementById(subId).textContent   = sub;
         document.getElementById(pillId).classList.add('show');
+
+        // Clear any red-border error on the search input
+        const inp = document.getElementById(inputId);
+        inp.style.borderColor = '';
+        inp.style.background  = '';
+        inp.placeholder = inputId === 'patientInput' ? 'Type patient name or code…' : 'Type doctor name…';
 
         if (field === 'patient') {
             clearField('appt');
             clearField('doctor');
-
             fetch(`${HANDLER}?action=get_patient_doctor&patientId=${id}`)
                 .then(r => r.json())
                 .then(res => {
                     if (!res.success || !res.data) return;
                     const doc = res.data;
-                    document.getElementById('fDoctor').value = doc.doctorId;
+                    document.getElementById('fDoctor').value           = doc.doctorId;
                     document.getElementById('doctorPillName').textContent = doc.doctorName;
-                    document.getElementById('doctorPillSub').textContent = doc.specialization || '';
+                    document.getElementById('doctorPillSub').textContent  = doc.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
                 });
         }
     }
 
     function clearField(field) {
-        const hiddenId = field === 'patient' ? 'fPatient' : field === 'doctor' ? 'fDoctor' : 'fAppointment';
-        const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
-        const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
-        const pillId = field === 'patient' ? 'patientPill' : field === 'doctor' ? 'doctorPill' : 'apptPill';
+        const hiddenId  = field === 'patient' ? 'fPatient'      : field === 'doctor' ? 'fDoctor'      : 'fAppointment';
+        const inputId   = field === 'patient' ? 'patientInput'  : field === 'doctor' ? 'doctorInput'  : 'apptInput';
+        const resultsId = field === 'patient' ? 'patientResults': field === 'doctor' ? 'doctorResults': 'apptResults';
+        const pillId    = field === 'patient' ? 'patientPill'   : field === 'doctor' ? 'doctorPill'   : 'apptPill';
 
         document.getElementById(hiddenId).value = '';
-        document.getElementById(inputId).value = '';
+        document.getElementById(inputId).value  = '';
         document.getElementById(resultsId).classList.remove('open');
         document.getElementById(pillId).classList.remove('show');
     }
 
+    /* ── Status dropdown ── */
     function statusDropdown(id, current) {
-        const cfg = STATUS_CONFIG[current] || {
-            dot: '#9ca3af',
-            bg: '#f3f4f6',
-            color: '#374151'
-        };
-
-        const STATUS_FLOW = {
-            'Draft': ['Draft', 'Finalized'],
-            'Finalized': ['Finalized'],
-        };
+        const cfg = STATUS_CONFIG[current] || { dot: '#9ca3af', bg: '#f3f4f6', color: '#374151' };
+        const STATUS_FLOW = { 'Draft': ['Draft', 'Finalized'], 'Finalized': ['Finalized'] };
         const allowed = STATUS_FLOW[current] || [current];
 
         const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => {
             const isAllowed = allowed.includes(label);
-            const isActive = label === current;
-            return `
-            <div class="status-opt"
+            const isActive  = label === current;
+            return `<div class="status-opt"
                 style="${!isAllowed ? 'opacity:.35;pointer-events:none;cursor:not-allowed;' : ''}"
                 onclick="${isAllowed && !isActive ? `pickRecStatus(this,'${label}',${id})` : ''}">
                 <span class="dot" style="background:${c.dot};"></span>
@@ -1357,83 +1098,68 @@ require_once('../../app/config/config.php');
     }
 
     function toggleStatusDrop(btn) {
-        const dd = btn.nextElementSibling;
+        const dd     = btn.nextElementSibling;
         const isOpen = dd.classList.contains('open');
         document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
         if (!isOpen) dd.classList.add('open');
     }
 
     function pickRecStatus(optEl, newStatus, id) {
-        const cfg = STATUS_CONFIG[newStatus];
-        const dd = optEl.closest('.status-dropdown');
+        const cfg   = STATUS_CONFIG[newStatus];
+        const dd    = optEl.closest('.status-dropdown');
         const badge = dd.previousElementSibling.querySelector('.rec-badge');
 
         badge.style.background = cfg.bg;
-        badge.style.color = cfg.color;
-        badge.textContent = newStatus;
+        badge.style.color      = cfg.color;
+        badge.textContent      = newStatus;
         dd.classList.remove('open');
 
         const fd = new FormData();
         fd.append('id', id);
         fd.append('status', newStatus);
 
-        fetch(`${HANDLER}?action=update_status`, {
-                method: 'POST',
-                body: fd
-            })
+        fetch(`${HANDLER}?action=update_status`, { method: 'POST', body: fd })
             .then(r => r.json())
             .then(res => {
-                if (res.success) {
-                    renderStats(res.stats);
-                    showToast('Status updated to "' + newStatus + '"', 'success');
-                } else {
-                    loadRecords(currentPage);
-                }
+                if (res.success) { renderStats(res.stats); showToast('Status updated to "' + newStatus + '"', 'success'); }
+                else loadRecords(currentPage);
             })
             .catch(() => loadRecords(currentPage));
     }
 
     function selectAppt(id, name, sub) {
         selectField('appt', id, name, sub);
-
         fetch(`${HANDLER}?action=get_appointment_details&apptId=${id}`)
             .then(r => r.json())
             .then(res => {
                 if (!res.success || !res.data) return;
                 const appt = res.data;
-
-                // Auto-fill diagnosis from remarks
-                if (!document.getElementById('fDiagnosis').value && appt.remarks) {
+                if (!document.getElementById('fDiagnosis').value && appt.remarks)
                     document.getElementById('fDiagnosis').value = appt.remarks;
-                }
-
-                // Auto-fill doctor
                 if (appt.doctorId) {
-                    document.getElementById('fDoctor').value = appt.doctorId;
+                    document.getElementById('fDoctor').value           = appt.doctorId;
                     document.getElementById('doctorPillName').textContent = appt.doctorName;
-                    document.getElementById('doctorPillSub').textContent = appt.specialization || '';
+                    document.getElementById('doctorPillSub').textContent  = appt.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
                 }
-
-                // Auto-fill patient
                 if (appt.patientId) {
-                    document.getElementById('fPatient').value = appt.patientId;
+                    document.getElementById('fPatient').value            = appt.patientId;
                     document.getElementById('patientPillName').textContent = appt.patientName;
-                    document.getElementById('patientPillSub').textContent = appt.patientCode || '';
+                    document.getElementById('patientPillSub').textContent  = appt.patientCode || '';
                     document.getElementById('patientPill').classList.add('show');
                 }
             });
     }
 
+    /* ── Table ── */
     function loadRecords(page) {
         currentPage = page || 1;
         const search = encodeURIComponent(document.getElementById('recSearch').value.trim());
-        const type = encodeURIComponent(document.getElementById('recType').value);
+        const type   = encodeURIComponent(document.getElementById('recType').value);
         const status = encodeURIComponent(document.getElementById('recStatus').value);
-        const url = `${HANDLER}?action=list&search=${search}&type=${type}&status=${status}&page=${currentPage}`;
+        const url    = `${HANDLER}?action=list&search=${search}&type=${type}&status=${status}&page=${currentPage}`;
 
         document.getElementById('tblLoading').style.display = 'flex';
-
         fetch(url)
             .then(r => r.json())
             .then(res => {
@@ -1452,61 +1178,38 @@ require_once('../../app/config/config.php');
     }
 
     const avatarColors = [
-        ['#dbeafe', '#1d4ed8'],
-        ['#d1fae5', '#065f46'],
-        ['#fef3c7', '#92400e'],
-        ['#ede9fe', '#5b21b6'],
-        ['#cffafe', '#155e75'],
-        ['#fee2e2', '#991b1b'],
+        ['#dbeafe','#1d4ed8'],['#d1fae5','#065f46'],['#fef3c7','#92400e'],
+        ['#ede9fe','#5b21b6'],['#cffafe','#155e75'],['#fee2e2','#991b1b'],
     ];
 
-    function inits(name) {
-        return (name || '').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-    }
+    function inits(name) { return (name||'').split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2); }
 
     function typeChip(t) {
-        const map = {
-            'Consultation': 'chip-consultation',
-            'Lab Result': 'chip-lab',
-            'Imaging': 'chip-imaging',
-            'Prescription': 'chip-prescription',
-            'Other': 'chip-other',
-        };
+        const map = { 'Consultation':'chip-consultation','Lab Result':'chip-lab','Imaging':'chip-imaging','Prescription':'chip-prescription','Other':'chip-other' };
         return `<span class="rec-type-chip ${map[t]||'chip-other'}">${t}</span>`;
     }
 
     function fmtDate(d) {
         if (!d) return '—';
-        return new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric'
-        });
+        return new Date(d+'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
     }
 
-    function esc(str) {
-        return String(str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-    }
+    function esc(str) { return String(str||'').replace(/'/g,"\\'").replace(/"/g,'&quot;'); }
 
     function renderRows(rows) {
         const tbody = document.getElementById('recTbody');
         if (!rows.length) {
-            tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
-                <i class="bi bi-folder-x"></i><p>No records found for the selected filters.</p>
-            </div></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><i class="bi bi-folder-x"></i><p>No records found for the selected filters.</p></div></td></tr>`;
             return;
         }
-        tbody.innerHTML = rows.map((r, i) => {
-            const [bg, fg] = avatarColors[i % avatarColors.length];
+        tbody.innerHTML = rows.map((r,i) => {
+            const [bg,fg] = avatarColors[i % avatarColors.length];
             const avatarHtml = r.patPhoto ? `<img src="${r.patPhoto}" alt="">` : inits(r.patientName);
             return `<tr>
                 <td><a href="#" class="rec-id">${r.recordCode}</a></td>
                 <td><div class="pat-cell">
                     <div class="pat-avatar" style="background:${bg};color:${fg}">${avatarHtml}</div>
-                    <div>
-                        <div class="pat-name">${r.patientName}</div>
-                        <div class="pat-sub">${r.patientCode}</div>
-                    </div>
+                    <div><div class="pat-name">${r.patientName}</div><div class="pat-sub">${r.patientCode}</div></div>
                 </div></td>
                 <td>${typeChip(r.recordType)}</td>
                 <td class="diagnosis-cell">
@@ -1525,56 +1228,53 @@ require_once('../../app/config/config.php');
     }
 
     function renderStats(s) {
-        document.getElementById('statTotal').textContent = s.total ?? '—';
-        document.getElementById('statToday').textContent = s.today ?? '—';
-        document.getElementById('statLab').textContent = s.labPending ?? '—';
-        document.getElementById('statRx').textContent = s.prescriptions ?? '—';
+        document.getElementById('statTotal').textContent = s.total      ?? '—';
+        document.getElementById('statToday').textContent = s.today      ?? '—';
+        document.getElementById('statLab').textContent   = s.labPending ?? '—';
+        document.getElementById('statRx').textContent   = s.prescriptions ?? '—';
     }
 
     function renderPagination(total, page, limit) {
         const pages = Math.ceil(total / limit);
-        const start = (page - 1) * limit + 1,
-            end = Math.min(page * limit, total);
+        const start = (page-1)*limit+1, end = Math.min(page*limit, total);
         document.getElementById('paginationInfo').textContent =
             total ? `Showing ${start}–${end} of ${total} records` : 'No records';
         const wrap = document.getElementById('paginationBtns');
         wrap.innerHTML = '';
         if (pages <= 1) return;
-        const btn = (label, p, active = false) => {
+        const btn = (label, p, active=false) => {
             const b = document.createElement('button');
-            b.className = 'btn-act';
-            b.innerHTML = label;
+            b.className  = 'btn-act';
+            b.innerHTML  = label;
             b.style.cssText = `border-radius:8px;padding:4px 12px;font-size:.78rem;${active?'background:var(--blue-600);color:#fff;border-color:var(--blue-600);':''}`;
-            if (p) b.onclick = () => loadRecords(p);
-            else b.disabled = true;
+            if (p) b.onclick = () => loadRecords(p); else b.disabled = true;
             return b;
         };
-        wrap.appendChild(btn('‹ Prev', page > 1 ? page - 1 : null));
-        for (let i = 1; i <= pages; i++) wrap.appendChild(btn(i, i, i === page));
-        wrap.appendChild(btn('Next ›', page < pages ? page + 1 : null));
+        wrap.appendChild(btn('‹ Prev', page>1 ? page-1 : null));
+        for (let i=1; i<=pages; i++) wrap.appendChild(btn(i, i, i===page));
+        wrap.appendChild(btn('Next ›', page<pages ? page+1 : null));
     }
 
+    /* ── Lock helpers ── */
     function lockAppt(lock) {
-        const wrap = document.getElementById('apptInputWrap');
-        const pill = document.getElementById('apptPill');
+        const wrap     = document.getElementById('apptInputWrap');
+        const pill     = document.getElementById('apptPill');
         const clearBtn = document.querySelector('#apptPill .pill-clear');
-        const input = document.getElementById('apptInput');
+        const input    = document.getElementById('apptInput');
 
-        input.disabled = lock;
-        wrap.style.display = lock ? 'none' : '';
+        input.disabled      = lock;
+        wrap.style.display  = lock ? 'none' : '';
         if (clearBtn) clearBtn.style.display = lock ? 'none' : '';
 
         if (lock) {
-            // Show pill without blue styling — plain locked look
             pill.classList.remove('locked');
             pill.style.background = 'var(--surface)';
-            pill.style.border = '1px solid var(--border)';
-            pill.style.cursor = 'not-allowed';
+            pill.style.border     = '1px solid var(--border)';
+            pill.style.cursor     = 'not-allowed';
         } else {
-            // Restore normal pill styling
             pill.style.background = '';
-            pill.style.border = '';
-            pill.style.cursor = '';
+            pill.style.border     = '';
+            pill.style.cursor     = '';
             pill.classList.remove('locked');
         }
     }
@@ -1584,56 +1284,68 @@ require_once('../../app/config/config.php');
     }
 
     function lockPatientDoctor(lock) {
-        ['patient', 'doctor'].forEach(field => {
-            const inputId = field === 'patient' ? 'patientInput' : 'doctorInput';
-            const pillId = field === 'patient' ? 'patientPill' : 'doctorPill';
-            const nameId = field === 'patient' ? 'patientPillName' : 'doctorPillName';
-            const subId = field === 'patient' ? 'patientPillSub' : 'doctorPillSub';
+        ['patient','doctor'].forEach(field => {
+            const inputId  = field === 'patient' ? 'patientInput' : 'doctorInput';
+            const pillId   = field === 'patient' ? 'patientPill'  : 'doctorPill';
+            const nameId   = field === 'patient' ? 'patientPillName' : 'doctorPillName';
+            const subId    = field === 'patient' ? 'patientPillSub'  : 'doctorPillSub';
             const clearBtn = document.querySelector(`#${pillId} .pill-clear`);
             const inputWrap = document.getElementById(inputId).closest('div');
 
             if (lock) {
-                // Hide search input wrapper and pill, show plain text box
                 inputWrap.style.display = 'none';
                 document.getElementById(pillId).classList.remove('show');
-
                 const name = document.getElementById(nameId).textContent;
-                const sub = document.getElementById(subId).textContent;
-                const existingBox = document.getElementById(field + 'LockedBox');
+                const sub  = document.getElementById(subId).textContent;
+                const existingBox = document.getElementById(field+'LockedBox');
                 if (!existingBox) {
                     const box = document.createElement('input');
-                    box.type = 'text';
-                    box.id = field + 'LockedBox';
+                    box.type      = 'text';
+                    box.id        = field+'LockedBox';
                     box.className = 'form-control';
-                    box.value = name + (sub ? ' (' + sub + ')' : '');
-                    box.disabled = true;
+                    box.value     = name + (sub ? ' ('+sub+')' : '');
+                    box.disabled  = true;
                     box.style.cssText = 'background:var(--surface);color:var(--text-dark);font-weight:600;cursor:not-allowed;';
                     inputWrap.parentNode.appendChild(box);
                 } else {
-                    existingBox.value = name + (sub ? ' (' + sub + ')' : '');
+                    existingBox.value        = name + (sub ? ' ('+sub+')' : '');
                     existingBox.style.display = '';
                 }
             } else {
-                // Restore search input, hide locked box
                 inputWrap.style.display = '';
-                const existingBox = document.getElementById(field + 'LockedBox');
+                const existingBox = document.getElementById(field+'LockedBox');
                 if (existingBox) existingBox.style.display = 'none';
                 if (clearBtn) clearBtn.style.display = '';
-                document.getElementById(pillId).classList.remove('show', 'locked');
+                document.getElementById(pillId).classList.remove('show','locked');
             }
         });
     }
 
+    /* ── Reset ── */
     function resetModal() {
-        ['patient', 'doctor', 'appt'].forEach(f => clearField(f));
-        document.getElementById('fType').value = 'Consultation';
-        document.getElementById('fDiagnosis').value = '';
-        document.getElementById('fIcdCode').value = '';
+        ['patient','doctor','appt'].forEach(f => clearField(f));
+        document.getElementById('fType').value        = '';
+        document.getElementById('fDiagnosis').value   = '';
+        document.getElementById('fIcdCode').value     = '';
         document.getElementById('fPrescription').value = '';
-        document.getElementById('fNotes').value = '';
-        document.getElementById('fStatus').value = 'Draft';
-        document.getElementById('editId').value = '';
+        document.getElementById('fNotes').value        = '';
+        document.getElementById('fStatus').value       = '';
+        document.getElementById('editId').value        = '';
         document.getElementById('fFollowUpDate').value = '';
+
+        // Clear any leftover red borders / error tips
+        ['fType','fDiagnosis','fIcdCode','fPrescription','fStatus','fFollowUpDate'].forEach(fid => {
+            const el = document.getElementById(fid);
+            el.style.borderColor = '';
+            el.style.background  = '';
+            el.parentNode.querySelectorAll('.field-err').forEach(e => e.remove());
+        });
+        ['patientInput','doctorInput'].forEach(id => {
+            const el = document.getElementById(id);
+            el.style.borderColor = '';
+            el.style.background  = '';
+            el.placeholder = id === 'patientInput' ? 'Type patient name or code…' : 'Type doctor name…';
+        });
     }
 
     function openAddModal() {
@@ -1641,16 +1353,15 @@ require_once('../../app/config/config.php');
         lockPatientDoctor(false);
         lockAppt(false);
         showFinalizedNotice(false);
-        // also unlock any finalized-locked fields
-        ['fDiagnosis', 'fIcdCode', 'fPrescription', 'fType', 'fStatus'].forEach(fid => {
+        ['fDiagnosis','fIcdCode','fPrescription','fType','fStatus'].forEach(fid => {
             const el = document.getElementById(fid);
-            el.disabled = false;
-            el.style.opacity = '';
-            el.style.cursor = '';
+            el.disabled        = false;
+            el.style.opacity   = '';
+            el.style.cursor    = '';
             el.style.background = '';
         });
         document.getElementById('recModalTitle').textContent = 'New Medical Record';
-        document.getElementById('saveBtnLabel').textContent = 'Save Record';
+        document.getElementById('saveBtnLabel').textContent  = 'Save Record';
         new bootstrap.Modal(document.getElementById('recModal')).show();
     }
 
@@ -1661,98 +1372,145 @@ require_once('../../app/config/config.php');
                 if (!res.success) return alert('Could not load record.');
                 const d = res.data;
                 resetModal();
-                document.getElementById('recModalTitle').textContent = 'Edit Medical Record';
-                document.getElementById('saveBtnLabel').textContent = 'Update Record';
-                document.getElementById('editId').value = d.id;
-                document.getElementById('fStatus').value = d.status || 'Draft';
-                document.getElementById('fStatus').dataset.original = d.status || 'Draft';
-                document.getElementById('fType').value = d.recordType;
-                document.getElementById('fDiagnosis').value = d.diagnosis || '';
-                document.getElementById('fIcdCode').value = d.icdCode || '';
-                document.getElementById('fPrescription').value = d.prescription || '';
-                document.getElementById('fNotes').value = d.notes || '';
-                document.getElementById('fFollowUpDate').value = d.followUpDate || '';
+                document.getElementById('recModalTitle').textContent  = 'Edit Medical Record';
+                document.getElementById('saveBtnLabel').textContent   = 'Update Record';
+                document.getElementById('editId').value               = d.id;
+                document.getElementById('fStatus').value              = d.status || 'Draft';
+                document.getElementById('fStatus').dataset.original   = d.status || 'Draft';
+                document.getElementById('fType').value                = d.recordType;
+                document.getElementById('fDiagnosis').value           = d.diagnosis   || '';
+                document.getElementById('fIcdCode').value             = d.icdCode     || '';
+                document.getElementById('fPrescription').value        = d.prescription || '';
+                document.getElementById('fNotes').value               = d.notes       || '';
+                document.getElementById('fFollowUpDate').value        = d.followUpDate || '';
 
                 if (d.patientId) {
-                    document.getElementById('fPatient').value = d.patientId;
+                    document.getElementById('fPatient').value             = d.patientId;
                     document.getElementById('patientPillName').textContent = d.patientName || '—';
-                    document.getElementById('patientPillSub').textContent = d.patientCode || '';
+                    document.getElementById('patientPillSub').textContent  = d.patientCode || '';
                     document.getElementById('patientPill').classList.add('show');
                 }
-
                 if (d.doctorId) {
-                    document.getElementById('fDoctor').value = d.doctorId;
-                    document.getElementById('doctorPillName').textContent = d.doctorName || '—';
-                    document.getElementById('doctorPillSub').textContent = d.specialization || '';
+                    document.getElementById('fDoctor').value              = d.doctorId;
+                    document.getElementById('doctorPillName').textContent  = d.doctorName || '—';
+                    document.getElementById('doctorPillSub').textContent   = d.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
                 }
-
                 if (d.appointmentId) {
-                    document.getElementById('fAppointment').value = d.appointmentId;
-                    document.getElementById('apptPillName').textContent = d.appointmentCode || '—';
-                    document.getElementById('apptPillSub').textContent = d.doctorName + ' · ' + fmtDate(d.appointmentDate);
+                    document.getElementById('fAppointment').value        = d.appointmentId;
+                    document.getElementById('apptPillName').textContent  = d.appointmentCode || '—';
+                    document.getElementById('apptPillSub').textContent   = d.doctorName + ' · ' + fmtDate(d.appointmentDate);
                     document.getElementById('apptPill').classList.add('show');
                 }
 
                 const isFinalized = d.status === 'Finalized';
-
                 lockPatientDoctor(true);
-                lockAppt(true); // always lock Linked Appointment on edit, regardless of status
+                lockAppt(true);
                 showFinalizedNotice(isFinalized);
-                // Lock clinical fields when Finalized
-                ['fDiagnosis', 'fIcdCode', 'fPrescription', 'fType'].forEach(fid => {
+
+                ['fDiagnosis','fIcdCode','fPrescription','fType'].forEach(fid => {
                     const el = document.getElementById(fid);
-                    el.disabled = isFinalized;
-                    el.style.opacity = isFinalized ? '.7' : '';
-                    el.style.cursor = isFinalized ? 'not-allowed' : '';
+                    el.disabled        = isFinalized;
+                    el.style.opacity   = isFinalized ? '.7' : '';
+                    el.style.cursor    = isFinalized ? 'not-allowed' : '';
                     el.style.background = isFinalized ? 'var(--surface)' : '';
                 });
 
-                // Lock Status (prevent Finalized → Draft regression)
                 const fStatus = document.getElementById('fStatus');
-                fStatus.disabled = isFinalized;
-                fStatus.style.opacity = isFinalized ? '.7' : '';
-                fStatus.style.cursor = isFinalized ? 'not-allowed' : '';
+                fStatus.disabled        = isFinalized;
+                fStatus.style.opacity   = isFinalized ? '.7' : '';
+                fStatus.style.cursor    = isFinalized ? 'not-allowed' : '';
                 fStatus.style.background = isFinalized ? 'var(--surface)' : '';
-
-                // Notes & Follow-up Date remain editable in both states
 
                 new bootstrap.Modal(document.getElementById('recModal')).show();
             });
     }
 
+    /* ══════════════════════════════════════════════════════════
+       saveRecord — full validation
+    ══════════════════════════════════════════════════════════ */
     function saveRecord() {
-        const id = document.getElementById('editId').value;
+        const id       = document.getElementById('editId').value;
         const diagnosis = document.getElementById('fDiagnosis').value.trim();
-        const icdCode = document.getElementById('fIcdCode').value.trim();
+        const icdCode  = document.getElementById('fIcdCode').value.trim();
         const followUp = document.getElementById('fFollowUpDate').value;
-        const status = document.getElementById('fStatus').value;
+        const status   = document.getElementById('fStatus').value;
 
-        // ── Validation 1: Diagnosis required ────────────────────────────────────
+        let hasError = false;
+
+        // ── 1. Patient ──────────────────────────────────────────────────────────
+        if (!document.getElementById('fPatient').value) {
+            const el = document.getElementById('patientInput');
+            el.style.borderColor = 'var(--red)';
+            el.style.background  = 'var(--red-light)';
+            el.placeholder       = 'Patient is required!';
+            el.addEventListener('input', function c() {
+                el.style.borderColor = ''; el.style.background = '';
+                el.placeholder = 'Type patient name or code…';
+                el.removeEventListener('input', c);
+            });
+            hasError = true;
+        }
+
+        // ── 2. Doctor ───────────────────────────────────────────────────────────
+        if (!document.getElementById('fDoctor').value) {
+            const el = document.getElementById('doctorInput');
+            el.style.borderColor = 'var(--red)';
+            el.style.background  = 'var(--red-light)';
+            el.placeholder       = 'Doctor is required!';
+            el.addEventListener('input', function c() {
+                el.style.borderColor = ''; el.style.background = '';
+                el.placeholder = 'Type doctor name…';
+                el.removeEventListener('input', c);
+            });
+            hasError = true;
+        }
+
+        // ── 3. Record Type ──────────────────────────────────────────────────────
+        if (!document.getElementById('fType').value) {
+            showFieldError('fType', 'Please select a record type.');
+            hasError = true;
+        }
+
+        // ── 4. Diagnosis ────────────────────────────────────────────────────────
         if (!diagnosis) {
             showFieldError('fDiagnosis', 'Diagnosis is required before saving.');
-            return;
+            hasError = true;
         }
 
-        // ── Validation 2: ICD Code format check when provided ───────────────────
+        // ── 5. ICD Code format ──────────────────────────────────────────────────
         if (icdCode) {
-            // ICD-10 format: letter + 2 digits + optional decimal + more digits
             const icdPattern = /^[A-Z][0-9]{1,3}(\.[0-9A-Z]{0,4})?$/i;
             if (!icdPattern.test(icdCode)) {
-                showFieldError('fIcdCode', 'ICD code format looks wrong (e.g. I10, J18.9). Double-check it matches your diagnosis.');
-                return;
+                showFieldError('fIcdCode', 'ICD code format looks wrong (e.g. I10, J18.9).');
+                hasError = true;
             }
         }
 
-        // ── Validation 3: Follow-up date must be in the future ──────────────────
+        // ── 6. Prescription ─────────────────────────────────────────────────────
+        if (!document.getElementById('fPrescription').value.trim()) {
+            showFieldError('fPrescription', 'Prescription is required.');
+            hasError = true;
+        }
+
+        // ── 7. Status ───────────────────────────────────────────────────────────
+        if (!status) {
+            showFieldError('fStatus', 'Please select a status.');
+            hasError = true;
+        }
+
+        // ── 8. Follow-up date must be future ────────────────────────────────────
         if (followUp) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            const followDt = new Date(followUp + 'T00:00:00');
-            if (followDt <= today) {
+            const today = new Date(); today.setHours(0,0,0,0);
+            if (new Date(followUp+'T00:00:00') <= today) {
                 showFieldError('fFollowUpDate', 'Follow-up date must be a future date.');
-                return;
+                hasError = true;
             }
+        }
+
+        if (hasError) {
+            showToast('<i class="bi bi-exclamation-circle-fill"></i> Please fill in all required fields.', 'warn');
+            return;
         }
 
         // ── Finalize confirmation ────────────────────────────────────────────────
@@ -1767,50 +1525,43 @@ require_once('../../app/config/config.php');
         }
 
         const payload = {
-            id: id || undefined,
-            patientId: document.getElementById('fPatient').value,
-            doctorId: document.getElementById('fDoctor').value,
-            appointmentId: document.getElementById('fAppointment').value || null,
-            recordType: document.getElementById('fType').value,
+            id:              id || undefined,
+            patientId:       document.getElementById('fPatient').value,
+            doctorId:        document.getElementById('fDoctor').value,
+            appointmentId:   document.getElementById('fAppointment').value || null,
+            recordType:      document.getElementById('fType').value,
             diagnosis,
             icdCode,
-            prescription: document.getElementById('fPrescription').value,
-            notes: document.getElementById('fNotes').value,
+            prescription:    document.getElementById('fPrescription').value,
+            notes:           document.getElementById('fNotes').value,
             status,
-            followUpDate: followUp || null,
+            followUpDate:    followUp || null,
         };
 
-        if (!payload.patientId || !payload.doctorId) {
-            alert('Patient and Doctor are required.');
-            return;
-        }
-
         fetch(`${HANDLER}?action=${id ? 'edit' : 'add'}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload),
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) {
-                    bootstrap.Modal.getInstance(document.getElementById('recModal')).hide();
-                    loadRecords(currentPage);
-                    showToast(id ? 'Record updated!' : 'Record saved!', 'success');
-                } else {
-                    alert('Failed to save. Please try again.');
-                }
-            });
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify(payload),
+        })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                bootstrap.Modal.getInstance(document.getElementById('recModal')).hide();
+                loadRecords(currentPage);
+                showToast(id ? 'Record updated!' : 'Record saved!', 'success');
+            } else {
+                alert('Failed to save. Please try again.');
+            }
+        });
     }
 
+    /* ── Field error helper ── */
     function showFieldError(fieldId, msg) {
         const el = document.getElementById(fieldId);
         el.style.borderColor = 'var(--red)';
-        el.style.background = 'var(--red-light)';
+        el.style.background  = 'var(--red-light)';
         el.focus();
 
-        // Remove existing error tip if any
         const prev = el.parentNode.querySelector('.field-err');
         if (prev) prev.remove();
 
@@ -1820,59 +1571,57 @@ require_once('../../app/config/config.php');
         tip.innerHTML = `<i class="bi bi-exclamation-circle-fill"></i> ${msg}`;
         el.parentNode.appendChild(tip);
 
-        // Auto-clear on next input
         el.addEventListener('input', function clear() {
             el.style.borderColor = '';
-            el.style.background = '';
+            el.style.background  = '';
             tip.remove();
             el.removeEventListener('input', clear);
         });
+
+        // Also handle select change
+        el.addEventListener('change', function clear() {
+            el.style.borderColor = '';
+            el.style.background  = '';
+            tip.remove();
+            el.removeEventListener('change', clear);
+        });
     }
 
-    function viewRecord(id, print = false) {
+    /* ── View record ── */
+    function viewRecord(id, print=false) {
         fetch(`${HANDLER}?action=get&id=${id}`)
             .then(r => r.json())
             .then(res => {
                 if (!res.success) return alert('Could not load record.');
-                const d = res.data;
-                const cfg = STATUS_CONFIG[d.status] || {
-                    bg: '#f3f4f6',
-                    color: '#374151',
-                    dot: '#9ca3af'
-                };
+                const d   = res.data;
+                const cfg = STATUS_CONFIG[d.status] || { bg:'#f3f4f6', color:'#374151', dot:'#9ca3af' };
                 document.getElementById('viewModalBody').innerHTML = `
-                    <div class="detail-row"><span class="detail-label">Code</span>          <span class="detail-value">${d.recordCode}</span></div>
-                    <div class="detail-row"><span class="detail-label">Patient</span>        <span class="detail-value">${d.patientName} (${d.patientCode})</span></div>
-                    <div class="detail-row"><span class="detail-label">Doctor</span>         <span class="detail-value">${d.doctorName}</span></div>
-                    <div class="detail-row"><span class="detail-label">Specialization</span> <span class="detail-value">${d.specialization||'—'}</span></div>
-                    <div class="detail-row"><span class="detail-label">Type</span>           <span class="detail-value">${typeChip(d.recordType)}</span></div>
-                    <div class="detail-row"><span class="detail-label">Diagnosis</span>      <span class="detail-value">${d.diagnosis||'—'}</span></div>
-                    <div class="detail-row"><span class="detail-label">ICD Code</span>       <span class="detail-value">${d.icdCode||'—'}</span></div>
-                    <div class="detail-row"><span class="detail-label">Prescription</span>   <span class="detail-value" style="white-space:pre-line">${d.prescription||'—'}</span></div>
-                    <div class="detail-row"><span class="detail-label">Notes</span>          <span class="detail-value" style="white-space:pre-line">${d.notes||'—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Code</span>           <span class="detail-value">${d.recordCode}</span></div>
+                    <div class="detail-row"><span class="detail-label">Patient</span>         <span class="detail-value">${d.patientName} (${d.patientCode})</span></div>
+                    <div class="detail-row"><span class="detail-label">Doctor</span>          <span class="detail-value">${d.doctorName}</span></div>
+                    <div class="detail-row"><span class="detail-label">Specialization</span>  <span class="detail-value">${d.specialization||'—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Type</span>            <span class="detail-value">${typeChip(d.recordType)}</span></div>
+                    <div class="detail-row"><span class="detail-label">Diagnosis</span>       <span class="detail-value">${d.diagnosis||'—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">ICD Code</span>        <span class="detail-value">${d.icdCode||'—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Prescription</span>    <span class="detail-value" style="white-space:pre-line">${d.prescription||'—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Notes</span>           <span class="detail-value" style="white-space:pre-line">${d.notes||'—'}</span></div>
                     <div class="detail-row"><span class="detail-label">Status</span>
-    <span class="detail-value">
-        <span style="background:${cfg.bg};color:${cfg.color};font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;">
-            <span style="width:7px;height:7px;border-radius:50%;background:${cfg.dot};display:inline-block;"></span>${d.status}
-        </span>
-    </span>
-</div>
-<div class="detail-row"><span class="detail-label">Follow-Up Date</span><span class="detail-value">${d.followUpDate ? fmtDate(d.followUpDate) : '—'}</span></div>
-<div class="detail-row"><span class="detail-label">Created</span><span class="detail-value">${fmtDate(d.createdAt?.slice(0,10))}</span></div>
-${renderAuditTrail(d.auditLog || [])}
+                        <span class="detail-value">
+                            <span style="background:${cfg.bg};color:${cfg.color};font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;">
+                                <span style="width:7px;height:7px;border-radius:50%;background:${cfg.dot};display:inline-block;"></span>${d.status}
+                            </span>
+                        </span>
+                    </div>
+                    <div class="detail-row"><span class="detail-label">Follow-Up Date</span>  <span class="detail-value">${d.followUpDate ? fmtDate(d.followUpDate) : '—'}</span></div>
+                    <div class="detail-row"><span class="detail-label">Created</span>         <span class="detail-value">${fmtDate(d.createdAt?.slice(0,10))}</span></div>
+                    ${renderAuditTrail(d.auditLog || [])}
                 `;
                 const modal = new bootstrap.Modal(document.getElementById('viewModal'));
                 modal.show();
                 if (print) {
-                    document.getElementById('viewModal').addEventListener('shown.bs.modal', () => window.print(), {
-                        once: true
-                    });
+                    document.getElementById('viewModal').addEventListener('shown.bs.modal', () => window.print(), { once:true });
                 }
             });
-    }
-
-    function printRecord() {
-        window.print();
     }
 
     function openDelete(id) {
@@ -1884,10 +1633,7 @@ ${renderAuditTrail(d.auditLog || [])}
         const id = document.getElementById('deleteId').value;
         const fd = new FormData();
         fd.append('id', id);
-        fetch(`${HANDLER}?action=delete`, {
-                method: 'POST',
-                body: fd
-            })
+        fetch(`${HANDLER}?action=delete`, { method:'POST', body:fd })
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
@@ -1900,46 +1646,41 @@ ${renderAuditTrail(d.auditLog || [])}
             });
     }
 
-    function showToast(msg, type = 'success') {
-        const colors = {
-            success: '#065f46',
-            error: '#991b1b',
-            info: '#155e75'
-        };
-        const el = document.createElement('div');
-        el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;background:${colors[type]||colors.success};color:#fff;border-radius:10px;padding:.65rem 1.1rem;font-size:.82rem;font-family:'DM Sans',sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.1);display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease both;`;
-        el.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${msg}`;
+    /* ── Toast ── */
+    function showToast(msg, type='success') {
+        const colors = { success:'#065f46', error:'#991b1b', info:'#155e75', warn:'#9b1c1c' };
+        const el      = document.createElement('div');
+        const isWarn  = type === 'warn';
+        el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;background:${colors[type]||colors.success};color:#fff;border-radius:${isWarn?'999px':'10px'};padding:${isWarn?'.65rem 1.4rem':'.65rem 1.1rem'};font-size:.82rem;font-family:'DM Sans',sans-serif;box-shadow:${isWarn?'0 4px 20px rgba(120,20,20,.25)':'0 8px 30px rgba(0,0,0,.1)'};display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease both;`;
+        el.innerHTML = msg;
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 3500);
     }
 
+    /* ── Audit trail ── */
     function renderAuditTrail(log) {
         if (!log.length) return '';
-        const typeClass = {
-            'create': 'create',
-            'edit': 'edit',
-            'status': 'status'
-        };
+        const typeClass = { 'create':'create', 'edit':'edit', 'status':'status' };
         const items = log.map(entry => {
             let detail = '';
             if (entry.type === 'status') {
                 detail = `<span class="audit-arrow">
-                <span class="from">${entry.from}</span>
-                <i class="bi bi-arrow-right" style="font-size:.65rem;color:var(--text-muted);"></i>
-                <span class="to">${entry.to}</span>
-            </span>`;
+                    <span class="from">${entry.from}</span>
+                    <i class="bi bi-arrow-right" style="font-size:.65rem;color:var(--text-muted);"></i>
+                    <span class="to">${entry.to}</span>
+                </span>`;
             }
-            return `<div class="audit-item ${typeClass[entry.type] || 'edit'}">
-            <div>
-                <div class="audit-action">${entry.action} ${detail}</div>
-                <div class="audit-who">${entry.by} &middot; ${entry.at}</div>
-            </div>
-        </div>`;
+            return `<div class="audit-item ${typeClass[entry.type]||'edit'}">
+                <div>
+                    <div class="audit-action">${entry.action} ${detail}</div>
+                    <div class="audit-who">${entry.by} &middot; ${entry.at}</div>
+                </div>
+            </div>`;
         }).join('');
         return `<div class="audit-trail">
-        <div class="audit-trail-title"><i class="bi bi-clock-history"></i> Change History (${log.length})</div>
-        <div class="audit-items-wrap">${items}</div>
-    </div>`;
+            <div class="audit-trail-title"><i class="bi bi-clock-history"></i> Change History (${log.length})</div>
+            <div class="audit-items-wrap">${items}</div>
+        </div>`;
     }
 </script>
 

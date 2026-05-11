@@ -905,6 +905,21 @@ require_once('../../app/config/config.php');
     </div>
 </div>
 
+<!-- ═══════════════════════════ CUSTOM FINALIZE CONFIRM MODAL ═══════════════════════════ -->
+<div id="finalizeConfirmModal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.45);align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:20px;padding:2.25rem 2rem;max-width:400px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,0.15);font-family:'DM Sans',sans-serif;text-align:center;">
+        <div style="width:56px;height:56px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 1.1rem;">
+            <i class="bi bi-lock-fill" style="font-size:1.3rem;color:#2563eb;"></i>
+        </div>
+        <div style="font-weight:700;font-size:1.05rem;color:#111827;margin-bottom:.5rem;">Finalize Record?</div>
+        <p id="finalizeConfirmMsg" style="font-size:.84rem;color:#6b7280;margin:0 0 1.6rem;line-height:1.6;"></p>
+        <div style="display:flex;gap:10px;justify-content:center;">
+            <button onclick="closeFinalizeModal(false)" style="background:#fff;color:#4b5563;border:1px solid #eaecf4;border-radius:10px;padding:.5rem 1.4rem;font-size:.84rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;">Keep Editing</button>
+            <button onclick="closeFinalizeModal(true)" style="background:#2563eb;color:#fff;border:none;border-radius:10px;padding:.5rem 1.6rem;font-size:.84rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;display:inline-flex;align-items:center;gap:6px;"><i class="bi bi-check-lg"></i> Yes, Finalize</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const HANDLER = '../../app/controllers/medical_records_handler.php';
     let currentPage = 1;
@@ -965,6 +980,20 @@ require_once('../../app/config/config.php');
             }
         }
     });
+
+    /* ── Custom Finalize Modal ── */
+    let finalizeResolve = null;
+
+    function openFinalizeModal(msg) {
+        document.getElementById('finalizeConfirmMsg').textContent = msg;
+        document.getElementById('finalizeConfirmModal').style.display = 'flex';
+        return new Promise(resolve => { finalizeResolve = resolve; });
+    }
+
+    function closeFinalizeModal(confirmed) {
+        document.getElementById('finalizeConfirmModal').style.display = 'none';
+        if (finalizeResolve) { finalizeResolve(confirmed); finalizeResolve = null; }
+    }
 
     /* ── Debounced live-search ── */
     const fieldTimers = {};
@@ -1035,7 +1064,6 @@ require_once('../../app/config/config.php');
         document.getElementById(subId).textContent   = sub;
         document.getElementById(pillId).classList.add('show');
 
-        // Clear any red-border error on the search input
         const inp = document.getElementById(inputId);
         inp.style.borderColor = '';
         inp.style.background  = '';
@@ -1333,7 +1361,6 @@ require_once('../../app/config/config.php');
         document.getElementById('editId').value        = '';
         document.getElementById('fFollowUpDate').value = '';
 
-        // Clear any leftover red borders / error tips
         ['fType','fDiagnosis','fIcdCode','fPrescription','fStatus','fFollowUpDate'].forEach(fid => {
             const el = document.getElementById(fid);
             el.style.borderColor = '';
@@ -1427,14 +1454,14 @@ require_once('../../app/config/config.php');
     }
 
     /* ══════════════════════════════════════════════════════════
-       saveRecord — full validation
+       saveRecord — full validation (async for custom modal)
     ══════════════════════════════════════════════════════════ */
-    function saveRecord() {
-        const id       = document.getElementById('editId').value;
+    async function saveRecord() {
+        const id        = document.getElementById('editId').value;
         const diagnosis = document.getElementById('fDiagnosis').value.trim();
-        const icdCode  = document.getElementById('fIcdCode').value.trim();
-        const followUp = document.getElementById('fFollowUpDate').value;
-        const status   = document.getElementById('fStatus').value;
+        const icdCode   = document.getElementById('fIcdCode').value.trim();
+        const followUp  = document.getElementById('fFollowUpDate').value;
+        const status    = document.getElementById('fStatus').value;
 
         let hasError = false;
 
@@ -1513,29 +1540,31 @@ require_once('../../app/config/config.php');
             return;
         }
 
-        // ── Finalize confirmation ────────────────────────────────────────────────
+        // ── Finalize confirmation (custom modal) ─────────────────────────────────
         if (status === 'Finalized' && !id) {
-            if (!confirm('Finalizing will lock this record and prevent editing of clinical fields. Continue?')) return;
+            const ok = await openFinalizeModal('Finalizing will lock this record and prevent editing of clinical fields. Continue?');
+            if (!ok) return;
         }
         if (status === 'Finalized' && id) {
             const origStatus = document.getElementById('fStatus').dataset.original;
             if (origStatus !== 'Finalized') {
-                if (!confirm('Finalizing will lock this record permanently. Are you sure?')) return;
+                const ok = await openFinalizeModal('Finalizing will lock this record permanently. Are you sure?');
+                if (!ok) return;
             }
         }
 
         const payload = {
-            id:              id || undefined,
-            patientId:       document.getElementById('fPatient').value,
-            doctorId:        document.getElementById('fDoctor').value,
-            appointmentId:   document.getElementById('fAppointment').value || null,
-            recordType:      document.getElementById('fType').value,
+            id:            id || undefined,
+            patientId:     document.getElementById('fPatient').value,
+            doctorId:      document.getElementById('fDoctor').value,
+            appointmentId: document.getElementById('fAppointment').value || null,
+            recordType:    document.getElementById('fType').value,
             diagnosis,
             icdCode,
-            prescription:    document.getElementById('fPrescription').value,
-            notes:           document.getElementById('fNotes').value,
+            prescription:  document.getElementById('fPrescription').value,
+            notes:         document.getElementById('fNotes').value,
             status,
-            followUpDate:    followUp || null,
+            followUpDate:  followUp || null,
         };
 
         fetch(`${HANDLER}?action=${id ? 'edit' : 'add'}`, {
@@ -1578,7 +1607,6 @@ require_once('../../app/config/config.php');
             el.removeEventListener('input', clear);
         });
 
-        // Also handle select change
         el.addEventListener('change', function clear() {
             el.style.borderColor = '';
             el.style.background  = '';

@@ -48,7 +48,6 @@ include('./includes/sidebar.php');
         --shadow-lg: 0 8px 30px rgba(0, 0, 0, .10);
     }
 
-    /* Scope font only — do NOT apply box-sizing here as it breaks Bootstrap grid */
     .page-book {
         font-family: 'DM Sans', sans-serif;
     }
@@ -191,7 +190,7 @@ include('./includes/sidebar.php');
     }
 
     .form-label .req {
-        color: #ef4444;
+        color: var(--red);
         margin-left: 2px;
     }
 
@@ -204,6 +203,7 @@ include('./includes/sidebar.php');
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         padding: .55rem .85rem;
+        width: 100%;
         transition: border-color .2s, box-shadow .2s, background .2s;
     }
 
@@ -225,6 +225,72 @@ include('./includes/sidebar.php');
         resize: vertical;
     }
 
+    /* ─── Field validation wrappers ─── */
+    .field-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    /* Red border on the input/select when the wrapper has .field-error */
+    .field-wrap.field-error .form-control,
+    .field-wrap.field-error .form-select {
+        border-color: var(--red) !important;
+        background: #fff8f8 !important;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, .10);
+    }
+
+    /* Per-field error message — hidden by default, shown when .field-error */
+    .field-err-msg {
+        font-size: .68rem;
+        color: var(--red);
+        font-weight: 500;
+        display: none;
+        margin-top: 1px;
+    }
+
+    .field-wrap.field-error .field-err-msg {
+        display: block;
+    }
+
+    /* Time-slot specific error (no wrapper) */
+    .slot-err-msg {
+        font-size: .68rem;
+        color: var(--red);
+        font-weight: 500;
+        margin-top: 4px;
+        display: none;
+    }
+
+    /* ─── General "fill required fields" banner — fixed bottom-right pill ─── */
+    .form-banner-error {
+        display: none;
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        z-index: 9999;
+        align-items: center;
+        gap: 10px;
+        background: #9b1c1c;
+        /* dark muted red — not too bright */
+        color: #fff;
+        font-size: .84rem;
+        font-weight: 600;
+        border-radius: 999px;
+        /* pill shape */
+        padding: .65rem 1.4rem;
+        box-shadow: 0 4px 20px rgba(120, 20, 20, .25);
+        animation: fadeUp .22s ease both;
+        pointer-events: none;
+        /* don't block clicks behind it */
+    }
+
+    .form-banner-error i {
+        font-size: .9rem;
+        flex-shrink: 0;
+    }
+
+    /* ─── Submit / cancel buttons ─── */
     .btn-submit {
         background: var(--blue-600);
         color: #fff;
@@ -267,6 +333,7 @@ include('./includes/sidebar.php');
         background: var(--surface);
     }
 
+    /* ─── Success / error alerts (top of page) ─── */
     .alert-success-custom {
         background: var(--green-light);
         border: 1px solid #6ee7b7;
@@ -298,6 +365,7 @@ include('./includes/sidebar.php');
         font-weight: 500;
     }
 
+    /* ─── Appointment summary card ─── */
     .summary-card {
         background: var(--blue-50);
         border: 1px solid var(--blue-100);
@@ -349,6 +417,7 @@ include('./includes/sidebar.php');
         font-style: italic;
     }
 
+    /* ─── Time slots ─── */
     .slot-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -383,10 +452,14 @@ include('./includes/sidebar.php');
         border-color: var(--blue-600);
     }
 
-    .slot-btn:disabled {
-        opacity: .4;
+    .slot-btn:disabled,
+    .slot-btn.disabled-slot {
+        opacity: .45;
         cursor: not-allowed;
         text-decoration: line-through;
+        background: #e5e7eb;
+        border-color: #d1d5db;
+        color: var(--text-muted);
     }
 
     .slots-loading {
@@ -396,7 +469,7 @@ include('./includes/sidebar.php');
         font-size: .8rem;
     }
 
-    /* Fix sticky sidebar */
+    /* ─── Sticky sidebar ─── */
     .sidebar-sticky-col {
         position: sticky;
         top: 80px;
@@ -442,6 +515,7 @@ include('./includes/sidebar.php');
 
 <section class="section page-book">
 
+    <!-- Top-level success / error alerts -->
     <div id="successAlert" class="alert-success-custom mb-4" style="display:none">
         <i class="bi bi-check-circle-fill"></i>
         <div>
@@ -456,13 +530,22 @@ include('./includes/sidebar.php');
 
     <div class="row g-4 align-items-start">
 
-        <!-- LEFT: Form -->
+        <!-- ═══════════════════════════════════════════
+             LEFT: Form
+        ════════════════════════════════════════════ -->
         <div class="col-lg-8">
             <div class="main-card">
 
-                <!-- Patient Info -->
-                <div class="form-section-label mb-3"><i class="bi bi-person-fill"></i> Patient Information</div>
+                <!-- Hidden patient id (populated if logged-in patient found) -->
+                <input type="hidden" id="patientId" value="<?= $patientRow['id'] ?? '' ?>">
+
+                <!-- ── Patient Information ── -->
+                <div class="form-section-label mb-3">
+                    <i class="bi bi-person-fill"></i> Patient Information
+                </div>
+
                 <div class="row g-3 mb-4">
+
                     <div class="col-md-4">
                         <label class="form-label">First Name <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-firstName">
@@ -472,11 +555,14 @@ include('./includes/sidebar.php');
                             <span class="field-err-msg">First name is required.</span>
                         </div>
                     </div>
+
                     <div class="col-md-4">
                         <label class="form-label">Middle Name</label>
                         <input type="text" id="middleName" class="form-control"
-                            value="" placeholder="e.g. Santos">
+                            value="<?= htmlspecialchars($patientRow['middleName'] ?? '') ?>"
+                            placeholder="e.g. Santos">
                     </div>
+
                     <div class="col-md-4">
                         <label class="form-label">Last Name <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-lastName">
@@ -486,34 +572,62 @@ include('./includes/sidebar.php');
                             <span class="field-err-msg">Last name is required.</span>
                         </div>
                     </div>
+
                     <div class="col-md-6">
-                        <label class="form-label">Date of Birth</label>
-                        <input type="date" id="dateOfBirth" class="form-control" value="">
+                        <label class="form-label">Date of Birth <span class="req">*</span></label>
+                        <div class="field-wrap" id="wrap-dateOfBirth">
+                            <input type="date" id="dateOfBirth" class="form-control"
+                                value="<?= htmlspecialchars($patientRow['dateOfBirth'] ?? '') ?>"
+                                onchange="clearFieldError('wrap-dateOfBirth')">
+                            <span class="field-err-msg">Date of birth is required.</span>
+                        </div>
                     </div>
+
                     <div class="col-md-6">
-                        <label class="form-label">Contact Number</label>
-                        <input type="tel" id="contactNumber" class="form-control"
-                            value="" placeholder="e.g. 09171234567">
+                        <label class="form-label">Contact Number <span class="req">*</span></label>
+                        <div class="field-wrap" id="wrap-contactNumber">
+                            <input type="tel" id="contactNumber" class="form-control"
+                                value="<?= htmlspecialchars($patientRow['contactNumber'] ?? '') ?>"
+                                placeholder="e.g. 09171234567"
+                                oninput="clearFieldError('wrap-contactNumber')">
+                            <span class="field-err-msg">Contact number is required.</span>
+                        </div>
                     </div>
+
                     <div class="col-md-6">
-                        <label class="form-label">Email Address</label>
-                        <input type="email" id="emailAddress" class="form-control"
-                            value="" placeholder="e.g. patient@email.com">
+                        <label class="form-label">Email Address <span class="req">*</span></label>
+                        <div class="field-wrap" id="wrap-emailAddress">
+                            <input type="email" id="emailAddress" class="form-control"
+                                value="<?= htmlspecialchars($patientRow['emailAddress'] ?? $userEmail) ?>"
+                                placeholder="e.g. patient@email.com"
+                                oninput="clearFieldError('wrap-emailAddress')">
+                            <span class="field-err-msg">Email address is required.</span>
+                        </div>
                     </div>
+
                     <div class="col-md-6">
-                        <label class="form-label">Gender</label>
-                        <select id="gender" class="form-select">
-                            <option value="">Select Gender</option>
-                            <option>Male</option>
-                            <option>Female</option>
-                            <option>Other</option>
-                        </select>
+                        <label class="form-label">Gender <span class="req">*</span></label>
+                        <div class="field-wrap" id="wrap-gender">
+                            <select id="gender" class="form-select"
+                                onchange="clearFieldError('wrap-gender')">
+                                <option value="">Select Gender</option>
+                                <option <?= ($patientRow['gender'] ?? '') === 'Male'   ? 'selected' : '' ?>>Male</option>
+                                <option <?= ($patientRow['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
+                                <option <?= ($patientRow['gender'] ?? '') === 'Other'  ? 'selected' : '' ?>>Other</option>
+                            </select>
+                            <span class="field-err-msg">Please select a gender.</span>
+                        </div>
                     </div>
+
+                </div><!-- /.row patient info -->
+
+                <!-- ── Appointment Details ── -->
+                <div class="form-section-label mb-3">
+                    <i class="bi bi-calendar2-check-fill"></i> Appointment Details
                 </div>
 
-                <!-- Appointment Details -->
-                <div class="form-section-label mb-3"><i class="bi bi-calendar2-check-fill"></i> Appointment Details</div>
                 <div class="row g-3 mb-4">
+
                     <div class="col-md-6">
                         <label class="form-label">Specialization <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-deptSelect">
@@ -527,6 +641,7 @@ include('./includes/sidebar.php');
                             <span class="field-err-msg">Please select a specialization.</span>
                         </div>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Doctor <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-doctorSelect">
@@ -550,6 +665,7 @@ include('./includes/sidebar.php');
                             <div id="doctorScheduleList" style="display:flex;flex-direction:column;gap:4px;"></div>
                         </div>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Appointment Date <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-apptDate">
@@ -558,9 +674,11 @@ include('./includes/sidebar.php');
                             <span class="field-err-msg">Please select a date.</span>
                         </div>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Appointment Time <span class="req">*</span></label>
                         <input type="hidden" id="apptTime">
+                        <!-- Slot buttons are injected here -->
                         <div id="slotsContainer">
                             <div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">
                                 Select a doctor and date to see available slots.
@@ -568,6 +686,7 @@ include('./includes/sidebar.php');
                         </div>
                         <span class="slot-err-msg" id="time-err-msg">Please select a time slot.</span>
                     </div>
+
                     <div class="col-md-6">
                         <label class="form-label">Type of Visit</label>
                         <select id="channel" class="form-select">
@@ -577,10 +696,14 @@ include('./includes/sidebar.php');
                             <option value="Referral">Referral</option>
                         </select>
                     </div>
+
+                </div><!-- /.row appointment details -->
+
+                <!-- ── Additional Notes ── -->
+                <div class="form-section-label mb-3">
+                    <i class="bi bi-card-text"></i> Additional Notes
                 </div>
 
-                <!-- Notes -->
-                <div class="form-section-label mb-3"><i class="bi bi-card-text"></i> Additional Notes</div>
                 <div class="row g-3 mb-4">
                     <div class="col-12">
                         <label class="form-label">Notes / Remarks</label>
@@ -590,29 +713,35 @@ include('./includes/sidebar.php');
                     </div>
                 </div>
 
-                <div class="d-flex justify-content-end gap-2 pt-2 border-top" style="border-color:var(--border)!important">
-                    <button class="btn-cancel-form" onclick="resetForm()"><i class="bi bi-x-lg"></i> Cancel</button>
-                    <button class="btn-submit" id="submitBtn" onclick="submitForm()"><i class="bi bi-calendar-check"></i> Book Appointment</button>
+                <!-- ── Footer: action buttons ── -->
+                <div class="d-flex justify-content-end gap-2 pt-2 border-top"
+                    style="border-color:var(--border)!important">
+                    <button class="btn-cancel-form" onclick="resetForm()">
+                        <i class="bi bi-x-lg"></i> Cancel
+                    </button>
+                    <button class="btn-submit" id="submitBtn" onclick="submitForm()">
+                        <i class="bi bi-calendar-check"></i> Book Appointment
+                    </button>
                 </div>
 
             </div><!-- /.main-card -->
         </div><!-- /.col-lg-8 -->
 
-        <!-- RIGHT: Summary + Reminders (sticky) -->
+        <!-- ═══════════════════════════════════════════
+             RIGHT: Summary + Reminders (sticky)
+        ════════════════════════════════════════════ -->
         <div class="col-lg-4 sidebar-sticky-col">
 
-            <!-- Appointment Summary -->
             <div class="summary-card mb-3">
                 <h6><i class="bi bi-clipboard2-pulse-fill"></i> Appointment Summary</h6>
-                <div class="summary-item"><span class="s-label">Patient</span><span id="sum-patient" class="s-placeholder">Not entered</span></div>
+                <div class="summary-item"><span class="s-label">Patient</span> <span id="sum-patient" class="s-placeholder">Not entered</span></div>
                 <div class="summary-item"><span class="s-label">Specialization</span><span id="sum-spec" class="s-placeholder">Not selected</span></div>
-                <div class="summary-item"><span class="s-label">Doctor</span><span id="sum-doctor" class="s-placeholder">Not selected</span></div>
-                <div class="summary-item"><span class="s-label">Date</span><span id="sum-date" class="s-placeholder">Not selected</span></div>
-                <div class="summary-item"><span class="s-label">Time</span><span id="sum-time" class="s-placeholder">Not selected</span></div>
-                <div class="summary-item"><span class="s-label">Notes</span><span id="sum-notes" class="s-placeholder">None</span></div>
+                <div class="summary-item"><span class="s-label">Doctor</span> <span id="sum-doctor" class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Date</span> <span id="sum-date" class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Time</span> <span id="sum-time" class="s-placeholder">Not selected</span></div>
+                <div class="summary-item"><span class="s-label">Notes</span> <span id="sum-notes" class="s-placeholder">None</span></div>
             </div>
 
-            <!-- Reminders -->
             <div class="main-card" style="padding:1.25rem">
                 <div class="form-section-label mb-2"><i class="bi bi-info-circle-fill"></i> Reminders</div>
                 <ul style="font-size:.8rem;color:var(--text-body);padding-left:1.1rem;margin:0;line-height:1.8">
@@ -631,16 +760,53 @@ include('./includes/sidebar.php');
         Please fill in all required fields.
     </div>
 
+
 </section>
+
+<!-- Fixed bottom-right "Please fill in all required fields." pill — same as add_patient / add_doctors -->
+<div class="form-banner-error" id="formBannerError">
+    <i class="bi bi-exclamation-circle-fill"></i>
+    Please fill in all required fields.
+</div>
 
 <script>
     const HANDLER = '../../app/controllers/bookappHandler.php';
     const allDoctors = <?= json_encode($doctors) ?>;
 
+    /* ─────────────────────────────────────────────────────────
+       Validation helpers
+    ───────────────────────────────────────────────────────── */
+
+    /**
+     * Add the .field-error class to a wrapper — makes the border red
+     * and reveals the per-field error message below the input.
+     */
+    function markFieldError(wrapperId) {
+        document.getElementById(wrapperId)?.classList.add('field-error');
+    }
+
+    /**
+     * Remove the .field-error class from a wrapper — clears the red
+     * border and hides the per-field error message.
+     * Called from oninput / onchange on each field.
+     */
+    function clearFieldError(wrapperId) {
+        document.getElementById(wrapperId)?.classList.remove('field-error');
+    }
+
+    /** Show / hide the amber "Please fill in all required fields." pill. */
+    function showBanner(show) {
+        const el = document.getElementById('formBannerError');
+        el.style.display = show ? 'flex' : 'none';
+    }
+
+    /* ─────────────────────────────────────────────────────────
+       Live summary panel
+    ───────────────────────────────────────────────────────── */
     function updateSummary() {
         const set = (id, val, fb) => {
             const el = document.getElementById(id);
-            if (val && val.trim()) {
+            if (val && String(val).trim()) {
                 el.textContent = val;
                 el.className = 's-value';
             } else {
@@ -648,15 +814,17 @@ include('./includes/sidebar.php');
                 el.className = 's-placeholder';
             }
         };
+
         const fn = document.getElementById('firstName').value.trim();
         const mn = document.getElementById('middleName').value.trim();
         const ln = document.getElementById('lastName').value.trim();
-        const fullName = [fn, mn, ln].filter(Boolean).join(' ');
-        set('sum-patient', fullName, 'Not entered');
+        set('sum-patient', [fn, mn, ln].filter(Boolean).join(' '), 'Not entered');
         set('sum-spec', document.getElementById('deptSelect').value, 'Not selected');
+
         const docSel = document.getElementById('doctorSelect');
         set('sum-doctor', docSel.options[docSel.selectedIndex]?.text || '', 'Not selected');
         set('sum-notes', document.getElementById('apptNotes').value, 'None');
+
         const rawDate = document.getElementById('apptDate').value;
         if (rawDate) {
             const d = new Date(rawDate + 'T00:00:00');
@@ -665,7 +833,10 @@ include('./includes/sidebar.php');
                 month: 'long',
                 day: 'numeric'
             }), '');
-        } else set('sum-date', '', 'Not selected');
+        } else {
+            set('sum-date', '', 'Not selected');
+        }
+
         const rawTime = document.getElementById('apptTime').value;
         if (rawTime) {
             const [h, m] = rawTime.split(':');
@@ -673,9 +844,14 @@ include('./includes/sidebar.php');
                 ap = hh >= 12 ? 'PM' : 'AM',
                 hf = hh % 12 || 12;
             set('sum-time', `${hf}:${m} ${ap}`, '');
-        } else set('sum-time', '', 'Not selected');
+        } else {
+            set('sum-time', '', 'Not selected');
+        }
     }
 
+    /* ─────────────────────────────────────────────────────────
+       Doctor schedule & slot loading
+    ───────────────────────────────────────────────────────── */
     function loadDoctorSchedule() {
         const docId = document.getElementById('doctorSelect').value;
         const box = document.getElementById('doctorScheduleBox');
@@ -700,9 +876,9 @@ include('./includes/sidebar.php');
                         return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
                     };
                     return `<div style="display:flex;justify-content:space-between;font-size:.78rem;">
-                    <span style="font-weight:600;color:var(--text-dark);">${s.dayOfWeek}</span>
-                    <span style="color:var(--text-body);">${fmt(s.shiftStart)} – ${fmt(s.shiftEnd)}</span>
-                </div>`;
+                                <span style="font-weight:600;color:var(--text-dark);">${s.dayOfWeek}</span>
+                                <span style="color:var(--text-body);">${fmt(s.shiftStart)} – ${fmt(s.shiftEnd)}</span>
+                            </div>`;
                 }).join('');
                 box.style.display = 'block';
             });
@@ -712,12 +888,16 @@ include('./includes/sidebar.php');
         const dept = document.getElementById('deptSelect').value;
         const sel = document.getElementById('doctorSelect');
         sel.innerHTML = '<option value="">Select Doctor</option>';
-        allDoctors.filter(d => !dept || d.specialization === dept).forEach(d => {
-            sel.insertAdjacentHTML('beforeend',
-                `<option value="${d.id}" data-dept="${d.department||''}" data-spec="${d.specialization}">Dr. ${d.name} (${d.specialization})</option>`);
-        });
+        allDoctors
+            .filter(d => !dept || d.specialization === dept)
+            .forEach(d => {
+                sel.insertAdjacentHTML('beforeend',
+                    `<option value="${d.id}" data-dept="${d.department||''}" data-spec="${d.specialization}">Dr. ${d.name} (${d.specialization})</option>`
+                );
+            });
         document.getElementById('apptTime').value = '';
-        document.getElementById('slotsContainer').innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">Select a doctor and date to see available slots.</div>';
+        document.getElementById('slotsContainer').innerHTML =
+            '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">Select a doctor and date to see available slots.</div>';
         updateSummary();
     }
 
@@ -725,17 +905,26 @@ include('./includes/sidebar.php');
         const docId = document.getElementById('doctorSelect').value;
         const date = document.getElementById('apptDate').value;
         if (!docId || !date) return;
-        document.getElementById('slotsContainer').innerHTML = '<div class="slots-loading"><i class="bi bi-clock"></i> Loading slots…</div>';
+
+        document.getElementById('slotsContainer').innerHTML =
+            '<div class="slots-loading"><i class="bi bi-clock"></i> Loading slots…</div>';
+
         fetch(`${HANDLER}?action=get_slots&doctorId=${docId}&date=${date}`)
-            .then(r => r.json()).then(res => {
+            .then(r => r.json())
+            .then(res => {
                 if (!res.success || !res.slots.length) {
-                    document.getElementById('slotsContainer').innerHTML = '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">No slots available for this day.</div>';
+                    document.getElementById('slotsContainer').innerHTML =
+                        '<div style="color:var(--text-muted);font-size:.8rem;padding:.5rem 0">No slots available for this day.</div>';
                     return;
                 }
                 let html = '<div class="slot-grid">';
                 res.slots.forEach(slot => {
-                    html += `<button type="button" class="slot-btn${!slot.available ? ' disabled-slot' : ''}" ${!slot.available ? 'disabled' : ''}
-    onclick="selectSlot('${slot.value}','${slot.label}',this)">${slot.label}</button>`;
+                    html += `<button type="button"
+                        class="slot-btn${!slot.available ? ' disabled-slot' : ''}"
+                        ${!slot.available ? 'disabled' : ''}
+                        onclick="selectSlot('${slot.value}','${slot.label}',this)">
+                        ${slot.label}
+                    </button>`;
                 });
                 html += '</div>';
                 document.getElementById('slotsContainer').innerHTML = html;
@@ -763,14 +952,14 @@ include('./includes/sidebar.php');
     }
 
     function submitForm() {
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
+        // Collect values
         const firstName = document.getElementById('firstName').value.trim();
-        const middleName = document.getElementById('middleName').value.trim();
         const lastName = document.getElementById('lastName').value.trim();
-        const name = [firstName, middleName, lastName].filter(Boolean).join(' ');
+        const dob = document.getElementById('dateOfBirth').value;
+        const contact = document.getElementById('contactNumber').value.trim();
+        const email = document.getElementById('emailAddress').value.trim();
+        const gender = document.getElementById('gender').value;
+        const spec = document.getElementById('deptSelect').value;
         const doctor = document.getElementById('doctorSelect').value;
         const date = document.getElementById('apptDate').value;
         const time = document.getElementById('apptTime').value;
@@ -820,47 +1009,56 @@ include('./includes/sidebar.php');
             firstName: firstName,
             middleName: middleName,
             lastName: lastName,
-            dateOfBirth: document.getElementById('dateOfBirth').value,
-            contact: document.getElementById('contactNumber').value,
-            email: document.getElementById('emailAddress').value || '<?= $userEmail ?>',
-            gender: document.getElementById('gender').value,
+            dateOfBirth: dob,
+            contact: contact,
+            email: email || '<?= $userEmail ?>',
+            gender: gender,
             doctorId: doctor,
             appointmentDate: date,
             appointmentTime: time,
             channel: document.getElementById('channel').value,
             remarks: document.getElementById('apptNotes').value,
         };
+
         fetch(`${HANDLER}?action=book`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        }).then(r => r.json()).then(res => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-calendar-check"></i> Book Appointment';
-            if (res.success) {
-                document.getElementById('successMsg').textContent = 'Appointment booked successfully!';
-                document.getElementById('successCode').textContent = `Reference: ${res.appointmentCode}`;
-                showAlert('success');
-                resetForm();
-                window.scrollTo({
-                    top: 0,
-                    behavior: 'smooth'
-                });
-            } else {
-                showAlert('error', res.message || 'Failed to book. Please try again.');
-            }
-        }).catch(() => {
-            btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-calendar-check"></i> Book Appointment';
-            showAlert('error', 'Network error. Please try again.');
-        });
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(r => r.json())
+            .then(res => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-calendar-check"></i> Book Appointment';
+
+                if (res.success) {
+                    document.getElementById('successMsg').textContent = 'Appointment booked successfully!';
+                    document.getElementById('successCode').textContent = `Reference: ${res.appointmentCode}`;
+                    showAlert('success');
+                    resetForm();
+                    window.scrollTo({
+                        top: 0,
+                        behavior: 'smooth'
+                    });
+                } else {
+                    showAlert('error', res.message || 'Failed to book. Please try again.');
+                }
+            })
+            .catch(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-calendar-check"></i> Book Appointment';
+                showAlert('error', 'Network error. Please try again.');
+            });
     }
 
+    /* ─────────────────────────────────────────────────────────
+       Alert helpers (top-of-page banners)
+    ───────────────────────────────────────────────────────── */
     function showAlert(type, msg = '') {
         document.getElementById('successAlert').style.display = 'none';
         document.getElementById('errorAlert').style.display = 'none';
+
         if (type === 'success') {
             document.getElementById('successAlert').style.display = 'flex';
             setTimeout(() => document.getElementById('successAlert').style.display = 'none', 6000);
@@ -871,6 +1069,9 @@ include('./includes/sidebar.php');
         }
     }
 
+    /* ─────────────────────────────────────────────────────────
+       Reset / clear the whole form
+    ───────────────────────────────────────────────────────── */
     function resetForm() {
         document.querySelectorAll('#firstName,#middleName,#lastName,#dateOfBirth,#contactNumber,#apptNotes').forEach(el => el.value = '');
         document.getElementById('emailAddress').value = '';
@@ -885,10 +1086,14 @@ include('./includes/sidebar.php');
         document.getElementById('time-err-msg').style.display = 'none';
         showBanner(false);
         const patIdEl = document.getElementById('patientId');
-        if (patIdEl) patIdEl.value = '';
+        if (patIdEl) patIdEl.value = '<?= $patientRow['id'] ?? '' ?>';
+
         updateSummary();
     }
 
+    /* ─────────────────────────────────────────────────────────
+       Init
+    ───────────────────────────────────────────────────────── */
     document.getElementById('apptDate').min = new Date().toISOString().split('T')[0];
     updateSummary();
 </script>

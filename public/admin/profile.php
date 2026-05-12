@@ -23,28 +23,30 @@ if (!$user) {
     exit();
 }
 
-$fullName   = trim(
+$fullName = trim(
     (isset($user['firstName']) ? $user['firstName'] : '') . ' ' .
         (isset($user['middleName']) ? $user['middleName'] : '') . ' ' .
         (isset($user['lastName']) ? $user['lastName'] : '')
 );
-$initials   = strtoupper(
+$initials = strtoupper(
     substr(isset($user['firstName']) ? $user['firstName'] : 'U', 0, 1) .
         substr(isset($user['lastName']) ? $user['lastName'] : 'U', 0, 1)
-);
-$address    = trim(
-    (isset($user['street']) ? $user['street'] : '') . ', ' .
-        (isset($user['barangay']) ? $user['barangay'] : '') . ', ' .
-        (isset($user['city']) ? $user['city'] : '')
 );
 $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['createdAt'])) : 'N/A';
 ?>
 
 <style>
+    .profile-wrapper,
+    .profile-wrapper *,
+    #editModal,
+    #editModal * {
+        font-family: 'DM Sans', sans-serif;
+        box-sizing: border-box;
+    }
+
     .profile-wrapper {
         max-width: 720px;
         margin: 1.5rem auto;
-        font-family: 'DM Sans', sans-serif;
     }
 
     .profile-hero {
@@ -63,8 +65,8 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
         width: 80px;
         height: 80px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
-        border: 3px solid rgba(255, 255, 255, 0.4);
+        background: rgba(255, 255, 255, .2);
+        border: 3px solid rgba(255, 255, 255, .4);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -78,17 +80,17 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
         font-size: 1.5rem;
         font-weight: 700;
         color: #fff;
-        letter-spacing: -0.02em;
+        letter-spacing: -.02em;
         margin: 0;
     }
 
     .profile-hero-role {
-        font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.75);
+        font-size: .75rem;
+        color: rgba(255, 255, 255, .75);
         margin-top: 4px;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 0.08em;
+        letter-spacing: .08em;
     }
 
     .profile-body {
@@ -97,17 +99,17 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
         border-radius: 20px;
         margin-top: -2rem;
         padding: 2.5rem 2rem 2rem;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, .06);
     }
 
     .profile-section-title {
-        font-size: 0.65rem;
+        font-size: .65rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.12em;
+        letter-spacing: .12em;
         color: #9ca3af;
         margin-bottom: 1rem;
-        padding-bottom: 0.5rem;
+        padding-bottom: .5rem;
         border-bottom: 1px solid #eaecf4;
     }
 
@@ -127,24 +129,24 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
     .profile-info-item {
         background: #f5f7fb;
         border-radius: 12px;
-        padding: 0.85rem 1rem;
+        padding: .85rem 1rem;
     }
 
     .profile-info-item.full {
-        grid-column: 1 / -1;
+        grid-column: 1/-1;
     }
 
     .profile-info-label {
-        font-size: 0.6rem;
+        font-size: .6rem;
         font-weight: 700;
         text-transform: uppercase;
-        letter-spacing: 0.1em;
+        letter-spacing: .1em;
         color: #9ca3af;
         margin-bottom: 4px;
     }
 
     .profile-info-value {
-        font-size: 0.88rem;
+        font-size: .88rem;
         font-weight: 600;
         color: #111827;
         word-break: break-word;
@@ -154,12 +156,69 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
         display: inline-block;
         background: #dbeafe;
         color: #1d4ed8;
-        font-size: 0.7rem;
+        font-size: .7rem;
         font-weight: 700;
         padding: 3px 12px;
         border-radius: 20px;
-        letter-spacing: 0.04em;
+        letter-spacing: .04em;
         text-transform: capitalize;
+    }
+
+    /* ── Field validation styles ── */
+    .m-field-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .m-field-wrap.field-error input,
+    .m-field-wrap.field-error select {
+        border-color: #ef4444 !important;
+        background: #fff8f8 !important;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, .10);
+    }
+
+    .m-field-err {
+        font-size: .68rem;
+        color: #ef4444;
+        font-weight: 500;
+        display: none;
+        margin-top: 1px;
+    }
+
+    .m-field-wrap.field-error .m-field-err {
+        display: block;
+    }
+
+    /* ── Green success banner ── */
+    .modal-banner-success {
+        display: none;
+        position: sticky;
+        bottom: 0;
+        align-items: center;
+        gap: 7px;
+        background: #166534;
+        color: #fff;
+        font-size: .75rem;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: .4rem 1rem;
+        box-shadow: 0 2px 10px rgba(22, 101, 52, .25);
+        width: fit-content;
+        margin: .6rem 0 0 auto;
+        animation: mFadeUp .22s ease both;
+    }
+
+    @keyframes mFadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(6px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
     }
 
     .m-field-wrap {
@@ -227,17 +286,17 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
                     <div class="profile-hero-role"><?php echo htmlspecialchars($user['role']); ?></div>
                 </div>
                 <div style="margin-left:auto;">
-                    <button onclick="document.getElementById('editModal').style.display='flex'"
-                        style="background:rgba(255,255,255,0.2);border:2px solid rgba(255,255,255,0.5);color:#fff;padding:8px 18px;border-radius:10px;font-weight:600;cursor:pointer;font-size:0.85rem;">
+                    <button onclick="openEditModal()"
+                        style="background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.5);color:#fff;padding:8px 18px;border-radius:10px;font-weight:600;cursor:pointer;font-size:.85rem;">
                         Edit Profile
                     </button>
                 </div>
             </div>
         </div>
+
         <div class="profile-body">
 
             <div class="profile-section-title">Personal Information</div>
-
             <div class="profile-info-grid">
                 <div class="profile-info-item">
                     <div class="profile-info-label">First Name</div>
@@ -295,22 +354,29 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
     </div>
 </section>
 
-<!-- Edit Profile Modal -->
-<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center;">
+<!-- ═══════════════════════════════════════════════════════
+     Edit Profile Modal
+════════════════════════════════════════════════════════ -->
+<div id="editModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;">
     <div style="background:#fff;border-radius:20px;padding:2rem;width:100%;max-width:560px;max-height:90vh;overflow-y:auto;margin:1rem;">
+
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;">
             <h3 style="margin:0;font-size:1.1rem;font-weight:700;">Edit Profile</h3>
+            <button onclick="closeEditModal()"
+                style="background:none;border:none;font-size:1.1rem;cursor:pointer;color:#9ca3af;line-height:1;">✕</button>
         </div>
 
-        <?php if (!empty($flashSuccess)): ?>
-            <div style="background:#d1fae5;color:#065f46;padding:10px 14px;border-radius:10px;margin-bottom:1rem;font-size:0.85rem;"><?php echo $flashSuccess; ?></div>
-        <?php endif; ?>
         <?php if (!empty($error)): ?>
-            <div style="background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:10px;margin-bottom:1rem;font-size:0.85rem;"><?php echo $error; ?></div>
+            <div style="background:#fee2e2;color:#991b1b;padding:10px 14px;border-radius:10px;margin-bottom:1rem;font-size:.85rem;">
+                <?php echo $error; ?>
+            </div>
         <?php endif; ?>
 
-        <form method="POST" action="" enctype="multipart/form-data">
+        <form id="editForm" method="POST" action="" enctype="multipart/form-data" novalidate>
+
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+
+                <!-- Profile photo row -->
                 <div style="grid-column:1/-1;display:flex;align-items:center;gap:1rem;padding:1rem;background:#f5f7fb;border-radius:12px;">
                     <div id="avatarPreview" style="width:70px;height:70px;border-radius:50%;background:#2563eb;display:flex;align-items:center;justify-content:center;font-size:1.5rem;font-weight:700;color:#fff;flex-shrink:0;overflow:hidden;">
                         <?php if (!empty($user['profilePic'])): ?>
@@ -320,15 +386,16 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
                         <?php endif; ?>
                     </div>
                     <div style="flex:1;">
-                        <div style="font-size:0.82rem;font-weight:700;color:#111827;margin-bottom:4px;">Profile Photo</div>
-                        <div style="font-size:0.72rem;color:#6b7280;margin-bottom:8px;">JPG, PNG, GIF or WEBP. Max 2MB.</div>
-                        <label style="display:inline-block;padding:6px 14px;background:#2563eb;color:#fff;border-radius:8px;font-size:0.78rem;font-weight:600;cursor:pointer;">
+                        <div style="font-size:.82rem;font-weight:700;color:#111827;margin-bottom:4px;">Profile Photo</div>
+                        <div style="font-size:.72rem;color:#6b7280;margin-bottom:8px;">JPG, PNG, GIF or WEBP. Max 2MB.</div>
+                        <label style="display:inline-block;padding:6px 14px;background:#2563eb;color:#fff;border-radius:8px;font-size:.78rem;font-weight:600;cursor:pointer;">
                             Choose Photo
                             <input type="file" name="profilePic" accept="image/*" style="display:none;" onchange="previewPhoto(this)">
                         </label>
                     </div>
                 </div>
 
+                <!-- First Name -->
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">First Name <span class="req">*</span></label>
                     <div class="m-field-wrap" id="mwrap-firstName">
@@ -339,11 +406,15 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
                         <span class="m-field-err">First name is required.</span>
                     </div>
                 </div>
+
+                <!-- Middle Name -->
                 <div>
-                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Middle Name</label>
-                    <input type="text" name="middleName" value="<?php echo htmlspecialchars($user['middleName'] ?? ''); ?>"
-                        style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
+                    <label class="m-label">Middle Name</label>
+                    <input type="text" name="middleName" class="m-input"
+                        value="<?php echo htmlspecialchars($user['middleName'] ?? ''); ?>">
                 </div>
+
+                <!-- Last Name -->
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Last Name <span class="req">*</span></label>
                     <div class="m-field-wrap" id="mwrap-lastName">
@@ -354,6 +425,8 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
                         <span class="m-field-err">Last name is required.</span>
                     </div>
                 </div>
+
+                <!-- Username -->
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Username <span class="req">*</span></label>
                     <div class="m-field-wrap" id="mwrap-username">
@@ -364,6 +437,8 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
                         <span class="m-field-err">Username is required.</span>
                     </div>
                 </div>
+
+                <!-- Email -->
                 <div style="grid-column:1/-1;">
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Email Address <span class="req">*</span></label>
                     <div class="m-field-wrap" id="mwrap-emailAddress">
@@ -374,26 +449,36 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
                         <span class="m-field-err">Email address is required.</span>
                     </div>
                 </div>
+
+                <!-- Street -->
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Street <span class="req">*</span></label>
                     <input type="text" name="street" value="<?php echo htmlspecialchars($user['street'] ?? ''); ?>"
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
+
+                <!-- Barangay -->
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Barangay <span class="req">*</span></label>
                     <input type="text" name="barangay" value="<?php echo htmlspecialchars($user['barangay'] ?? ''); ?>"
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
+
+                <!-- City -->
                 <div style="grid-column:1/-1;">
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">City <span class="req">*</span></label>
                     <input type="text" name="city" value="<?php echo htmlspecialchars($user['city'] ?? ''); ?>"
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
+
+                <!-- New Password -->
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">New Password</label>
                     <input type="password" name="newPassword" id="mNewPass"
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
+
+                <!-- Confirm Password -->
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Confirm Password</label>
                     <div class="m-field-wrap" id="mwrap-confirmPass">
@@ -415,6 +500,12 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
                 </button>
             </div>
         </form>
+
+        <!-- Green success banner -->
+        <div class="modal-banner-success" id="modalBannerSuccess">
+            ✓ Changes saved successfully!
+        </div>
+
     </div>
 </div>
 
@@ -424,6 +515,69 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
 </div>
 
 <script>
+    function openEditModal() {
+        document.getElementById('editModal').style.display = 'flex';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').style.display = 'none';
+        document.querySelectorAll('.m-field-wrap').forEach(w => w.classList.remove('field-error'));
+        document.getElementById('modalBannerSuccess').style.display = 'none';
+    }
+
+    function mClear(wrapperId) {
+        document.getElementById(wrapperId)?.classList.remove('field-error');
+    }
+
+    function mMark(wrapperId) {
+        document.getElementById(wrapperId)?.classList.add('field-error');
+    }
+
+    function submitEditForm() {
+        const firstName = document.getElementById('mFirstName').value.trim();
+        const lastName = document.getElementById('mLastName').value.trim();
+        const username = document.getElementById('mUsername').value.trim();
+        const email = document.getElementById('mEmail').value.trim();
+        const newPass = document.getElementById('mNewPass').value;
+        const confPass = document.getElementById('mConfirmPass').value;
+
+        let hasError = false;
+
+        if (!firstName) {
+            mMark('mwrap-firstName');
+            hasError = true;
+        }
+        if (!lastName) {
+            mMark('mwrap-lastName');
+            hasError = true;
+        }
+        if (!username) {
+            mMark('mwrap-username');
+            hasError = true;
+        }
+        if (!email) {
+            mMark('mwrap-email');
+            hasError = true;
+        }
+
+        if (newPass && newPass !== confPass) {
+            document.getElementById('mConfirmPassErr').textContent = 'Passwords do not match.';
+            mMark('mwrap-confirmPass');
+            hasError = true;
+        }
+
+        if (hasError) {
+            const firstErr = document.querySelector('#editForm .field-error');
+            if (firstErr) firstErr.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+            return;
+        }
+
+        document.getElementById('editForm').submit();
+    }
+
     function previewPhoto(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
@@ -494,7 +648,7 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
     }
 </script>
 
-<?php if (!empty($error) || !empty($flashSuccess)): ?>
+<?php if (!empty($error)): ?>
     <script>
         document.getElementById('editModal').style.display = 'flex';
     </script>
@@ -502,14 +656,20 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
 
 <?php if (!empty($flashSuccess)): ?>
     <script>
+        const modal = document.getElementById('editModal');
+        modal.style.display = 'flex';
+
+        const banner = document.getElementById('modalBannerSuccess');
+        banner.style.display = 'flex';
+
         setTimeout(function() {
-            const modal = document.getElementById('editModal');
             modal.style.transition = 'opacity 0.3s ease';
             modal.style.opacity = '0';
             setTimeout(function() {
                 modal.style.display = 'none';
                 modal.style.opacity = '1';
                 modal.style.transition = '';
+                banner.style.display = 'none';
             }, 300);
         }, 1500);
     </script>

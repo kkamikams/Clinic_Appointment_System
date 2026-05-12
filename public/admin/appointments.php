@@ -462,7 +462,6 @@ require_once('../../app/config/config.php');
         display: inline-block;
     }
 
-    /* Static badge used inside the button */
     .appt-badge {
         font-family: 'DM Sans', sans-serif;
         font-size: .63rem;
@@ -710,6 +709,40 @@ require_once('../../app/config/config.php');
         font-weight: 500;
     }
 
+    /* ─── Field validation wrappers (modal) ─── */
+    .field-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .field-wrap.field-error .form-control,
+    .field-wrap.field-error .form-select {
+        border-color: var(--red) !important;
+        background: #fff8f8 !important;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, .10);
+    }
+
+    .field-err-msg {
+        font-size: .68rem;
+        color: var(--red);
+        font-weight: 500;
+        display: none;
+        margin-top: 1px;
+    }
+
+    .field-wrap.field-error .field-err-msg {
+        display: block;
+    }
+
+    .modal-time-err {
+        font-size: .68rem;
+        color: var(--red);
+        font-weight: 500;
+        margin-top: 4px;
+        display: none;
+    }
+
     @keyframes fadeUp {
         from {
             opacity: 0;
@@ -827,6 +860,7 @@ require_once('../../app/config/config.php');
 
 </section>
 
+<!-- Appointment Add/Edit Modal -->
 <div class="modal fade" id="apptModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -1008,6 +1042,7 @@ require_once('../../app/config/config.php');
     </div>
 </div>
 
+<!-- View Modal -->
 <div class="modal fade" id="viewModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -1023,6 +1058,7 @@ require_once('../../app/config/config.php');
     </div>
 </div>
 
+<!-- Cancel Modal -->
 <div class="modal fade" id="cancelModal" tabindex="-1">
     <div class="modal-dialog modal-sm">
         <div class="modal-content">
@@ -1096,6 +1132,22 @@ require_once('../../app/config/config.php');
         }
     });
 
+    /* ─── Validation helpers ─── */
+    function markModalFieldError(wrapperId) {
+        document.getElementById(wrapperId)?.classList.add('field-error');
+    }
+
+    function clearModalFieldError(wrapperId) {
+        document.getElementById(wrapperId)?.classList.remove('field-error');
+    }
+
+    function clearAllModalErrors() {
+        ['wrap-fNewFirstName', 'wrap-fNewLastName', 'wrap-fNewDOB', 'wrap-fDoctor', 'wrap-fDate']
+        .forEach(id => clearModalFieldError(id));
+        document.getElementById('modal-time-err').style.display = 'none';
+    }
+
+    /* ─── Status dropdown ─── */
     function toggleStatusDrop(btn) {
         const badge = btn.querySelector('.appt-badge');
         const currentStatus = badge ? badge.textContent.trim() : '';
@@ -1200,11 +1252,8 @@ require_once('../../app/config/config.php');
 </span>
                 <span class="badge-caret">▾</span>
             </button>
-            <div class="status-dropdown">
-                ${opts}
-            </div>
-        </div>
-    `;
+            <div class="status-dropdown">${opts}</div>
+        </div>`;
     }
 
     function toggleAllDates() {
@@ -1409,12 +1458,12 @@ require_once('../../app/config/config.php');
                 initials(r.patientName || '??');
             return `<tr>
                <td>
-    <a href="#" class="appt-id">${r.appointmentCode}</a>
-    ${r.followUpCode ? `<div style="font-size:.65rem;font-weight:600;color:var(--amber-dark);margin-top:2px;">${r.followUpCode}</div>` : ''}
-</td>
+                    <a href="#" class="appt-id">${r.appointmentCode}</a>
+                    ${r.followUpCode ? `<div style="font-size:.65rem;font-weight:600;color:var(--amber-dark);margin-top:2px;">${r.followUpCode}</div>` : ''}
+                </td>
                 <td><div class="pat-cell">
                     <div class="pat-avatar" style="background:${bg};color:${fg}">${avatarHtml}</div>
-<span class="pat-name">${r.patientName || '—'}</span>
+                    <span class="pat-name">${r.patientName || '—'}</span>
                 </div></td>
                 <td>${r.doctorName || '—'}</td>
                 <td>${r.specialization || '—'}</td>
@@ -1423,9 +1472,9 @@ require_once('../../app/config/config.php');
                 <td><span class="channel-chip ${r.followUpDate ? 'followup' : ''}">${r.followUpDate ? 'Follow-up' : r.channel}</span></td>
                 <td>${statusDropdown(r.id, r.status, r.appointmentDate)}</td>
                 <td><div class="action-btns">
-    <button class="btn-act" title="Edit" onclick="${r.isFollowUp == 1 ? `editFollowUp(${r.followUpId})` : `editAppt(${r.id})`}"><i class="bi bi-pencil"></i></button>
-    <button class="btn-act" title="View" onclick="viewAppt(${r.id})"><i class="bi bi-eye"></i></button>
-</div></td>
+                    <button class="btn-act" title="Edit" onclick="${r.isFollowUp == 1 ? `editFollowUp(${r.followUpId})` : `editAppt(${r.id})`}"><i class="bi bi-pencil"></i></button>
+                    <button class="btn-act" title="View" onclick="viewAppt(${r.id})"><i class="bi bi-eye"></i></button>
+                </div></td>
             </tr>`;
         }).join('');
     }
@@ -1448,6 +1497,8 @@ require_once('../../app/config/config.php');
                 const d = res.data;
                 const status = d.status;
 
+                clearAllModalErrors();
+
                 document.getElementById('apptModalTitle').textContent = 'Edit Follow-up';
                 document.getElementById('saveBtnLabel').textContent = 'Update Follow-up';
                 document.getElementById('editId').value = d.id;
@@ -1464,10 +1515,9 @@ require_once('../../app/config/config.php');
                     document.getElementById('selPatName').textContent = d.patientName || '—';
                     document.getElementById('selPatMeta').textContent = '';
                     document.getElementById('selectedPatientCard').style.display = 'block';
-                    document.getElementById('selectedPatientCard').style.background = 'var(--surface)'; // ADD
-                    document.getElementById('selectedPatientCard').style.border = '1px solid var(--border)'; // ADD
+                    document.getElementById('selectedPatientCard').style.background = 'var(--surface)';
+                    document.getElementById('selectedPatientCard').style.border = '1px solid var(--border)';
                 }
-                // Lock patient fields
                 const patInput = document.getElementById('patientSearchInput');
                 const clearBtn = document.querySelector('#selectedPatientCard button');
                 patInput.disabled = true;
@@ -1475,7 +1525,6 @@ require_once('../../app/config/config.php');
                 if (clearBtn) clearBtn.style.setProperty('display', 'none');
                 document.getElementById('selectedPatientCard').style.display = 'block';
 
-                // Lock everything except remarks for Completed/Cancelled
                 const locked = ['Completed', 'Cancelled'].includes(status);
                 ['fDate', 'fDoctor', 'fChannel', 'fStatus'].forEach(id => {
                     const el = document.getElementById(id);
@@ -1501,12 +1550,11 @@ require_once('../../app/config/config.php');
         </div>`);
                 } else {
                     modalBody.insertAdjacentHTML('afterbegin', `
-        <div class="lock-banner" style="background:var(--blue-50);border-color:var(--blue-200);color:var(--blue-700);">
-            <i class="bi bi-info-circle-fill"></i> Patient cannot be changed after booking. All other fields are editable.
-        </div>`);
+                        <div class="lock-banner" style="background:var(--blue-50);border-color:var(--blue-200);color:var(--blue-700);">
+                            <i class="bi bi-info-circle-fill"></i> Patient cannot be changed after booking. All other fields are editable.
+                        </div>`);
                 }
 
-                // Load doctor schedule box
                 loadModalDoctorSchedule();
 
                 // Set fTime so save works
@@ -1561,7 +1609,13 @@ require_once('../../app/config/config.php');
     }
 
     function openAddModal() {
-        clearAllModalErrors();
+        clearAllModalErrors(); <<
+        << << < HEAD
+            ===
+            === =
+
+            >>>
+            >>> > 07 f149a5cf80a46cb6fdb6af1aa2782672c72d5c
         document.getElementById('apptModalTitle').textContent = 'New Appointment';
         document.getElementById('saveBtnLabel').textContent = 'Save Appointment';
         document.getElementById('editId').value = '';
@@ -1578,14 +1632,13 @@ require_once('../../app/config/config.php');
         document.getElementById('adminSlotsContainer').classList.remove('field-locked');
         document.getElementById('patientTabSwitcher').style.display = 'flex';
 
-        // Reset any locks left from edit mode
         document.getElementById('fDoctor').disabled = false;
         document.getElementById('fDoctor').classList.remove('field-locked');
         document.getElementById('patientSearchInput').disabled = false;
         document.getElementById('patientSearchInput').style.display = '';
         document.getElementById('selectedPatientCard').classList.remove('field-locked');
-        document.getElementById('selectedPatientCard').style.background = ''; // ADD
-        document.getElementById('selectedPatientCard').style.border = ''; // ADD
+        document.getElementById('selectedPatientCard').style.background = '';
+        document.getElementById('selectedPatientCard').style.border = '';
         const cancelBtn = document.querySelector('#selectedPatientCard button');
         if (cancelBtn) cancelBtn.style.removeProperty('display');
         ['fDate', 'fChannel'].forEach(id => {
@@ -1661,7 +1714,6 @@ require_once('../../app/config/config.php');
                 document.getElementById('fStatus').value = d.status;
                 document.getElementById('fRemarks').value = d.remarks || '';
 
-                // Patient
                 switchPatientTab('existing');
                 document.getElementById('patientTabSwitcher').style.display = 'none';
                 if (d.patientId) {
@@ -1686,7 +1738,6 @@ require_once('../../app/config/config.php');
                     document.getElementById('selectedPatientCard').style.display = 'block';
                 }
 
-                // Doctor
                 const docEl = document.getElementById('fDoctor');
                 if (rule.doctor === true) {
                     docEl.disabled = false;
@@ -1707,7 +1758,6 @@ require_once('../../app/config/config.php');
                     docEl.classList.add('field-locked');
                 }
 
-                // Date & Time
                 const dateEl = document.getElementById('fDate');
                 const slotsEl = document.getElementById('adminSlotsContainer');
                 if (rule.datetime) {
@@ -1720,7 +1770,6 @@ require_once('../../app/config/config.php');
                     slotsEl.classList.add('field-locked');
                 }
 
-                // Channel
                 const chanEl = document.getElementById('fChannel');
                 if (rule.channel) {
                     chanEl.disabled = false;
@@ -1730,7 +1779,6 @@ require_once('../../app/config/config.php');
                     chanEl.classList.add('field-locked');
                 }
 
-                // Status dropdown
                 const statEl = document.getElementById('fStatus');
                 if (rule.apptStatus) {
                     statEl.disabled = false;
@@ -1740,11 +1788,9 @@ require_once('../../app/config/config.php');
                     statEl.classList.add('field-locked');
                 }
 
-                // Remarks always editable
                 document.getElementById('fRemarks').disabled = false;
                 document.getElementById('fRemarks').classList.remove('field-locked');
 
-                // Lock banner
                 const modalBody = document.querySelector('#apptModal .modal-body');
                 const oldBanner = modalBody.querySelector('.lock-banner');
                 if (oldBanner) oldBanner.remove();
@@ -1920,7 +1966,6 @@ require_once('../../app/config/config.php');
                     <div class="detail-row"><span class="detail-label">Medical Record</span><span class="detail-value" id="apptLinkedRecord"><span style="font-size:.8rem;color:var(--text-muted);">Loading…</span></span></div>
                 `;
 
-                // Load linked medical record
                 fetch(`${HANDLER}?action=get_linked_record&apptId=${id}`)
                     .then(r => r.json())
                     .then(res => {
@@ -2006,9 +2051,9 @@ require_once('../../app/config/config.php');
                 let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;width:100%;">';
                 res.slots.forEach(slot => {
                     html += `<button type="button" data-val="${slot.value}"
-    style="border:1px solid var(--border);border-radius:8px;padding:6px 4px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-dark);cursor:pointer;width:100%;text-align:center;font-weight:600;${!slot.available ? 'text-decoration:line-through;opacity:.45;cursor:not-allowed;color:var(--text-muted);background:#e5e7eb;border-color:#d1d5db;' : ''}"
-    ${!slot.available ? 'disabled' : ''}
-    onclick="selectAdminSlot('${slot.value}', this)">${slot.label}</button>`;
+                        style="border:1px solid var(--border);border-radius:8px;padding:6px 4px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-dark);cursor:pointer;width:100%;text-align:center;font-weight:600;${!slot.available ? 'text-decoration:line-through;opacity:.45;cursor:not-allowed;color:var(--text-muted);background:#e5e7eb;border-color:#d1d5db;' : ''}"
+                        ${!slot.available ? 'disabled' : ''}
+                        onclick="selectAdminSlot('${slot.value}', this)">${slot.label}</button>`;
                 });
                 html += '</div>';
                 container.innerHTML = html;
@@ -2046,9 +2091,9 @@ require_once('../../app/config/config.php');
                         return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
                     };
                     return `<div style="display:flex;justify-content:space-between;font-size:.78rem;">
-                    <span style="font-weight:600;color:var(--text-dark);">${s.dayOfWeek}</span>
-                    <span style="color:var(--text-body);">${fmt(s.shiftStart)} – ${fmt(s.shiftEnd)}</span>
-                </div>`;
+                        <span style="font-weight:600;color:var(--text-dark);">${s.dayOfWeek}</span>
+                        <span style="color:var(--text-body);">${fmt(s.shiftStart)} – ${fmt(s.shiftEnd)}</span>
+                    </div>`;
                 }).join('');
                 box.style.display = 'block';
             })
@@ -2097,12 +2142,28 @@ require_once('../../app/config/config.php');
     function showToast(msg, type = 'success') {
         const colors = {
             success: '#065f46',
-            error: '#991b1b',
+            error: '#9b1c1c',
             info: '#155e75'
         };
+        const icons = {
+            success: 'bi-check-circle-fill',
+            error: 'bi-exclamation-circle-fill',
+            info: 'bi-info-circle-fill'
+        };
         const el = document.createElement('div');
-        el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;background:${colors[type] || colors.success};color:#fff;border-radius:10px;padding:.65rem 1.1rem;font-size:.82rem;font-family:'DM Sans',sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.1);display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease both;`;
-        el.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${msg}`;
+        el.style.cssText = `
+            position:fixed;bottom:28px;right:28px;z-index:99999;
+            background:${colors[type] || colors.success};
+            color:#fff;border-radius:999px;
+            padding:.65rem 1.4rem;
+            font-size:.84rem;font-weight:600;
+            font-family:'DM Sans',sans-serif;
+            box-shadow:0 4px 20px rgba(120,20,20,.25);
+            display:flex;align-items:center;gap:10px;
+            animation:fadeUp .22s ease both;
+            pointer-events:none;
+        `;
+        el.innerHTML = `<i class="bi ${icons[type] || icons.success}"></i> ${msg}`;
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 3500);
     }
@@ -2116,7 +2177,6 @@ require_once('../../app/config/config.php');
         document.getElementById('containerExisting').style.display = isExisting ? 'flex' : 'none';
         document.getElementById('containerNew').style.display = isExisting ? 'none' : 'flex';
 
-        // Resize patient + doctor columns based on tab
         const patientCol = document.getElementById('patientSection').closest('.col-12, .col-md-6, [class*="col-"]');
         const doctorCol = document.getElementById('doctorCol');
         if (isExisting) {
@@ -2129,6 +2189,9 @@ require_once('../../app/config/config.php');
 
         if (isExisting) clearNewPatientFields();
         else clearSelectedPatient();
+
+        // Also clear validation errors on tab switch
+        clearAllModalErrors();
     }
 </script>
 

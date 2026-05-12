@@ -1,9 +1,8 @@
-<?php session_start(); ?>
 <?php
-include('./includes/header.php');
-include('./includes/topbar.php');
-include('./includes/sidebar.php');
+require_once('../../app/middleware/user.php');
 require_once('../../app/controllers/profileController.php');
+
+$userId = $_SESSION['user_id'];
 
 $flashSuccess = '';
 if (!empty($_SESSION['profile_success'])) {
@@ -11,33 +10,20 @@ if (!empty($_SESSION['profile_success'])) {
     unset($_SESSION['profile_success']);
 }
 
-// Fetch user from DB using session id
-$userId = isset($_SESSION['authUser']['user_id']) ? $_SESSION['authUser']['user_id'] : 0;
-$stmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
-$stmt->bind_param("i", $userId);
-$stmt->execute();
-$user = $stmt->get_result()->fetch_assoc();
+$user = getUserById($conn, $userId);
 
 if (!$user) {
-    echo "<script>window.location.href='../login.php';</script>";
+    header("Location: /Clinic_Appointment_System/public/login");
     exit();
 }
 
-$fullName   = trim(
-    (isset($user['firstName']) ? $user['firstName'] : '') . ' ' .
-        (isset($user['middleName']) ? $user['middleName'] : '') . ' ' .
-        (isset($user['lastName']) ? $user['lastName'] : '')
-);
-$initials   = strtoupper(
-    substr(isset($user['firstName']) ? $user['firstName'] : 'U', 0, 1) .
-        substr(isset($user['lastName']) ? $user['lastName'] : 'U', 0, 1)
-);
-$address    = trim(
-    (isset($user['street']) ? $user['street'] : '') . ', ' .
-        (isset($user['barangay']) ? $user['barangay'] : '') . ', ' .
-        (isset($user['city']) ? $user['city'] : '')
-);
-$dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['createdAt'])) : 'N/A';
+$fullName = trim(($user['firstName'] ?? '') . ' ' . ($user['middleName'] ?? '') . ' ' . ($user['lastName'] ?? ''));
+$initials = strtoupper(substr($user['firstName'] ?? 'U', 0, 1) . substr($user['lastName'] ?? 'U', 0, 1));
+$dateJoined = !empty($user['createdAt']) ? date('F j, Y', strtotime($user['createdAt'])) : 'N/A';
+
+include('./includes/header.php');
+include('./includes/topbar.php');
+include('./includes/sidebar.php');
 ?>
 
 <style>
@@ -161,6 +147,53 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
         letter-spacing: 0.04em;
         text-transform: capitalize;
     }
+
+    .m-field-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .m-field-wrap.field-error input,
+    .m-field-wrap.field-error select {
+        border-color: #ef4444 !important;
+        background: #fff8f8 !important;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, .10);
+    }
+
+    .m-banner-error {
+        display: none;
+        position: fixed;
+        bottom: 28px;
+        right: 28px;
+        z-index: 99999;
+        align-items: center;
+        gap: 10px;
+        background: #9b1c1c;
+        color: #fff;
+        font-size: .84rem;
+        font-weight: 600;
+        border-radius: 999px;
+        padding: .65rem 1.4rem;
+        box-shadow: 0 4px 20px rgba(120, 20, 20, .25);
+        pointer-events: none;
+    }
+
+    .m-field-err {
+        font-size: .68rem;
+        color: #ef4444;
+        font-weight: 500;
+        display: none;
+        margin-top: 1px;
+    }
+
+    .m-field-wrap.field-error .m-field-err {
+        display: block;
+    }
+
+    label span.req {
+        color: #ef4444;
+    }
 </style>
 
 <section class="section">
@@ -283,9 +316,14 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
                 </div>
 
                 <div>
-                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">First Name *</label>
-                    <input type="text" name="firstName" value="<?php echo htmlspecialchars($user['firstName']); ?>" required
-                        style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
+                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">First Name <span class="req">*</span></label>
+                    <div class="m-field-wrap" id="mwrap-firstName">
+                        <input type="text" name="firstName" id="mFirstName" class="m-input"
+                            value="<?php echo htmlspecialchars($user['firstName']); ?>"
+                            style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;"
+                            oninput="mClear('mwrap-firstName')">
+                        <span class="m-field-err">First name is required.</span>
+                    </div>
                 </div>
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Middle Name</label>
@@ -293,44 +331,63 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
                 <div>
-                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Last Name *</label>
-                    <input type="text" name="lastName" value="<?php echo htmlspecialchars($user['lastName']); ?>" required
-                        style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
+                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Last Name <span class="req">*</span></label>
+                    <div class="m-field-wrap" id="mwrap-lastName">
+                        <input type="text" name="lastName" id="mLastName" class="m-input"
+                            value="<?php echo htmlspecialchars($user['lastName']); ?>"
+                            style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;"
+                            oninput="mClear('mwrap-lastName')">
+                        <span class="m-field-err">Last name is required.</span>
+                    </div>
                 </div>
                 <div>
-                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Username *</label>
-                    <input type="text" name="username" value="<?php echo htmlspecialchars($user['username']); ?>" required
-                        style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
+                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Username <span class="req">*</span></label>
+                    <div class="m-field-wrap" id="mwrap-username">
+                        <input type="text" name="username" id="mUsername" class="m-input"
+                            value="<?php echo htmlspecialchars($user['username']); ?>"
+                            style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;"
+                            oninput="mClear('mwrap-username')">
+                        <span class="m-field-err">Username is required.</span>
+                    </div>
                 </div>
                 <div style="grid-column:1/-1;">
-                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Email Address *</label>
-                    <input type="email" name="emailAddress" value="<?php echo htmlspecialchars($user['emailAddress']); ?>" required
-                        style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
+                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Email Address <span class="req">*</span></label>
+                    <div class="m-field-wrap" id="mwrap-email">
+                        <input type="email" name="emailAddress" id="mEmail" class="m-input"
+                            value="<?php echo htmlspecialchars($user['emailAddress']); ?>"
+                            style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;"
+                            oninput="mClear('mwrap-email')">
+                        <span class="m-field-err">Email address is required.</span>
+                    </div>
                 </div>
                 <div>
-                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Street</label>
+                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Street <span class="req">*</span></label>
                     <input type="text" name="street" value="<?php echo htmlspecialchars($user['street'] ?? ''); ?>"
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
                 <div>
-                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Barangay</label>
+                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Barangay <span class="req">*</span></label>
                     <input type="text" name="barangay" value="<?php echo htmlspecialchars($user['barangay'] ?? ''); ?>"
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
                 <div style="grid-column:1/-1;">
-                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">City</label>
+                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">City <span class="req">*</span></label>
                     <input type="text" name="city" value="<?php echo htmlspecialchars($user['city'] ?? ''); ?>"
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">New Password</label>
-                    <input type="password" name="newPassword"
+                    <input type="password" name="newPassword" id="mNewPass"
                         style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Confirm Password</label>
-                    <input type="password" name="confirmPassword"
-                        style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
+                    <div class="m-field-wrap" id="mwrap-confirmPass">
+                        <input type="password" name="confirmPassword" id="mConfirmPass" class="m-input"
+                            style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;"
+                            oninput="mClear('mwrap-confirmPass')">
+                        <span class="m-field-err" id="mConfirmPassErr">Passwords do not match.</span>
+                    </div>
                 </div>
             </div>
             <div style="margin-top:1.5rem;display:flex;gap:10px;justify-content:flex-end;">
@@ -338,7 +395,7 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
                     style="padding:9px 20px;border:1px solid #e5e7eb;border-radius:10px;background:#fff;font-weight:600;cursor:pointer;font-size:0.88rem;">
                     Cancel
                 </button>
-                <button type="submit"
+                <button type="button" onclick="submitEditForm()"
                     style="padding:9px 20px;border:none;border-radius:10px;background:#2563eb;color:#fff;font-weight:600;cursor:pointer;font-size:0.88rem;">
                     Save Changes
                 </button>
@@ -347,19 +404,79 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
     </div>
 </div>
 
+<div class="m-banner-error" id="mBannerError">
+    <i class="bi bi-exclamation-circle-fill"></i>
+    Please fill in all required fields.
+</div>
+
 <script>
     function previewPhoto(input) {
         if (input.files && input.files[0]) {
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = e => {
                 document.getElementById('avatarPreview').innerHTML =
-                    '<img src="' + e.target.result + '" style="width:100%;height:100%;object-fit:cover;">';
+                    `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
             };
             reader.readAsDataURL(input.files[0]);
         }
     }
-</script>
 
+    function mClear(wrapperId) {
+        document.getElementById(wrapperId)?.classList.remove('field-error');
+        if (!document.querySelector('#editModal .field-error')) {
+            document.getElementById('mBannerError').style.display = 'none';
+        }
+    }
+
+    function mMark(wrapperId) {
+        document.getElementById(wrapperId)?.classList.add('field-error');
+    }
+
+    function submitEditForm() {
+        const firstName = document.getElementById('mFirstName').value.trim();
+        const lastName = document.getElementById('mLastName').value.trim();
+        const username = document.getElementById('mUsername').value.trim();
+        const email = document.getElementById('mEmail').value.trim();
+        const newPass = document.getElementById('mNewPass').value;
+        const confPass = document.getElementById('mConfirmPass').value;
+
+        let hasError = false;
+        if (!firstName) {
+            mMark('mwrap-firstName');
+            hasError = true;
+        }
+        if (!lastName) {
+            mMark('mwrap-lastName');
+            hasError = true;
+        }
+        if (!username) {
+            mMark('mwrap-username');
+            hasError = true;
+        }
+        if (!email) {
+            mMark('mwrap-email');
+            hasError = true;
+        }
+
+        if (newPass && newPass !== confPass) {
+            document.getElementById('mConfirmPassErr').textContent = 'Passwords do not match.';
+            mMark('mwrap-confirmPass');
+            hasError = true;
+        }
+
+        if (hasError) {
+            document.getElementById('mBannerError').style.display = 'flex';
+            const firstErr = document.querySelector('#editModal .field-error');
+            if (firstErr) firstErr.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+            return;
+        }
+        document.getElementById('mBannerError').style.display = 'none';
+        document.querySelector('#editModal form').submit();
+    }
+</script>
 <?php if (!empty($error) || !empty($flashSuccess)): ?>
     <script>
         document.getElementById('editModal').style.display = 'flex';

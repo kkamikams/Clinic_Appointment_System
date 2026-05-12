@@ -542,6 +542,39 @@ require_once('../../app/config/config.php');
         font-size: .85rem;
     }
 
+    .field-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .field-wrap.field-error .form-control,
+    .field-wrap.field-error .form-select {
+        border-color: var(--red) !important;
+        background: #fff8f8 !important;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, .10);
+    }
+
+    .field-err-msg {
+        font-size: .68rem;
+        color: var(--red);
+        font-weight: 500;
+        display: none;
+        margin-top: 1px;
+    }
+
+    .field-wrap.field-error .field-err-msg {
+        display: block;
+    }
+
+    .modal-time-err {
+        font-size: .68rem;
+        color: var(--red);
+        font-weight: 500;
+        margin-top: 4px;
+        display: none;
+    }
+
     .tbl-loading {
         display: none;
         position: absolute;
@@ -714,7 +747,7 @@ require_once('../../app/config/config.php');
             <div class="sc-sub" id="statCompletedSub">—</div>
         </div>
         <div class="stat-card">
-            <div class="sc-label">Pending</div>
+            <div class="sc-label">Upcoming</div>
             <div class="sc-num" id="statPending">—</div>
             <div class="sc-sub">Awaiting service</div>
         </div>
@@ -745,8 +778,16 @@ require_once('../../app/config/config.php');
                 <option value="">All Status</option>
                 <option>Completed</option>
                 <option>In Progress</option>
-                <option>Pending</option>
+                <option value="Pending">Upcoming</option>
                 <option>Cancelled</option>
+            </select>
+            <select class="filter-select" id="apptChannel" onchange="loadAppointments(1)">
+                <option value="">All Channels</option>
+                <option>Walk-in</option>
+                <option>Online</option>
+                <option>Phone</option>
+                <option>Referral</option>
+                <option>Follow-up</option>
             </select>
             <select class="filter-select" id="apptDoctor" onchange="loadAppointments(1)">
                 <option value="">All Doctors</option>
@@ -838,7 +879,12 @@ require_once('../../app/config/config.php');
                                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
                                     <div>
                                         <label class="form-label">First Name <span style="color:#ef4444;">*</span></label>
-                                        <input type="text" class="form-control" id="fNewPatientFirstName" placeholder="e.g. Juan">
+                                        <div class="field-wrap" id="wrap-fNewFirstName">
+                                            <input type="text" class="form-control" id="fNewPatientFirstName"
+                                                placeholder="e.g. Juan"
+                                                oninput="clearModalFieldError('wrap-fNewFirstName')">
+                                            <span class="field-err-msg">First name is required.</span>
+                                        </div>
                                     </div>
                                     <div>
                                         <label class="form-label">Middle Name <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(Optional)</span></label>
@@ -846,7 +892,12 @@ require_once('../../app/config/config.php');
                                     </div>
                                     <div>
                                         <label class="form-label">Last Name <span style="color:#ef4444;">*</span></label>
-                                        <input type="text" class="form-control" id="fNewPatientLastName" placeholder="e.g. Dela Cruz">
+                                        <div class="field-wrap" id="wrap-fNewLastName">
+                                            <input type="text" class="form-control" id="fNewPatientLastName"
+                                                placeholder="e.g. Dela Cruz"
+                                                oninput="clearModalFieldError('wrap-fNewLastName')">
+                                            <span class="field-err-msg">Last name is required.</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
@@ -855,8 +906,12 @@ require_once('../../app/config/config.php');
                                             Date of Birth
                                             <span style="color:#ef4444;">*</span>
                                         </label>
-                                        <input type="date" class="form-control" id="fNewPatientDOB"
-                                            max="<?php echo date('Y-m-d'); ?>">
+                                        <div class="field-wrap" id="wrap-fNewDOB">
+                                            <input type="date" class="form-control" id="fNewPatientDOB"
+                                                max="<?php echo date('Y-m-d'); ?>"
+                                                onchange="clearModalFieldError('wrap-fNewDOB')">
+                                            <span class="field-err-msg">Date of birth is required.</span>
+                                        </div>
                                     </div>
                                     <div>
                                         <label class="form-label">Gender</label>
@@ -882,10 +937,14 @@ require_once('../../app/config/config.php');
                     </div>
 
                     <div class="col-md-4" id="doctorCol">
-                        <label class="form-label">Doctor</label>
-                        <select class="form-select" id="fDoctor" required onchange="loadAdminSlots(); loadModalDoctorSchedule()">
-                            <option value="">Select doctor…</option>
-                        </select>
+                        <label class="form-label">Doctor <span style="color:#ef4444;">*</span></label>
+                        <div class="field-wrap" id="wrap-fDoctor">
+                            <select class="form-select" id="fDoctor" required
+                                onchange="loadAdminSlots(); loadModalDoctorSchedule(); clearModalFieldError('wrap-fDoctor')">
+                                <option value="">Select doctor…</option>
+                            </select>
+                            <span class="field-err-msg">Please select a doctor.</span>
+                        </div>
                         <div id="modalDoctorScheduleBox" style="display:none;margin-top:8px;background:var(--blue-50);border:1px solid var(--blue-100);border-radius:var(--radius-sm);padding:.65rem .85rem;">
                             <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--blue-600);margin-bottom:.5rem;display:flex;align-items:center;gap:5px;">
                                 <i class="bi bi-clock"></i> Available Schedule
@@ -895,16 +954,21 @@ require_once('../../app/config/config.php');
                     </div>
 
                     <div class="col-md-4">
-                        <label class="form-label">Date</label>
-                        <input type="date" class="form-control" id="fDate" required onchange="loadAdminSlots()" style="width:100%;">
+                        <label class="form-label">Date <span style="color:#ef4444;">*</span></label>
+                        <div class="field-wrap" id="wrap-fDate">
+                            <input type="date" class="form-control" id="fDate" required
+                                onchange="loadAdminSlots(); clearModalFieldError('wrap-fDate')" style="width:100%;">
+                            <span class="field-err-msg">Please select a date.</span>
+                        </div>
                     </div>
 
                     <div class="col-md-6">
-                        <label class="form-label">Time</label>
+                        <label class="form-label">Time <span style="color:#ef4444;">*</span></label>
                         <input type="hidden" id="fTime">
                         <div id="adminSlotsContainer">
                             <div style="font-size:.78rem;color:var(--text-muted);">Select a doctor and date first.</div>
                         </div>
+                        <span class="modal-time-err" id="modal-time-err">Please select a time slot.</span>
                     </div>
 
                     <div class="col-md-3">
@@ -913,14 +977,14 @@ require_once('../../app/config/config.php');
                             <option>Walk-in</option>
                             <option>Online</option>
                             <option>Phone</option>
-                            <option>Referral</option>
+                            <option>Follow-up</option>
                         </select>
                     </div>
 
                     <div class="col-md-3">
                         <label class="form-label">Status</label>
                         <select class="form-select" id="fStatus">
-                            <option>Pending</option>
+                            <option value="Pending">Upcoming</option>
                             <option>In Progress</option>
                             <option>Completed</option>
                             <option>Cancelled</option>
@@ -983,7 +1047,7 @@ require_once('../../app/config/config.php');
 </div>
 
 <script>
-    const HANDLER = '../../app/controllers/appointments_handler.php';
+    const HANDLER = '../../app/controllers/appointmentsHandler.php';
     let currentPage = 1;
     let searchTimer = null;
     let showAllDates = false;
@@ -1022,15 +1086,37 @@ require_once('../../app/config/config.php');
     });
 
     document.addEventListener('click', e => {
-        if (!e.target.closest('.status-cell'))
+        const opt = e.target.closest('.status-opt');
+        if (opt && opt.dataset.clickable === 'true') {
+            pickApptStatus(opt, opt.dataset.status, opt.dataset.id);
+            return;
+        }
+        if (!e.target.closest('.status-cell')) {
             document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
+        }
     });
 
     function toggleStatusDrop(btn) {
+        const badge = btn.querySelector('.appt-badge');
+        const currentStatus = badge ? badge.textContent.trim() : '';
         const dd = btn.nextElementSibling;
         const isOpen = dd.classList.contains('open');
         document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
         if (!isOpen) dd.classList.add('open');
+    }
+
+    function markModalFieldError(wrapperId) {
+        document.getElementById(wrapperId)?.classList.add('field-error');
+    }
+
+    function clearModalFieldError(wrapperId) {
+        document.getElementById(wrapperId)?.classList.remove('field-error');
+    }
+
+    function clearAllModalErrors() {
+        ['wrap-fNewFirstName', 'wrap-fNewLastName', 'wrap-fNewDOB', 'wrap-fDoctor', 'wrap-fDate']
+        .forEach(id => clearModalFieldError(id));
+        document.getElementById('modal-time-err').style.display = 'none';
     }
 
     function pickApptStatus(optEl, newStatus, id) {
@@ -1041,7 +1127,7 @@ require_once('../../app/config/config.php');
 
         badge.style.background = cfg.bg;
         badge.style.color = cfg.color;
-        badge.textContent = newStatus;
+        badge.textContent = newStatus === 'Pending' ? 'Upcoming' : newStatus;
         dd.classList.remove('open');
 
         const fd = new FormData();
@@ -1056,7 +1142,8 @@ require_once('../../app/config/config.php');
             .then(res => {
                 if (res.success) {
                     renderStats(res.stats, showAllDates);
-                    showToast('Status updated to "' + newStatus + '"', 'success');
+                    const displayNew = newStatus === 'Pending' ? 'Upcoming' : newStatus;
+                    showToast('Status updated to "' + displayNew + '"', 'success');
                 } else {
                     loadAppointments(currentPage);
                 }
@@ -1071,33 +1158,46 @@ require_once('../../app/config/config.php');
         'Cancelled': ['Cancelled'],
     };
 
-    function statusDropdown(id, current) {
+    function statusDropdown(id, current, apptDate) {
         const cfg = STATUS_CONFIG[current] || {
             dot: '#9ca3af',
             bg: '#f3f4f6',
             color: '#374151'
         };
-        const allowed = STATUS_FLOW[current] || [current];
+
+        const today = new Date().toISOString().slice(0, 10);
+        const dateHasArrived = apptDate <= today;
+
+        const allowedMap = {
+            'Pending': dateHasArrived ? ['Pending', 'In Progress', 'Cancelled'] : ['Pending', 'Cancelled'],
+            'In Progress': dateHasArrived ? ['In Progress', 'Completed', 'Cancelled'] : ['In Progress', 'Cancelled'],
+            'Completed': ['Completed'],
+            'Cancelled': ['Cancelled'],
+        };
+
+        const allowed = allowedMap[current] || [current];
         const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => {
             const isAllowed = allowed.includes(label);
             const isActive = label === current;
+            const clickable = isAllowed && !isActive;
+            const displayLabel = label === 'Pending' ? 'Upcoming' : label;
             return `
-            <div class="status-opt"
-                style="${!isAllowed ? 'opacity:.35;pointer-events:none;cursor:not-allowed;' : ''}"
-                onclick="${isAllowed && !isActive ? `pickApptStatus(this,'${label}',${id})` : ''}">
-                <span class="dot" style="background:${c.dot};"></span>
-                ${label}${isActive ? ' (Current)' : ''}
-            </div>
-        `;
+        <div class="status-opt ${clickable ? 'status-opt-clickable' : ''}"
+            style="${!isAllowed ? 'opacity:.35;cursor:not-allowed;' : isActive ? 'cursor:default;' : 'cursor:pointer;'}"
+            data-id="${id}" data-status="${label}" data-clickable="${clickable}">
+            <span class="dot" style="background:${c.dot};"></span>
+            ${displayLabel}${isActive ? ' (Current)' : ''}
+        </div>
+    `;
         }).join('');
 
         return `
         <div class="status-cell">
             <button class="badge-btn" onclick="toggleStatusDrop(this)">
                 <span class="appt-badge"
-                    style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;letter-spacing:.03em;">
-                    ${current}
-                </span>
+    style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;letter-spacing:.03em;">
+    ${current === 'Pending' ? 'Upcoming' : current}
+</span>
                 <span class="badge-caret">▾</span>
             </button>
             <div class="status-dropdown">
@@ -1236,6 +1336,7 @@ require_once('../../app/config/config.php');
         const search = encodeURIComponent(document.getElementById('apptSearch').value.trim());
         const status = encodeURIComponent(document.getElementById('apptStatus').value);
         const doctor = encodeURIComponent(document.getElementById('apptDoctor').value);
+        const channel = encodeURIComponent(document.getElementById('apptChannel').value);
 
         if (!showAllDates && date) {
             const d = new Date(date + 'T00:00:00');
@@ -1249,7 +1350,7 @@ require_once('../../app/config/config.php');
 
         document.getElementById('tblLoading').style.display = 'flex';
 
-        fetch(`${HANDLER}?action=list&date=${date}&search=${search}&status=${status}&doctor=${doctor}&page=${currentPage}`)
+        fetch(`${HANDLER}?action=list&date=${date}&search=${search}&status=${status}&channel=${channel}&doctor=${doctor}&page=${currentPage}`)
             .then(r => r.json())
             .then(res => {
                 document.getElementById('tblLoading').style.display = 'none';
@@ -1320,7 +1421,7 @@ require_once('../../app/config/config.php');
                 <td>${fmtDate(r.appointmentDate)}</td>
                 <td><div class="time-cell"><i class="bi bi-clock"></i>${fmtTime(r.appointmentTime)}</div></td>
                 <td><span class="channel-chip ${r.followUpDate ? 'followup' : ''}">${r.followUpDate ? 'Follow-up' : r.channel}</span></td>
-                <td>${statusDropdown(r.id, r.status)}</td>
+                <td>${statusDropdown(r.id, r.status, r.appointmentDate)}</td>
                 <td><div class="action-btns">
     <button class="btn-act" title="Edit" onclick="${r.isFollowUp == 1 ? `editFollowUp(${r.followUpId})` : `editAppt(${r.id})`}"><i class="bi bi-pencil"></i></button>
     <button class="btn-act" title="View" onclick="viewAppt(${r.id})"><i class="bi bi-eye"></i></button>
@@ -1387,7 +1488,18 @@ require_once('../../app/config/config.php');
                 const modalBody = document.querySelector('#apptModal .modal-body');
                 const oldBanner = modalBody.querySelector('.lock-banner');
                 if (oldBanner) oldBanner.remove();
-                if (!locked) {
+                if (locked) {
+                    const bannerStyle = status === 'Cancelled' ?
+                        'background:var(--red-light);border-color:#fca5a5;color:var(--red-dark);' :
+                        'background:var(--amber-light);border-color:#fde68a;color:var(--amber-dark);';
+                    const bannerMsg = status === 'Cancelled' ?
+                        'Follow-up is Cancelled. Only remarks can be edited.' :
+                        'Follow-up is Completed. Only remarks can be edited.';
+                    modalBody.insertAdjacentHTML('afterbegin', `
+        <div class="lock-banner" style="${bannerStyle}">
+            <i class="bi bi-lock-fill"></i> ${bannerMsg}
+        </div>`);
+                } else {
                     modalBody.insertAdjacentHTML('afterbegin', `
         <div class="lock-banner" style="background:var(--blue-50);border-color:var(--blue-200);color:var(--blue-700);">
             <i class="bi bi-info-circle-fill"></i> Patient cannot be changed after booking. All other fields are editable.
@@ -1397,11 +1509,20 @@ require_once('../../app/config/config.php');
                 // Load doctor schedule box
                 loadModalDoctorSchedule();
 
-                // Load slots and pre-select the existing time
-                loadAdminSlots(d.appointmentTime.slice(0, 5));
-
                 // Set fTime so save works
                 document.getElementById('fTime').value = d.appointmentTime ? d.appointmentTime.slice(0, 5) : '';
+
+                // Load slots or show static time badge depending on lock state
+                if (locked) {
+                    const t = d.appointmentTime.slice(0, 5);
+                    const [h, m] = t.split(':');
+                    const hr = parseInt(h);
+                    const label = `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+                    document.getElementById('adminSlotsContainer').innerHTML =
+                        `<div style="display:inline-block;background:var(--blue-600);color:#fff;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;font-family:'DM Sans',sans-serif;">${label}</div>`;
+                } else {
+                    loadAdminSlots(d.appointmentTime.slice(0, 5));
+                }
 
                 new bootstrap.Modal(document.getElementById('apptModal')).show();
             });
@@ -1440,6 +1561,7 @@ require_once('../../app/config/config.php');
     }
 
     function openAddModal() {
+        clearAllModalErrors();
         document.getElementById('apptModalTitle').textContent = 'New Appointment';
         document.getElementById('saveBtnLabel').textContent = 'Save Appointment';
         document.getElementById('editId').value = '';
@@ -1466,11 +1588,15 @@ require_once('../../app/config/config.php');
         document.getElementById('selectedPatientCard').style.border = ''; // ADD
         const cancelBtn = document.querySelector('#selectedPatientCard button');
         if (cancelBtn) cancelBtn.style.removeProperty('display');
-        ['fDate', 'fChannel', 'fStatus'].forEach(id => {
+        ['fDate', 'fChannel'].forEach(id => {
             const el = document.getElementById(id);
             el.disabled = false;
             el.classList.remove('field-locked');
         });
+        // Lock status on new appointments — always starts as Pending
+        const statEl = document.getElementById('fStatus');
+        statEl.disabled = true;
+        statEl.classList.add('field-locked');
         const oldBanner = document.querySelector('#apptModal .modal-body .lock-banner');
         if (oldBanner) oldBanner.remove();
 
@@ -1489,13 +1615,14 @@ require_once('../../app/config/config.php');
                 const status = d.status;
 
                 // Lock rules per status
+                clearAllModalErrors();
                 const rules = {
                     'Pending': {
                         patient: false,
                         doctor: true,
                         datetime: true,
                         channel: true,
-                        apptStatus: true,
+                        apptStatus: false,
                         remarks: true
                     },
                     'In Progress': {
@@ -1503,7 +1630,7 @@ require_once('../../app/config/config.php');
                         doctor: false,
                         datetime: false,
                         channel: true,
-                        apptStatus: true,
+                        apptStatus: false,
                         remarks: true
                     },
                     'Completed': {
@@ -1673,18 +1800,57 @@ require_once('../../app/config/config.php');
     function saveAppointment() {
         const id = document.getElementById('editId').value;
         const isNew = document.getElementById('containerNew').style.display !== 'none';
+
         const newFirstName = document.getElementById('fNewPatientFirstName')?.value.trim();
         const newMiddleName = document.getElementById('fNewPatientMiddleName')?.value.trim();
         const newLastName = document.getElementById('fNewPatientLastName')?.value.trim();
+        const newDOB = document.getElementById('fNewPatientDOB')?.value;
         const newName = [newFirstName, newMiddleName, newLastName].filter(Boolean).join(' ');
 
-        const newDOB = document.getElementById('fNewPatientDOB')?.value;
-        if (isNew && (!newFirstName || !newLastName || !newDOB)) {
-            showToast('Please fill in First Name, Last Name, and Date of Birth.', 'error');
-            return;
+        clearAllModalErrors();
+
+        let hasError = false;
+
+        if (isNew) {
+            if (!newFirstName) {
+                markModalFieldError('wrap-fNewFirstName');
+                hasError = true;
+            }
+            if (!newLastName) {
+                markModalFieldError('wrap-fNewLastName');
+                hasError = true;
+            }
+            if (!newDOB) {
+                markModalFieldError('wrap-fNewDOB');
+                hasError = true;
+            }
+        } else {
+            if (!document.getElementById('fPatient').value) {
+                showToast('Please search and select a patient.', 'error');
+                return;
+            }
         }
-        if (!isNew && !document.getElementById('fPatient').value) {
-            showToast('Please search and select a patient.', 'error');
+
+        if (!document.getElementById('fDoctor').value) {
+            markModalFieldError('wrap-fDoctor');
+            hasError = true;
+        }
+        if (!document.getElementById('fDate').value) {
+            markModalFieldError('wrap-fDate');
+            hasError = true;
+        }
+        if (!document.getElementById('fTime').value) {
+            document.getElementById('modal-time-err').style.display = 'block';
+            hasError = true;
+        }
+
+        if (hasError) {
+            showToast('Please fill in all required fields.', 'error');
+            const firstErr = document.querySelector('#apptModal .field-error, #modal-time-err[style*="block"]');
+            if (firstErr) firstErr.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
             return;
         }
 
@@ -1692,7 +1858,7 @@ require_once('../../app/config/config.php');
             id: id || undefined,
             patientId: isNew ? '' : document.getElementById('fPatient').value,
             patientName: isNew ? newName : '',
-            patientDOB: isNew ? document.getElementById('fNewPatientDOB').value : '',
+            patientDOB: isNew ? newDOB : '',
             patientContact: isNew ? document.getElementById('fNewPatientContact').value.trim() : '',
             patientEmail: isNew ? document.getElementById('fNewPatientEmail').value.trim() : '',
             patientGender: isNew ? document.getElementById('fNewPatientGender').value : '',
@@ -1704,10 +1870,6 @@ require_once('../../app/config/config.php');
             remarks: document.getElementById('fRemarks').value,
         };
 
-        if (!payload.doctorId || !payload.appointmentDate || !payload.appointmentTime) {
-            showToast('Please fill in Doctor, Date and Time.', 'error');
-            return;
-        }
         const isFollowUp = document.getElementById('apptModalTitle').textContent === 'Edit Follow-up';
         fetch(`${HANDLER}?action=${id ? (isFollowUp ? 'edit_followup' : 'edit') : 'add'}`, {
                 method: 'POST',
@@ -1750,7 +1912,7 @@ require_once('../../app/config/config.php');
                     <div class="detail-row"><span class="detail-label">Status</span>
                         <span class="detail-value">
                             <span style="background:${cfg.bg};color:${cfg.color};font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;letter-spacing:.03em;font-family:'DM Sans',sans-serif;">
-                                ${d.status}
+                                ${d.status === 'Pending' ? 'Upcoming' : d.status}
                             </span>
                         </span>
                     </div>
@@ -1765,13 +1927,20 @@ require_once('../../app/config/config.php');
                         const container = document.getElementById('apptLinkedRecord');
                         if (!container) return;
                         if (!res.data) {
+                            const canCreate = d.status === 'Completed';
+                            const isCancelled = d.status === 'Cancelled';
                             container.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:.8rem;color:var(--text-muted);">No medical record linked.</span>
-        <a href="medical_records?apptId=${id}&patientId=${d.patientId}" style="font-size:.78rem;color:var(--blue-600);font-weight:600;text-decoration:none;">
-            <i class="bi bi-plus-lg"></i> Create one
-        </a>
-    </div>`;
+<div style="display:flex;align-items:center;gap:8px;">
+    <span style="font-size:.8rem;color:var(--text-muted);">No medical record linked.</span>
+    ${canCreate
+        ? `<a href="medical_records?apptId=${id}&patientId=${d.patientId}" style="font-size:.78rem;color:var(--blue-600);font-weight:600;text-decoration:none;">
+               <i class="bi bi-plus-lg"></i> Create one
+           </a>`
+        : isCancelled
+            ? `<span style="font-size:.72rem;color:var(--red-dark);font-style:italic;">Not available — appointment was cancelled.</span>`
+            : `<span style="font-size:.72rem;color:var(--text-muted);font-style:italic;">Available once appointment is Completed.</span>`
+    }
+</div>`;
                         } else {
                             const r = res.data;
                             const recCfg = {
@@ -1801,7 +1970,7 @@ require_once('../../app/config/config.php');
                                             </span>
                                         </div>
                                     </div>
-                                    <a href="medical_records" style="border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-size:.75rem;color:var(--text-muted);text-decoration:none;transition:all .15s;"
+                                    <a href="medicalRecords" style="border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-size:.75rem;color:var(--text-muted);text-decoration:none;transition:all .15s;"
                                        onmouseover="this.style.background='var(--blue-50)';this.style.color='var(--blue-600)'"
                                        onmouseout="this.style.background='none';this.style.color='var(--text-muted)'">
                                         <i class="bi bi-eye"></i>
@@ -1891,13 +2060,14 @@ require_once('../../app/config/config.php');
     function selectAdminSlot(value, btn) {
         document.querySelectorAll('#adminSlotsContainer button').forEach(b => {
             b.style.background = 'var(--surface)';
-            b.style.color = 'var(--text-dark)'; // ← fix
+            b.style.color = 'var(--text-dark)';
             b.style.borderColor = 'var(--border)';
         });
         btn.style.background = 'var(--blue-700)';
         btn.style.color = '#fff';
         btn.style.borderColor = 'var(--blue-700)';
         document.getElementById('fTime').value = value;
+        document.getElementById('modal-time-err').style.display = 'none';
     }
 
     function openCancel(id) {

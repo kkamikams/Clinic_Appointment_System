@@ -20,7 +20,7 @@ if (isset($_POST['loginButton'])) {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    $loginQuery = "SELECT `id`, `firstName`, `middleName`, `lastName`, `username`, `password`, `role`, `profilePic` FROM `users` WHERE username = ? LIMIT 1";
+    $loginQuery = "SELECT `id`, `firstName`, `middleName`, `lastName`, `emailAddress`, `username`, `password`, `role`, `profilePic` FROM `users` WHERE username = ? LIMIT 1";
     $stmt = $conn->prepare($loginQuery);
 
     if ($stmt) {
@@ -31,7 +31,7 @@ if (isset($_POST['loginButton'])) {
         if (mysqli_num_rows($result) > 0) {
             $data = mysqli_fetch_assoc($result);
 
-            if (!password_verify($password, $data['password'])) {
+            if ($password !== $data['password']) {
                 $_SESSION['message'] = "Invalid username or password";
                 $_SESSION['code'] = "error";
                 header("Location: /Clinic_Appointment_System/public/login");
@@ -39,7 +39,7 @@ if (isset($_POST['loginButton'])) {
             }
 
             $user_id  = $data['id'];
-            $fullName = trim($data['firstName'] . ' ' . $data['middleName'] . ' ' . $data['lastName']);
+            $fullName = trim($data['firstName'] . ' ' . $data['lastName']);
             $username = $data['username'];
             $userRole = $data['role'];
 
@@ -52,6 +52,7 @@ if (isset($_POST['loginButton'])) {
                 'username'   => $username,
                 'role'       => $userRole,
                 'profilePic' => $data['profilePic'] ?? null,
+                'email'      => $data['emailAddress'],
             ];
 
             $_SESSION['message'] = "Welcome $fullName";

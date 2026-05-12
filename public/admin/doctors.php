@@ -1,59 +1,19 @@
 <?php
 session_start();
-include('./includes/header.php');
-include('./includes/topbar.php');
-include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
+require_once('../../app/models/DoctorModel.php');
 
-$todayName = date('l');
+$todayName   = date('l');
 $currentTime = date('H:i:s');
 
-// Auto-sync doctor status based on schedule and current time
-$conn->query("
-    UPDATE doctors d
-    SET d.status = CASE
-        WHEN EXISTS (
-            SELECT 1 FROM doctorSchedules ds 
-            WHERE ds.doctorId = d.id 
-            AND ds.dayOfWeek = '$todayName'
-            AND '$currentTime' >= ds.shiftStart
-            AND '$currentTime' <= ds.shiftEnd
-        ) THEN 'On Duty'
-        ELSE 'Off Duty'
-    END
-    WHERE d.employmentStatus = 'Active' AND d.status != 'Break'
-");
-$totalDoctors = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus != 'Inactive'")->fetch_row()[0];
-$onDuty       = $conn->query("SELECT COUNT(*) FROM doctors WHERE status = 'On Duty' AND employmentStatus = 'Active'")->fetch_row()[0];
-$onLeave      = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus = 'On Leave'")->fetch_row()[0];
-$totalSpecs   = $conn->query("SELECT COUNT(DISTINCT specialization) FROM doctors WHERE employmentStatus != 'Inactive'")->fetch_row()[0];
+$doctorModel  = new DoctorModel($conn);
+$doctorModel->updateDutyStatus($todayName, $currentTime);
 
-$sql = "
-    SELECT
-        d.id, d.doctorCode, d.firstName, d.middleName, d.lastName,
-        d.specialization, d.contactNumber, d.patientCapacity,
-        d.status, d.employmentStatus, d.emailAddress,
-        d.prcLicenseNo, d.yearsOfExperience,
-        COUNT(DISTINCT a.id) AS currentLoad,
-        GROUP_CONCAT(DISTINCT ds.dayOfWeek
-            ORDER BY FIELD(ds.dayOfWeek,'Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')
-            SEPARATOR ',') AS workingDays,
-        MIN(ds.shiftStart) AS shiftStart,
-        MAX(ds.shiftEnd)   AS shiftEnd,
-        SUM(CASE WHEN ds.dayOfWeek = ? THEN 1 ELSE 0 END) AS hasToday,
-        MAX(CASE WHEN ds.dayOfWeek = ? THEN ds.shiftStart ELSE NULL END) AS todayStart,
-        MAX(CASE WHEN ds.dayOfWeek = ? THEN ds.shiftEnd   ELSE NULL END) AS todayEnd
-    FROM doctors d
-    LEFT JOIN appointments a
-        ON a.doctorId = d.id AND a.appointmentDate = CURDATE() AND a.status NOT IN ('Cancelled')
-    LEFT JOIN doctorSchedules ds ON ds.doctorId = d.id
-    GROUP BY d.id
-    ORDER BY d.lastName, d.firstName
-";
-$stmt = $conn->prepare($sql);
-$stmt->bind_param('sss', $todayName, $todayName, $todayName);
-$stmt->execute();
-$doctors = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$totalDoctors = $doctorModel->getTotalDoctors();
+$onDuty       = $doctorModel->getOnDutyCount();
+$onLeave      = $doctorModel->getOnLeaveCount();
+$totalSpecs   = $doctorModel->getTotalSpecializations();
+$doctors      = $doctorModel->getAllDoctors($todayName);
 
 $avatarBgs    = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
 $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75'];
@@ -61,12 +21,25 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
 function scheduleLabel($days, $start, $end)
 {
     if (!$days) return '—';
-    $abbr = ['Monday' => 'Mon', 'Tuesday' => 'Tue', 'Wednesday' => 'Wed', 'Thursday' => 'Thu', 'Friday' => 'Fri', 'Saturday' => 'Sat', 'Sunday' => 'Sun'];
+    $abbr = [
+        'Monday' => 'Mon',
+        'Tuesday' => 'Tue',
+        'Wednesday' => 'Wed',
+        'Thursday' => 'Thu',
+        'Friday' => 'Fri',
+        'Saturday' => 'Sat',
+        'Sunday' => 'Sun'
+    ];
     $list = array_map(fn($d) => $abbr[$d] ?? $d, explode(',', $days));
     $time = ($start && $end) ? ', ' . date('g:iA', strtotime($start)) . '–' . date('g:iA', strtotime($end)) : '';
     return implode(', ', $list) . $time;
 }
+
+include('./includes/header.php');
+include('./includes/topbar.php');
+include('./includes/sidebar.php');
 ?>
+
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
 
@@ -1007,7 +980,7 @@ function scheduleLabel($days, $start, $end)
                 foreach ($specs as $s) echo "<option>" . htmlspecialchars($s) . "</option>";
                 ?>
             </select>
-            <a href="add_doctors.php" class="btn-primary-sm"><i class="bi bi-plus-lg"></i> Add Doctor</a>
+            <a href="addDoctors.php" class="btn-primary-sm"><i class="bi bi-plus-lg"></i> Add Doctor</a>
         </div>
 
         <div style="overflow-x:auto;">
@@ -1072,7 +1045,6 @@ function scheduleLabel($days, $start, $end)
                                     <div class="doc-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $initials ?></div>
                                     <div>
                                         <div class="doc-name"><?= htmlspecialchars($fullName) ?></div>
-                                        <div class="doc-id"><?= htmlspecialchars($d['specialization']) ?></div>
                                     </div>
                                 </div>
                             </td>
@@ -1301,7 +1273,7 @@ function scheduleLabel($days, $start, $end)
         badge.textContent = label;
         dd.classList.remove('open');
 
-        fetch('/Clinic_Appointment_System/app/controllers/update_doctor_status.php', {
+        fetch('../../app/controllers/DoctorController.php?action=update_status', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -1324,8 +1296,16 @@ function scheduleLabel($days, $start, $end)
             document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
     });
 
+    const SPEC_TO_DEPT = {
+        'General Medicine': 'General',
+        'Cardiology': 'Internal Medicine',
+        'Pediatrics': 'Child Health',
+        'Dermatology': 'Skin & Hair',
+        'OB-GYN': 'Maternal Care',
+    };
+
     function editDoctor(id) {
-        window.location.href = 'edit_doctor.php?id=' + id;
+        window.location.href = 'editDoctor.php?id=' + id;
     }
 
     const apptBadgeStyles = {
@@ -1374,7 +1354,7 @@ function scheduleLabel($days, $start, $end)
         const apptList = document.getElementById('vpApptList');
         apptList.innerHTML = '<div class="vp-empty">Loading appointments…</div>';
 
-        fetch('/Clinic_Appointment_System/app/controllers/get_doctor_appointments.php?doctor_id=' + d.dbid)
+        fetch('../../app/controllers/DoctorController.php?action=get_appointments&doctor_id=' + d.dbid)
             .then(r => r.json())
             .then(appts => {
                 if (!appts.length) {

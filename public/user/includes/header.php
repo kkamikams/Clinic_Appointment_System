@@ -1,4 +1,4 @@
-<?php $base = '/Clinic_Appointment_System/public/'; ?>
+<?php if (!isset($base)) $base = '/Clinic_Appointment_System/public/'; ?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -48,5 +48,3 @@
   </style>
 
 </head>
-
-<body>

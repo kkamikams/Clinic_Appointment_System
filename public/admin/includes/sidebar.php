@@ -36,7 +36,7 @@
       </li>
 
       <li class="nav-item">
-        <a class="nav-link <? ($page == 'medical_records.php') ? '' : 'collapsed' ?>" href="medical_records">
+        <a class="nav-link <? ($page == 'medicalRecords.php') ? '' : 'collapsed' ?>" href="medicalRecords">
           <i class="bi bi-clipboard2-pulse"></i>
           <span>Medical Records</span>
         </a>

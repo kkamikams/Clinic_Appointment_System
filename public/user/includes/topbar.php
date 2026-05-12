@@ -1,8 +1,8 @@
 <header id="header" class="header fixed-top d-flex align-items-center">
 
   <div class="d-flex align-items-center justify-content-between">
-    <a href="index" class="logo d-flex align-items-center">
-      <img src="<?= $base ?>assets/img/logo.png" alt="">
+    <a href="index" class="logo d-flex align-items-center gap-2">
+      <img src="../assets/img/logo.png" alt="Queue Logo" style="height: 36px; width: auto;">
       <span class="d-none d-lg-block" style="font-family:'DM Serif Display',serif;font-style:italic;font-size:1.55rem;color:#2563eb;letter-spacing:-.01em;">Queue</span>
     </a>
     <i class="bi bi-list toggle-sidebar-btn"></i>

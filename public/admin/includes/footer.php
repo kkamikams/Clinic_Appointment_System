@@ -25,6 +25,9 @@
 
 <script src="<?= $base ?>assets/js/main.js"></script>
 
+<!-- Queue Clinic – Shared Admin Utils -->
+<script src="<?= $base ?>assets/js/admin-utils.js"></script>
+
 <?php
 if (isset($_SESSION['message']) && $_SESSION['code'] != '') {
 ?>

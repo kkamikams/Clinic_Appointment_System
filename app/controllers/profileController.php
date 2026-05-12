@@ -1,6 +1,14 @@
 <?php
 require_once('../../app/config/config.php');
 
+function getUserById($conn, $userId)
+{
+    $stmt = $conn->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
+    $stmt->bind_param("i", $userId);
+    $stmt->execute();
+    return $stmt->get_result()->fetch_assoc();
+}
+
 if (!isset($_SESSION['authUser']['user_id'])) {
     echo "<script>window.location.href='../login.php';</script>";
     exit();
@@ -69,28 +77,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $error = "Passwords do not match.";
                     } elseif (strlen($newPassword) < 6) {
                         $error = "Password must be at least 6 characters.";
-                    } else {
-                        $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-                        if ($profilePic) {
-                            $stmt = $conn->prepare("UPDATE users SET firstName=?, middleName=?, lastName=?, username=?, emailAddress=?, street=?, barangay=?, city=?, password=?, profilePic=? WHERE id=?");
-                            $stmt->bind_param("ssssssssssi", $firstName, $middleName, $lastName, $username, $email, $street, $barangay, $city, $hashedPassword, $profilePic, $userId);
-                        } else {
-                            $stmt = $conn->prepare("UPDATE users SET firstName=?, middleName=?, lastName=?, username=?, emailAddress=?, street=?, barangay=?, city=?, password=? WHERE id=?");
-                            $stmt->bind_param("sssssssssi", $firstName, $middleName, $lastName, $username, $email, $street, $barangay, $city, $hashedPassword, $userId);
-                        }
-                    }
-                } else {
-                    if ($profilePic) {
-                        $stmt = $conn->prepare("UPDATE users SET firstName=?, middleName=?, lastName=?, username=?, emailAddress=?, street=?, barangay=?, city=?, profilePic=? WHERE id=?");
-                        $stmt->bind_param("sssssssssi", $firstName, $middleName, $lastName, $username, $email, $street, $barangay, $city, $profilePic, $userId);
-                    } else {
-                        $stmt = $conn->prepare("UPDATE users SET firstName=?, middleName=?, lastName=?, username=?, emailAddress=?, street=?, barangay=?, city=? WHERE id=?");
-                        $stmt->bind_param("ssssssssi", $firstName, $middleName, $lastName, $username, $email, $street, $barangay, $city, $userId);
                     }
                 }
 
                 if (empty($error)) {
-                    if ($stmt->execute()) {
+                    $fields = [
+                        'firstName'    => $firstName,
+                        'middleName'   => $middleName,
+                        'lastName'     => $lastName,
+                        'username'     => $username,
+                        'emailAddress' => $email,
+                        'street'       => $street,
+                        'barangay'     => $barangay,
+                        'city'         => $city,
+                    ];
+
+                    if ($profilePic)        $fields['profilePic'] = $profilePic;
+                    if (!empty($newPassword)) $fields['password']  = password_hash($newPassword, PASSWORD_DEFAULT);
+
+                    $setClauses = implode(', ', array_map(fn($k) => "$k = ?", array_keys($fields)));
+                    $values     = array_values($fields);
+                    $values[]   = $userId;
+                    $types      = str_repeat('s', count($fields)) . 'i';
+
+                    $stmt = $conn->prepare("UPDATE users SET $setClauses WHERE id = ?");
+                    $stmt->bind_param($types, ...$values);
+                }
+
+                if (empty($error)) {
+                    if (isset($stmt) && $stmt->execute()) {
                         $_SESSION['authUser']['fullName'] = trim($firstName . ' ' . $middleName . ' ' . $lastName);
                         $_SESSION['authUser']['username'] = $username;
                         $_SESSION['profile_success'] = "Profile updated successfully.";

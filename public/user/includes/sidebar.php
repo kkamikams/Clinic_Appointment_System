@@ -15,23 +15,23 @@
       <li class="nav-heading">Services</li>
 
       <li class="nav-item">
-        <a class="nav-link <? ($page == 'book_appointment.php') ? '' : 'collapsed' ?>" href="book_appointment">
+        <a class="nav-link <? ($page == 'bookAppointment.php') ? '' : 'collapsed' ?>" href="bookAppointment">
           <i class="bi bi-envelope"></i>
-          <span>Book Appointments</span>
+          <span>Book Appointment</span>
         </a>
       </li>
 
       <li class="nav-heading">Manage</li>
 
       <li class="nav-item">
-        <a class="nav-link <? ($page == 'my_appointment.php') ? '' : 'collapsed' ?>" href="my_appointment">
+        <a class="nav-link <? ($page == 'myAppointment.php') ? '' : 'collapsed' ?>" href="myAppointment">
           <i class="bi bi-person-vcard"></i>
           <span>My Appointments</span>
         </a>
       </li>
 
       <li class="nav-item">
-        <a class="nav-link <? ($page == 'medical_records.php') ? '' : 'collapsed' ?>" href="medical_records">
+        <a class="nav-link <? ($page == 'medicalRecords.php') ? '' : 'collapsed' ?>" href="medicalRecords">
           <i class="bi bi-clipboard2-pulse"></i>
           <span>Medical Records</span>
         </a>

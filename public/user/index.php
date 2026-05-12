@@ -1,108 +1,36 @@
 <?php
+require_once('../../app/middleware/user.php');
+require_once('../../app/controllers/userController.php');
 
-ini_set('display_errors', 1);
+$userId    = $_SESSION['user_id'];
+$userEmail = $_SESSION['authUser']['email'];
+$today     = date('Y-m-d');
 
-error_reporting(E_ALL);
-session_start();
+$data           = getDashboardData($conn, $userId, $userEmail);
+$patientRow     = $data['patientRow'];
+$nextAppt       = $data['nextAppt'];
+$recentAppts    = $data['recentAppts'];
+$recentRecords  = $data['recentRecords'];
+$chartMonths    = $data['chartMonths'];
+$availDoctors   = $data['availDoctors'];
+$totalAppts     = $data['totalAppts'];
+$upcomingAppts  = $data['upcomingAppts'];
+$pendingAppts   = $data['pendingAppts'];
+$completedAppts = $data['completedAppts'];
+$totalRecords   = $data['totalRecords'];
+$patientName    = $patientRow
+    ? trim($patientRow['firstName'] . ' ' . $patientRow['lastName'])
+    : ($_SESSION['authUser']['fullName'] ?? 'Patient');
 
-if (!isset($_SESSION['user_id'])) {
-    header('Location: /Clinic_Appointment_System/public/login.php');
-    exit();
-}
 
-if ($_SESSION['userRole'] !== 'user') {
-    $_SESSION['message'] = 'You do not have permission to access this page.';
-    $_SESSION['code'] = 'error';
-    header('Location: /Clinic_Appointment_System/public/admin/index');
-    exit();
-}
+$avatarBgs    = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
+$avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75'];
 
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
-require_once('../../app/config/config.php');
-
-
-$userEmail = $_SESSION['email'] ?? '';
-$userId = $_SESSION['user_id'] ?? null;
-
-$patientRow = null;
-if ($userId) {
-    $stmt = $conn->prepare("SELECT * FROM patients WHERE emailAddress = ? AND status != 'Inactive' LIMIT 1");
-    $stmt->bind_param('s', $userEmail);
-    $stmt->execute();
-    $patientRow = $stmt->get_result()->fetch_assoc();
-}
-$patientId = $patientRow['id'] ?? 0;
-$patientName = $patientRow ? trim($patientRow['firstName'] . ' ' . $patientRow['lastName']) : ($_SESSION['name'] ?? 'Patient');
-
-$today = date('Y-m-d');
-
-
-if ($patientId) {
-    $totalAppts    = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId")->fetch_row()[0];
-    $upcomingAppts = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND appointmentDate >= '$today' AND status IN ('Pending','In Progress')")->fetch_row()[0];
-    $pendingAppts  = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND status='Pending'")->fetch_row()[0];
-    $completedAppts = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND status='Completed'")->fetch_row()[0];
-    $totalRecords  = $conn->query("SELECT COUNT(*) FROM medicalRecords WHERE patientId=$patientId")->fetch_row()[0];
-
-    // Next upcoming appointment
-    $nextAppt = $conn->query("
-        SELECT a.*, CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName, d.specialization
-        FROM appointments a JOIN doctors d ON d.id=a.doctorId
-        WHERE a.patientId=$patientId AND a.appointmentDate >= '$today' AND a.status IN ('Pending','In Progress')
-        ORDER BY a.appointmentDate ASC, a.appointmentTime ASC LIMIT 1
-    ")->fetch_assoc();
-
-    // Recent appointments (last 5)
-    $recentAppts = $conn->query("
-        SELECT a.*, CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName, d.specialization
-        FROM appointments a JOIN doctors d ON d.id=a.doctorId
-        WHERE a.patientId=$patientId
-        ORDER BY a.appointmentDate DESC, a.appointmentTime DESC LIMIT 5
-    ")->fetch_all(MYSQLI_ASSOC);
-
-    // Recent medical records
-    $recentRecords = $conn->query("
-        SELECT mr.*, CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName, d.specialization
-        FROM medicalRecords mr JOIN doctors d ON d.id=mr.doctorId
-        WHERE mr.patientId=$patientId
-        ORDER BY mr.createdAt DESC LIMIT 3
-    ")->fetch_all(MYSQLI_ASSOC);
-
-    // Chart
-    $chartMonths = [];
-    for ($i = 5; $i >= 0; $i--) {
-        $m = date('Y-m', strtotime("-$i months"));
-        $cnt = $conn->query("SELECT COUNT(*) FROM appointments WHERE patientId=$patientId AND DATE_FORMAT(appointmentDate,'%Y-%m')='$m'")->fetch_row()[0];
-        $chartMonths[] = ['label' => date('M', strtotime("-$i months")), 'count' => (int)$cnt];
-    }
-} else {
-    $totalAppts = $upcomingAppts = $pendingAppts = $completedAppts = $totalRecords = 0;
-    $nextAppt = null;
-    $recentAppts = [];
-    $recentRecords = [];
-    $chartMonths = [];
-    for ($i = 5; $i >= 0; $i--) $chartMonths[] = ['label' => date('M', strtotime("-$i months")), 'count' => 0];
-}
-
-$availDoctors = $conn->query("
-    SELECT d.id, d.firstName, d.lastName, d.specialization, d.department, d.status,
-           COUNT(DISTINCT a.id) AS todayLoad, d.patientCapacity
-    FROM doctors d
-    LEFT JOIN appointments a ON a.doctorId=d.id AND a.appointmentDate='$today' AND a.status!='Cancelled'
-    LEFT JOIN doctorSchedules ds ON ds.doctorId=d.id AND ds.dayOfWeek=DAYNAME('$today')
-    WHERE d.employmentStatus='Active' 
-    AND ds.id IS NOT NULL
-    AND d.status != 'Off Duty'
-    GROUP BY d.id
-    ORDER BY d.status='On Duty' DESC, d.lastName
-    LIMIT 6
-")->fetch_all(MYSQLI_ASSOC);
-
-$avatarBgs    = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
-$avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75'];
 ?>
+
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
 
@@ -656,7 +584,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 </div>
             </div>
             <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
-                <a href="my_appointments" style="background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);padding:.4rem 1rem;font-size:.78rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:5px;">
+                <a href="myAppointment style=" background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);padding:.4rem 1rem;font-size:.78rem;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;text-decoration:none;display:flex;align-items:center;gap:5px;">
                     <i class="bi bi-eye"></i> View
                 </a>
             </div>
@@ -664,22 +592,22 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
     <?php endif; ?>
 
     <div class="stat-strip">
-        <a href="my_appointments" class="stat-card">
+        <a href="myAppointment class=" stat-card">
             <div class="sc-label">Total Appointments</div>
             <div class="sc-num"><?= $totalAppts ?></div>
             <div class="sc-sub">All time bookings</div>
         </a>
-        <a href="my_appointments?status=upcoming" class="stat-card">
+        <a href="my_appointment?status=upcoming" class="stat-card">
             <div class="sc-label">Upcoming</div>
             <div class="sc-num"><?= $upcomingAppts ?></div>
             <div class="sc-sub">Scheduled sessions</div>
         </a>
-        <a href="my_appointments?status=Pending" class="stat-card">
+        <a href="my_appointment?status=Pending" class="stat-card">
             <div class="sc-label">Pending</div>
             <div class="sc-num"><?= $pendingAppts ?></div>
             <div class="sc-sub">Awaiting confirmation</div>
         </a>
-        <a href="medical_records" class="stat-card">
+        <a href="medicalRecords" class="stat-card">
             <div class="sc-label">Medical Records</div>
             <div class="sc-num"><?= $totalRecords ?></div>
             <div class="sc-sub">Your health records</div>
@@ -699,8 +627,8 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 <li class="dropdown-header text-start">
                                     <h6>Actions</h6>
                                 </li>
-                                <li><a class="dropdown-item" href="my_appointments">View All Appointments</a></li>
-                                <li><a class="dropdown-item" href="book_appointment">Book New</a></li>
+                                <li><a class="dropdown-item" href="myAppointment>View All Appointments</a></li>
+                                <li><a class=" dropdown-item" href="bookAppointment">Book New</a></li>
                             </ul>
                         </div>
                         <div class="card-body">
@@ -780,8 +708,8 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 <li class="dropdown-header text-start">
                                     <h6>Actions</h6>
                                 </li>
-                                <li><a class="dropdown-item" href="my_appointments">View All</a></li>
-                                <li><a class="dropdown-item" href="book_appointment">Book New</a></li>
+                                <li><a class="dropdown-item" href="myAppointment>View All</a></li>
+                                <li><a class=" dropdown-item" href="bookAppointment">Book New</a></li>
                             </ul>
                         </div>
                         <div class="card-body">
@@ -791,7 +719,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 <div class="no-data">
                                     <i class="bi bi-calendar-x"></i>
                                     No appointment history yet.<br>
-                                    <a href="book_appointment" style="color:var(--blue-600);font-weight:600">Book your first appointment →</a>
+                                    <a href="bookAppointment" style="color:var(--blue-600);font-weight:600">Book your first appointment →</a>
                                 </div>
                             <?php else: ?>
                                 <table class="table table-borderless">
@@ -810,7 +738,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                             $sCls = $statusMap[$appt['status']] ?? 'bg-secondary';
                                         ?>
                                             <tr>
-                                                <td><a href="my_appointments" style="font-weight:700;color:var(--blue-700);font-size:.8rem;text-decoration:none"><?= htmlspecialchars($appt['appointmentCode']) ?></a></td>
+                                                <td><a href="myAppointment style=" font-weight:700;color:var(--blue-700);font-size:.8rem;text-decoration:none"><?= htmlspecialchars($appt['appointmentCode']) ?></a></td>
                                                 <td>
                                                     <div style="font-weight:600;color:var(--text-dark);font-size:.82rem"><?= htmlspecialchars($appt['doctorName']) ?></div>
                                                     <div style="font-size:.67rem;color:var(--text-muted)"><?= htmlspecialchars($appt['specialization']) ?></div>
@@ -823,7 +751,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                     </tbody>
                                 </table>
                                 <div style="text-align:center;padding-top:.5rem">
-                                    <a href="my_appointments" style="font-size:.78rem;color:var(--blue-600);font-weight:600">View all appointments →</a>
+                                    <a href="myAppointment style=" font-size:.78rem;color:var(--blue-600);font-weight:600">View all appointments →</a>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -838,7 +766,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 <li class="dropdown-header text-start">
                                     <h6>Actions</h6>
                                 </li>
-                                <li><a class="dropdown-item" href="medical_records">View All Records</a></li>
+                                <li><a class="dropdown-item" href="medicalRecords">View All Records</a></li>
                             </ul>
                         </div>
                         <div class="card-body">
@@ -882,7 +810,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                     </tbody>
                                 </table>
                                 <div style="text-align:center;padding-top:.5rem">
-                                    <a href="medical_records" style="font-size:.78rem;color:var(--blue-600);font-weight:600">View all records →</a>
+                                    <a href="medicalRecords" style="font-size:.78rem;color:var(--blue-600);font-weight:600">View all records →</a>
                                 </div>
                             <?php endif; ?>
                         </div>
@@ -899,7 +827,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                     <i class="bi bi-calendar-plus"></i>
 
                     <p>Choose from our available doctors and book your slot in minutes.</p>
-                    <a href="book_appointment" class="btn-book" style="padding:.28rem .6rem;font-size:.72rem;width:auto;display:inline-flex"><i class="bi bi-plus-lg"></i> Book Now</a>
+                    <a href="bookAppointment" class="btn-book" style="padding:.28rem .6rem;font-size:.72rem;width:auto;display:inline-flex"><i class="bi bi-plus-lg"></i> Book Now</a>
                 </div>
             </div>
 
@@ -910,7 +838,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                         <li class="dropdown-header text-start">
                             <h6>Actions</h6>
                         </li>
-                        <li><a class="dropdown-item" href="book_appointment">Book Appointment</a></li>
+                        <li><a class="dropdown-item" href="bookAppointment">Book Appointment</a></li>
                     </ul>
                 </div>
                 <div class="card-body">
@@ -937,7 +865,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                             <?php endforeach; ?>
                         </div>
                         <div style="text-align:center;margin-top:.85rem">
-                            <a href="book_appointment" class="btn-book" style="font-size:.78rem;padding:.4rem 1rem">
+                            <a href="bookAppointment" class="btn-book" style="font-size:.78rem;padding:.4rem 1rem">
                                 <i class="bi bi-calendar-plus"></i> Book a Slot
                             </a>
                         </div>

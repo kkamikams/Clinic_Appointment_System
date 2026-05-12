@@ -13,91 +13,44 @@ if ($_SESSION['userRole'] !== 'admin') {
   exit();
 }
 
+require_once('../../app/config/config.php');
+require_once('../../app/models/DashboardModel.php');
+
+$today     = date('Y-m-d');
+$todayDay  = date('l');
+$dashboard = new DashboardModel($conn);
+
+$dashboard->updateOffDutyDoctors($today);
+
+$apptToday     = $dashboard->getAppointmentsToday($today);
+$apptYesterday = $dashboard->getAppointmentsYesterday($today);
+$apptTrend     = $apptYesterday > 0 ? round((($apptToday - $apptYesterday) / $apptYesterday) * 100) : 0;
+
+$patMonth      = $dashboard->getPatientsThisMonth();
+$patLastMonth  = $dashboard->getPatientsLastMonth();
+$patTrend      = $patLastMonth > 0 ? round((($patMonth - $patLastMonth) / $patLastMonth) * 100) : 0;
+
+$totalPatients = $dashboard->getTotalActivePatients();
+$totalDoctors  = $dashboard->getTotalActiveDoctors();
+$onDutyNow     = $dashboard->getOnDutyCount();
+$chartData     = $dashboard->getChartData();
+$apptRows      = $dashboard->getTodayAppointments($today);
+$dutyDoctors   = $dashboard->getDutyDoctors($today);
+$activities    = $dashboard->getRecentActivity();
+$breakdown     = $dashboard->getStatusBreakdown($today);
+
+$apptCompleted  = $breakdown['completed'];
+$apptPending    = $breakdown['pending'];
+$apptInProgress = $breakdown['inProgress'];
+$apptCancelled  = $breakdown['cancelled'];
+
+$avatarBgs    = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
+$avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75'];
+
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
-require_once('../../app/config/config.php');
 
-$today = date('Y-m-d');
-
-// Appointments today
-$apptToday = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate = '$today'")->fetch_row()[0];
-$apptYesterday = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate = DATE_SUB('$today', INTERVAL 1 DAY)")->fetch_row()[0];
-$apptTrend = $apptYesterday > 0 ? round((($apptToday - $apptYesterday) / $apptYesterday) * 100) : 0;
-
-// Patients this month
-$patMonth = $conn->query("SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(CURDATE()) AND YEAR(createdAt)=YEAR(CURDATE())")->fetch_row()[0];
-$patLastMonth = $conn->query("SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(DATE_SUB(CURDATE(),INTERVAL 1 MONTH)) AND YEAR(createdAt)=YEAR(DATE_SUB(CURDATE(),INTERVAL 1 MONTH))")->fetch_row()[0];
-$patTrend = $patLastMonth > 0 ? round((($patMonth - $patLastMonth) / $patLastMonth) * 100) : 0;
-
-// Total active patients & doctors
-$totalPatients = $conn->query("SELECT COUNT(*) FROM patients WHERE status='Active'")->fetch_row()[0];
-$totalDoctors = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus='Active'")->fetch_row()[0];
-$onDutyNow = $conn->query("SELECT COUNT(*) FROM doctors WHERE status='On Duty'")->fetch_row()[0];
-
-// Appointment chart data (last 7 days)
-$chartData = [];
-for ($i = 6; $i >= 0; $i--) {
-  $d = date('Y-m-d', strtotime("-$i days"));
-  $label = date('Y-m-d\TH:i:s.000\Z', strtotime($d));
-  $total = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$d'")->fetch_row()[0];
-  $completed = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$d' AND status='Completed'")->fetch_row()[0];
-  $cancelled = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$d' AND status='Cancelled'")->fetch_row()[0];
-  $chartData[] = ['date' => $label, 'total' => (int)$total, 'completed' => (int)$completed, 'cancelled' => (int)$cancelled];
-}
-
-// Today's appointments table (limit 10)
-$apptRows = $conn->query("
-SELECT a.appointmentCode, a.appointmentTime, a.status, a.channel,
-CONCAT(p.firstName,' ',p.lastName) AS patientName,
-CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
-d.specialization
-FROM appointments a
-JOIN patients p ON p.id=a.patientId
-JOIN doctors d ON d.id=a.doctorId
-WHERE a.appointmentDate='$today'
-ORDER BY a.appointmentTime ASC
-LIMIT 10
-")->fetch_all(MYSQLI_ASSOC);
-
-// Doctors on duty today
-$conn->query("
-    UPDATE doctors d
-    LEFT JOIN doctorSchedules ds ON ds.doctorId = d.id AND ds.dayOfWeek = DAYNAME('$today')
-    SET d.status = 'Off Duty'
-    WHERE ds.doctorId IS NULL
-      AND d.employmentStatus = 'Active'
-      AND d.status != 'Off Duty'
-");
-
-$dutyDoctors = $conn->query("
-    SELECT d.id, d.firstName, d.lastName, d.specialization,
-           d.patientCapacity, d.status,
-           COUNT(DISTINCT a.id) AS currentLoad,
-           MIN(ds.shiftStart) AS shiftStart,
-           MAX(ds.shiftEnd) AS shiftEnd
-    FROM doctors d
-    INNER JOIN doctorSchedules ds ON ds.doctorId = d.id AND ds.dayOfWeek = DAYNAME('$today')
-    LEFT JOIN appointments a ON a.doctorId = d.id AND a.appointmentDate = '$today' AND a.status != 'Cancelled'
-    WHERE d.employmentStatus = 'Active'
-    GROUP BY d.id
-    LIMIT 8
-")->fetch_all(MYSQLI_ASSOC);
-
-// Recent activity
-$activities = $conn->query("
-SELECT * FROM recentActivity ORDER BY createdAt DESC LIMIT 8
-")->fetch_all(MYSQLI_ASSOC);
-
-// Status breakdown today
-$apptCompleted = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='Completed'")->fetch_row()[0];
-$apptPending = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='Pending'")->fetch_row()[0];
-$apptInProgress = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='In Progress'")->fetch_row()[0];
-$apptCancelled = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate='$today' AND status='Cancelled'")->fetch_row()[0];
-
-$avatarBgs = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
-$avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75'];
-$todayDay = date('l');
 ?>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
@@ -849,7 +802,7 @@ $todayDay = date('l');
                   <h6>Actions</h6>
                 </li>
                 <li><a class="dropdown-item" href="doctors">View All Doctors</a></li>
-                <li><a class="dropdown-item" href="add_doctors">Add Doctor</a></li>
+                <li><a class="dropdown-item" href="addDoctors">Add Doctor</a></li>
               </ul>
             </div>
             <div class="card-body pb-0">
@@ -966,7 +919,7 @@ $todayDay = date('l');
   document.addEventListener('DOMContentLoaded', () => {
 
     function refreshActivity() {
-      fetch('activity_handler.php?action=recent')
+      fetch('/Clinic_Appointment_System/app/controllers/activityHandler.php?action=recent')
         .then(r => r.json())
         .then(res => {
           if (!res.success || !res.rows) return;
@@ -995,7 +948,7 @@ $todayDay = date('l');
     setInterval(refreshActivity, 15000);
 
     function refreshApptCount() {
-      fetch('appointments_handler.php?action=list&date=<?= $today ?>&page=1')
+      fetch('/Clinic_Appointment_System/app/controllers/appointmentsHandler.php?action=list&date=<?= $today ?>&page=1')
         .then(r => r.json())
         .then(res => {
           if (!res.success) return;

@@ -1,36 +1,22 @@
 <?php
 session_start();
-include('./includes/header.php');
-include('./includes/topbar.php');
-include('./includes/sidebar.php');
 require_once('../../app/config/config.php');
+require_once('../../app/models/PatientModel.php');
 
-$totalPatients = $conn->query("SELECT COUNT(*) FROM patients WHERE status != 'Inactive'")->fetch_row()[0];
-$activeCount   = $conn->query("SELECT COUNT(*) FROM patients WHERE status = 'Active'")->fetch_row()[0];
-$critical      = $conn->query("SELECT COUNT(*) FROM patients WHERE patientCondition = 'Critical'")->fetch_row()[0];
+$patientModel  = new PatientModel($conn);
+$totalPatients = $patientModel->getTotalPatients();
+$activeCount   = $patientModel->getActiveCount();
+$critical      = $patientModel->getCriticalCount();
+$patients      = $patientModel->getAllPatients();
 
-$sql = "
-    SELECT
-        p.id, p.patientCode, p.firstName, p.middleName, p.lastName,
-        p.gender, p.dateOfBirth, p.contactNumber, p.emailAddress, p.address,
-        p.status, p.patientCondition,
-        TIMESTAMPDIFF(YEAR, p.dateOfBirth, CURDATE()) AS age,
-        MAX(a.appointmentDate) AS lastVisit,
-        d.firstName AS docFirst, d.lastName AS docLast
-    FROM patients p
-    LEFT JOIN appointments a ON a.patientId = p.id AND a.status = 'Completed'
-    LEFT JOIN doctors d ON d.id = (
-        SELECT doctorId FROM appointments
-        WHERE patientId = p.id AND status = 'Completed'
-        ORDER BY appointmentDate DESC LIMIT 1
-    )
-    GROUP BY p.id
-    ORDER BY p.lastName, p.firstName
-";
-$patients = $conn->query($sql)->fetch_all(MYSQLI_ASSOC);
 
 $avatarBgs    = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
 $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75'];
+
+include('./includes/header.php');
+include('./includes/topbar.php');
+include('./includes/sidebar.php');
+
 ?>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&display=swap');
@@ -848,7 +834,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 <option value="Under Observation">Under Observation</option>
                 <option value="Recovering">Recovering</option>
             </select>
-            <a href="add_patient" class="btn-primary-sm"><i class="bi bi-plus-lg"></i> Add Patient</a>
+            <a href="addPatient" class="btn-primary-sm"><i class="bi bi-plus-lg"></i> Add Patient</a>
         </div>
 
         <div style="overflow-x:auto;">
@@ -873,8 +859,15 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                         $initials  = strtoupper(substr($p['firstName'], 0, 1) . substr($p['lastName'], 0, 1));
                         $fullName  = $p['firstName'] . ' ' . $p['lastName'];
                         $age       = $p['age'] ?? '—';
-                        $lastVisit = $p['lastVisit'] ? date('M j, Y', strtotime($p['lastVisit'])) : '—';
-                        $doctor    = ($p['docFirst'] && $p['docLast']) ? 'Dr. ' . $p['docFirst'] . ' ' . $p['docLast'] : '—';
+                        $lastVisit = (!empty($p['lastVisit']) && $p['lastVisit'] !== '1000-01-01')
+                            ? date('M j, Y', strtotime($p['lastVisit']))
+                            : '—';
+                        if (!empty($p['docName'])) {
+                            [$docFirst, $docLast] = explode('|||', $p['docName']);
+                            $doctor = 'Dr. ' . $docFirst . ' ' . $docLast;
+                        } else {
+                            $doctor = '—';
+                        }
                         $statusCls = match ($p['status']) {
                             'Active'     => 'badge-active',
                             'Discharged' => 'badge-discharged',
@@ -952,7 +945,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
 
                             <td>
                                 <div class="action-btns">
-                                    <button class="btn-act" title="Edit" onclick="window.location.href='edit_patient?id=<?= $p['id'] ?>'"><i class="bi bi-pencil"></i></button>
+                                    <button class="btn-act" title="Edit" onclick="window.location.href='editPatient?id=<?= $p['id'] ?>'"><i class="bi bi-pencil"></i></button>
                                     <button class="btn-act view" title="View" onclick="viewPatient(this.closest('tr'))"><i class="bi bi-eye"></i></button>
                                 </div>
                             </td>
@@ -1112,7 +1105,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         const row = optEl.closest('tr');
         row.dataset.status = label;
 
-        fetch('/Clinic_Appointment_System/app/controllers/update_patient_status.php', {
+        fetch('../../app/controllers/PatientController.php?action=update_status', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -1137,7 +1130,7 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
         const row = optEl.closest('tr');
         row.dataset.condition = label;
 
-        fetch('update_patient_condition.php', {
+        fetch('../../app/controllers/PatientController.php?action=update_condition', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'

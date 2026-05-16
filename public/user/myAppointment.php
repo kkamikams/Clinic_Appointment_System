@@ -602,7 +602,7 @@ include('./includes/sidebar.php');
                                 <td><span class="badge <?= $sCls ?>">
                                         <?= $appt['status'] === 'Pending' ? 'Upcoming' : htmlspecialchars($appt['status']) ?>
                                     </span></td>
-                                <td style="display:flex;gap:5px;align-items:center;">
+                                <td style="text-align:center;">
                                     <button class="btn-act" onclick="openViewAppt(
         '<?= htmlspecialchars($appt['appointmentCode']) ?>',
         '<?= htmlspecialchars($appt['doctorName']) ?>',

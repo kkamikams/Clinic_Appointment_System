@@ -1012,6 +1012,12 @@ require_once('../../app/config/config.php');
                             </div>
                             <input type="hidden" id="fDoctor">
                         </div>
+                        <div id="recDoctorScheduleBox" style="display:none;margin-top:8px;background:var(--blue-50);border:1px solid var(--blue-100);border-radius:var(--radius-sm);padding:.65rem .85rem;">
+                            <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--blue-600);margin-bottom:.5rem;display:flex;align-items:center;gap:5px;">
+                                <i class="bi bi-clock"></i> Available Schedule
+                            </div>
+                            <div id="recDoctorScheduleList" style="display:flex;flex-direction:column;gap:4px;"></div>
+                        </div>
                     </div>
 
                     <!-- Linked Appointment -->
@@ -1039,7 +1045,7 @@ require_once('../../app/config/config.php');
 
                     <!-- Record Type -->
                     <div class="col-md-6">
-                        <label class="form-label">Record Type</label>
+                        <label class="form-label">Record Type <span style="color:var(--red);">*</span></label>
                         <select class="form-select" id="fType">
                             <option value="">Select Type</option>
                             <option>Consultation</option>
@@ -1075,9 +1081,18 @@ require_once('../../app/config/config.php');
                     </div>
 
                     <!-- Follow-Up Date -->
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <label class="form-label">Follow-Up Date</label>
-                        <input type="date" class="form-control" id="fFollowUpDate">
+                        <input type="date" class="form-control" id="fFollowUpDate" onchange="loadFollowUpSlots()">
+                    </div>
+
+                    <!-- Follow-Up Time -->
+                    <div class="col-md-8">
+                        <label class="form-label">Follow-Up Time</label>
+                        <input type="hidden" id="fFollowUpTime">
+                        <div id="followUpSlotsContainer">
+                            <div style="font-size:.78rem;color:var(--text-muted);">Select a doctor and follow-up date first.</div>
+                        </div>
                     </div>
 
                     <!-- Status -->
@@ -1206,7 +1221,12 @@ require_once('../../app/config/config.php');
                     document.getElementById('doctorPillName').textContent = appt.doctorName;
                     document.getElementById('doctorPillSub').textContent = appt.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
+                    loadRecDoctorSchedule(docRes.data.doctorId);
                     if (appt.remarks) document.getElementById('fDiagnosis').value = appt.remarks;
+                    // ── Lock all three fields — no clearing allowed ──
+                    lockAppt(true);
+                    lockField('doctor');
+                    // patient gets locked after its own fetch below
                 });
 
             if (patientId) {
@@ -1219,6 +1239,7 @@ require_once('../../app/config/config.php');
                         document.getElementById('patientPillName').textContent = p.name;
                         document.getElementById('patientPillSub').textContent = p.patientCode;
                         document.getElementById('patientPill').classList.add('show');
+                        lockField('patient'); // ← lock after pill is shown
                     });
             }
         }
@@ -1282,6 +1303,54 @@ require_once('../../app/config/config.php');
         });
     }
 
+    function loadRecDoctorSchedule(doctorId) {
+        const box = document.getElementById('recDoctorScheduleBox');
+        const list = document.getElementById('recDoctorScheduleList');
+        if (!doctorId) {
+            box.style.display = 'none';
+            return;
+        }
+
+        fetch(`../../app/controllers/appointmentsHandler.php?action=get_doctor_schedule&doctorId=${doctorId}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.data || !res.data.length) {
+                    box.style.display = 'none';
+                    return;
+                }
+                const fmt = t => {
+                    const [h, m] = t.split(':');
+                    const hr = parseInt(h);
+                    return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+                };
+                list.innerHTML = res.data.map(s =>
+                    `<div style="display:flex;justify-content:space-between;font-size:.78rem;">
+                    <span style="font-weight:600;color:var(--text-dark);">${s.dayOfWeek}</span>
+                    <span style="color:var(--text-body);">${fmt(s.shiftStart)} – ${fmt(s.shiftEnd)}</span>
+                </div>`
+                ).join('');
+                box.style.display = 'block';
+            })
+            .catch(() => box.style.display = 'none');
+    }
+
+    function lockField(field) {
+        const inputId = field === 'patient' ? 'patientInput' : 'doctorInput';
+        const pillId = field === 'patient' ? 'patientPill' : 'doctorPill';
+        const inputEl = document.getElementById(inputId);
+        const pillEl = document.getElementById(pillId);
+        const clearBtn = pillEl?.querySelector('.pill-clear');
+        const inputWrap = inputEl?.closest('div[style*="position"]') ?? inputEl?.parentElement;
+
+        if (inputWrap) inputWrap.style.display = 'none';
+        if (clearBtn) clearBtn.style.display = 'none';
+        if (pillEl) {
+            pillEl.style.background = 'var(--surface)';
+            pillEl.style.border = '1px solid var(--border)';
+            pillEl.style.cursor = 'default';
+        }
+    }
+
     function closeFinalizeModal(confirmed) {
         document.getElementById('finalizeConfirmModal').style.display = 'none';
         if (finalizeResolve) {
@@ -1315,6 +1384,7 @@ require_once('../../app/config/config.php');
                             document.getElementById('doctorPillName').textContent = docRes.data.doctorName;
                             document.getElementById('doctorPillSub').textContent = docRes.data.specialization || '';
                             document.getElementById('doctorPill').classList.add('show');
+                            loadRecDoctorSchedule(docRes.data.doctorId);
                         }
                         lockPatientDoctor(true);
                         const patBox = document.getElementById('patientLockedBox');
@@ -1395,9 +1465,15 @@ require_once('../../app/config/config.php');
         inp.style.borderColor = '';
         inp.style.background = '';
 
+        if (field === 'doctor') {
+            loadRecDoctorSchedule(id);
+            loadFollowUpSlots();
+        }
+
         if (field === 'patient') {
             clearField('appt');
             clearField('doctor');
+            document.getElementById('recDoctorScheduleBox').style.display = 'none';
             fetch(`${HANDLER}?action=get_patient_doctor&patientId=${id}`)
                 .then(r => r.json())
                 .then(res => {
@@ -1407,6 +1483,7 @@ require_once('../../app/config/config.php');
                     document.getElementById('doctorPillName').textContent = doc.doctorName;
                     document.getElementById('doctorPillSub').textContent = doc.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
+                    loadRecDoctorSchedule(doc.doctorId);
                 });
         }
     }
@@ -1494,6 +1571,7 @@ require_once('../../app/config/config.php');
                     document.getElementById('doctorPillName').textContent = appt.doctorName;
                     document.getElementById('doctorPillSub').textContent = appt.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
+                    loadRecDoctorSchedule(d.doctorId);
                 }
                 if (appt.patientId) {
                     document.getElementById('fPatient').value = appt.patientId;
@@ -1594,11 +1672,11 @@ require_once('../../app/config/config.php');
                 ${r.entryCount} visit${r.entryCount!=1?'s':''}
             </span></td>
             <td>${fmtDate((r.lastUpdated||r.createdAt)?.slice(0,10))}</td>
-            <td>${statusDropdown(r.id, r.latestStatus)}</td>
-            <td><div class="action-btns">
-                <button class="btn-act" title="Edit" 
-    onclick="editRecord(${r.id})"
-    ${r.latestStatus === 'Finalized' ? 'disabled style="opacity:.4;cursor:not-allowed;" title="Record is finalized and cannot be edited."' : ''}>
+            <td>${statusDropdown(r.id, r.status)}</td>
+<td><div class="action-btns">
+    <button class="btn-act" title="Edit" 
+    onclick="${r.status === 'Finalized' ? `showToast('This record is finalized and cannot be edited.','error')` : `editRecord(${r.id})`}"
+    style="${r.status === 'Finalized' ? 'opacity:.4;cursor:not-allowed;' : ''}">
     <i class="bi bi-pencil"></i>
 </button>
                 <button class="btn-act" title="View History" onclick="viewRecord(${r.id})"><i class="bi bi-eye"></i></button>
@@ -1717,6 +1795,10 @@ require_once('../../app/config/config.php');
             el.style.display = '';
             el.placeholder = id === 'patientInput' ? 'Type patient name or code…' : 'Type doctor name…';
         });
+        document.getElementById('recDoctorScheduleBox').style.display = 'none';
+        document.getElementById('recDoctorScheduleList').innerHTML = '';
+        document.getElementById('followUpSlotsContainer').innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">Select a doctor and follow-up date first.</div>';
+        document.getElementById('fFollowUpTime').value = '';
     }
 
     function openAddModal() {
@@ -1771,6 +1853,7 @@ require_once('../../app/config/config.php');
                     document.getElementById('doctorPillName').textContent = d.doctorName || '—';
                     document.getElementById('doctorPillSub').textContent = d.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
+                    loadRecDoctorSchedule(d.doctorId);
                 }
                 if (d.appointmentId) {
                     document.getElementById('fAppointment').value = d.appointmentId;
@@ -1889,6 +1972,7 @@ require_once('../../app/config/config.php');
             notes: document.getElementById('fNotes').value,
             status,
             followUpDate: followUp || null,
+            followUpTime: document.getElementById('fFollowUpTime').value || null,
         };
 
         fetch(`${HANDLER}?action=${id?'edit':'add'}`, {
@@ -1951,7 +2035,7 @@ require_once('../../app/config/config.php');
                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                                 <span style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">${idx===0?'Initial Visit':'Visit '+(idx+1)}</span>
                                 ${typeChip(e.recordType)}
-                                <span style="background:${eCfg.bg};color:${eCfg.color};font-size:.63rem;font-weight:600;border-radius:5px;padding:2px 8px;">${e.status}</span>
+                                ${idx === 0 ? `<span style="background:${eCfg.bg};color:${eCfg.color};font-size:.63rem;font-weight:600;border-radius:5px;padding:2px 8px;">${e.status}</span>` : ''}
                             </div>
                             <span style="font-size:.72rem;color:var(--text-muted);">${fmtDate(e.createdAt?.slice(0,10))}</span>
                         </div>
@@ -2004,6 +2088,54 @@ require_once('../../app/config/config.php');
                     showToast('Record deleted.', 'success');
                 } else alert('Failed to delete.');
             });
+    }
+
+    function loadFollowUpSlots() {
+        const docId = document.getElementById('fDoctor').value;
+        const date = document.getElementById('fFollowUpDate').value;
+        const container = document.getElementById('followUpSlotsContainer');
+        const APPT_HANDLER = '../../app/controllers/appointmentsHandler.php';
+
+        if (!docId || !date) {
+            container.innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">Select a doctor and follow-up date first.</div>';
+            document.getElementById('fFollowUpTime').value = '';
+            return;
+        }
+
+        container.innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">Loading slots…</div>';
+
+        fetch(`${APPT_HANDLER}?action=get_slots&doctorId=${docId}&date=${date}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.slots.length) {
+                    container.innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">No slots available for this day.</div>';
+                    return;
+                }
+                let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;">';
+                res.slots.forEach(slot => {
+                    html += `<button type="button" data-val="${slot.value}"
+                    style="border:1px solid var(--border);border-radius:8px;padding:6px 4px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-dark);cursor:pointer;width:100%;text-align:center;font-weight:600;${!slot.available ? 'text-decoration:line-through;opacity:.45;cursor:not-allowed;color:var(--text-muted);background:#e5e7eb;border-color:#d1d5db;' : ''}"
+                    ${!slot.available ? 'disabled' : ''}
+                    onclick="selectFollowUpSlot('${slot.value}', this)">${slot.label}</button>`;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            })
+            .catch(() => {
+                container.innerHTML = '<div style="font-size:.78rem;color:var(--red);">Failed to load slots.</div>';
+            });
+    }
+
+    function selectFollowUpSlot(value, btn) {
+        document.querySelectorAll('#followUpSlotsContainer button').forEach(b => {
+            b.style.background = 'var(--surface)';
+            b.style.color = 'var(--text-dark)';
+            b.style.borderColor = 'var(--border)';
+        });
+        btn.style.background = 'var(--blue-700)';
+        btn.style.color = '#fff';
+        btn.style.borderColor = 'var(--blue-700)';
+        document.getElementById('fFollowUpTime').value = value;
     }
 
     function showToast(msg, type = 'success') {

@@ -1,6 +1,10 @@
 <?php
 
-include('../middleware/admin.php');
+session_start();
+if (empty($_SESSION['authUser']) && empty($_SESSION['user_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+    exit();
+}
 require_once('../config/config.php');
 require_once(__DIR__ . '/../models/MedicalRecordModel.php');
 
@@ -8,7 +12,9 @@ header('Content-Type: application/json');
 
 $action    = $_GET['action'] ?? '';
 $model     = new MedicalRecordModel($conn);
-$changedBy = 'Admin ' . (explode(' ', $_SESSION['authUser']['fullName'] ?? '')[0] ?: 'Unknown');
+$changedBy = !empty($_SESSION['authUser'])
+    ? 'Admin ' . (explode(' ', $_SESSION['authUser']['fullName'] ?? '')[0] ?: 'Unknown')
+    : 'User ' . ($_SESSION['user_id'] ?? 'Unknown');
 
 switch ($action) {
 
@@ -54,6 +60,28 @@ switch ($action) {
 
     case 'get':
         $row = $model->get((int)($_GET['id'] ?? 0));
+
+        if (empty($_SESSION['authUser']) && !empty($_SESSION['user_id'])) {
+            $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
+            $uStmt->bind_param('i', $_SESSION['user_id']);
+            $uStmt->execute();
+            $userEmail = $uStmt->get_result()->fetch_row()[0] ?? '';
+
+            $pStmt = $conn->prepare("
+            SELECT DISTINCT p.id FROM patients p
+            LEFT JOIN appointments a ON a.patientId = p.id
+            WHERE a.bookedByUserId = ? OR p.emailAddress = ?
+        ");
+            $pStmt->bind_param('is', $_SESSION['user_id'], $userEmail);
+            $pStmt->execute();
+            $allowed = array_column($pStmt->get_result()->fetch_all(MYSQLI_ASSOC), 'id');
+
+            if (!$row || !in_array((int)$row['patientId'], $allowed)) {
+                echo json_encode(['success' => false, 'message' => 'Record not found']);
+                break;
+            }
+        }
+
         echo json_encode(
             $row
                 ? ['success' => true,  'data' => $row]

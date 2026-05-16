@@ -21,19 +21,29 @@ switch ($action) {
         $apptId = (int)($_GET['apptId'] ?? 0);
         $currentFollowUpId = (int)($_GET['excludeId'] ?? 0);
         $rows = [];
-        if ($apptId) {
+        if ($apptId && $currentFollowUpId) {
+            // Get current follow-up's date so we only show NEWER ones
+            $curStmt = $conn->prepare("SELECT followUpDate FROM followUps WHERE id = ? LIMIT 1");
+            $curStmt->bind_param('i', $currentFollowUpId);
+            $curStmt->execute();
+            $curRow = $curStmt->get_result()->fetch_assoc();
+            $currentDate = $curRow['followUpDate'] ?? '0000-00-00';
+
             $stmt = $conn->prepare("
             SELECT id, followUpCode, followUpDate, followUpTime AS appointmentTime, status, reason
             FROM followUps
             WHERE appointmentId = ?
+              AND id != ?
+              AND followUpDate > ?
             ORDER BY followUpDate ASC
         ");
-            $stmt->bind_param('i', $apptId);
+            $stmt->bind_param('iis', $apptId, $currentFollowUpId, $currentDate);
             $stmt->execute();
             $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         }
         echo json_encode(['success' => true, 'data' => $rows, 'currentId' => $currentFollowUpId]);
         break;
+
     case 'get_linked_record_followup':
         $followUpId = (int)($_GET['followUpId'] ?? 0);
         $row = null;
@@ -75,6 +85,14 @@ switch ($action) {
 
     case 'add':
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
+
+        // Validate appointment date is not in the past
+        $appointmentDate = $body['appointmentDate'] ?? '';
+        if ($appointmentDate && $appointmentDate < date('Y-m-d')) {
+            echo json_encode(['success' => false, 'message' => 'Appointment date cannot be in the past.']);
+            break;
+        }
+
         $id   = $model->add([
             'patientId'       => (int)($body['patientId']    ?? 0),
             'patientName'     => $body['patientName']         ?? '',
@@ -84,7 +102,7 @@ switch ($action) {
             'patientEmail'    => $body['patientEmail']        ?? null,
             'patientAddress'  => $body['patientAddress']      ?? null,
             'doctorId'        => (int)($body['doctorId']      ?? 0),
-            'appointmentDate' => $body['appointmentDate']     ?? '',
+            'appointmentDate' => $appointmentDate,
             'appointmentTime' => $body['appointmentTime']     ?? '',
             'channel'         => $body['channel']             ?? 'Walk-in',
             'status'          => $body['status']              ?? 'Pending',
@@ -99,11 +117,19 @@ switch ($action) {
 
     case 'edit':
         $body = json_decode(file_get_contents('php://input'), true) ?? [];
+
+        // Validate appointment date is not in the past
+        $appointmentDate = $body['appointmentDate'] ?? '';
+        if ($appointmentDate && $appointmentDate < date('Y-m-d')) {
+            echo json_encode(['success' => false, 'message' => 'Appointment date cannot be in the past.']);
+            break;
+        }
+
         $ok   = $model->edit([
             'id'              => (int)($body['id']        ?? 0),
             'patientId'       => (int)($body['patientId'] ?? 0),
             'doctorId'        => (int)($body['doctorId']  ?? 0),
-            'appointmentDate' => $body['appointmentDate'] ?? '',
+            'appointmentDate' => $appointmentDate,
             'appointmentTime' => $body['appointmentTime'] ?? '',
             'channel'         => $body['channel']         ?? 'Walk-in',
             'status'          => $body['status']          ?? 'Pending',

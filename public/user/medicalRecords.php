@@ -593,17 +593,17 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                         <th>Record ID</th>
                         <th>Patient</th>
                         <th>Doctor</th>
-                        <th>Diagnosis</th>
-                        <th>Prescription</th>
-                        <th>Type</th>
-                        <th>Date</th>
+                        <th>Latest Diagnosis</th>
+                        <th>Visits</th>
+                        <th>Last Updated</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="recTbody">
                     <?php if (empty($records)): ?>
                         <tr>
-                            <td colspan="">
+                            <td colspan="8">
                                 <div class="empty-state">
                                     <i class="bi bi-file-medical"></i>
                                     <p>No medical records found.<br>Records will appear here after your appointments are completed.</p>
@@ -616,21 +616,12 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                             $col = $avatarColors[$i % count($avatarColors)];
                             $doctorParts = explode(' ', $rec['doctorName']);
                             $ini = strtoupper(substr($doctorParts[1] ?? 'D', 0, 1) . substr(end($doctorParts), 0, 1));
-                            $typeMap = ['Consultation' => 'chip-consultation', 'Lab Result' => 'chip-lab', 'Imaging' => 'chip-imaging', 'Prescription' => 'chip-prescription', 'Other' => 'chip-other'];
-                            $tCls = $typeMap[$rec['recordType']] ?? 'chip-other';
-                            $rxLines = array_filter(array_map('trim', explode("\n", $rec['prescription'] ?? '')));
-                            $rxPreview = implode(' · ', array_slice($rxLines, 0, 2)) ?: ($rec['prescription'] ?? '—');
                         ?>
                             <tr data-doctor="<?= htmlspecialchars(strtolower($rec['doctorName'])) ?>"
                                 data-dept="<?= htmlspecialchars($rec['specialization']) ?>"
-                                data-diag="<?= htmlspecialchars(strtolower($rec['diagnosis'] ?? '')) ?>">
+                                data-diag="<?= htmlspecialchars(strtolower($rec['latestDiagnosis'] ?? '')) ?>">
                                 <td>
                                     <span class="rec-id"><?= htmlspecialchars($rec['recordCode']) ?></span>
-                                    <?php if (!empty($rec['isFollowUp'])): ?>
-                                        <div style="font-size:.62rem;font-weight:700;color:var(--amber-dark);margin-top:2px;">
-                                            <i class="bi bi-arrow-return-right"></i> Follow-up
-                                        </div>
-                                    <?php endif; ?>
                                 </td>
                                 <td style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= htmlspecialchars($rec['patientName']) ?></td>
                                 <td>
@@ -642,23 +633,23 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                         </div>
                                     </div>
                                 </td>
-                                <td><?php if ($rec['diagnosis']): ?><span class="diag-pill"><?= htmlspecialchars($rec['diagnosis']) ?></span><?php else: ?>—<?php endif; ?></td>
-                                <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="<?= htmlspecialchars($rec['prescription'] ?? '') ?>">
-                                    <?= htmlspecialchars($rxPreview) ?>
+                                <td><?php if ($rec['latestDiagnosis']): ?><span class="diag-pill"><?= htmlspecialchars($rec['latestDiagnosis']) ?></span><?php else: ?>—<?php endif; ?></td>
+                                <td>
+                                    <span style="background:var(--blue-50);color:var(--blue-700);font-size:.63rem;font-weight:700;padding:2px 9px;border-radius:5px;border:1px solid var(--blue-100);">
+                                        <?= $rec['entryCount'] ?> visit<?= $rec['entryCount'] != 1 ? 's' : '' ?>
+                                    </span>
                                 </td>
-                                <td><span class="btn-act" style="cursor:default;<?= $tCls === 'chip-lab' ? 'background:var(--violet-light);color:var(--violet-dark);border-color:#ddd6fe' : ($tCls === 'chip-prescription' ? 'background:var(--green-light);color:var(--green-dark);border-color:#a7f3d0' : ($tCls === 'chip-imaging' ? 'background:var(--teal-light);color:var(--teal-dark);border-color:#a5f3fc' : 'background:var(--blue-50);color:var(--blue-700);border-color:var(--blue-100)')) ?>"><?= htmlspecialchars($rec['recordType']) ?></span></td>
-                                <td><?= date('M j, Y', strtotime($rec['createdAt'])) ?></td>
+                                <td><?= date('M j, Y', strtotime($rec['lastUpdated'] ?? $rec['createdAt'])) ?></td>
+                                <td>
+                                    <span style="background:var(--green-light);color:var(--green-dark);font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;">
+                                        <?= htmlspecialchars($rec['status']) ?>
+                                    </span>
+                                </td>
                                 <td>
                                     <div class="action-btns">
-                                        <button class="btn-act" onclick="openViewRecord(
-                    '<?= htmlspecialchars($rec['recordCode']) ?>',
-                    '<?= htmlspecialchars($rec['doctorName']) ?>',
-                    '<?= htmlspecialchars($rec['specialization']) ?>',
-                    '<?= date('F j, Y', strtotime($rec['createdAt'])) ?>',
-                    '<?= htmlspecialchars(addslashes($rec['diagnosis'] ?? '—')) ?>',
-                    '<?= htmlspecialchars(addslashes($rec['prescription'] ?? '—')) ?>',
-                    '<?= htmlspecialchars(addslashes($rec['notes'] ?? '—')) ?>'
-                )" title="View Record"><i class="bi bi-eye"></i></button>
+                                        <button class="btn-act" onclick="viewRecord(<?= $rec['id'] ?>)" title="View History">
+                                            <i class="bi bi-eye"></i>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -686,105 +677,92 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                 <h5 class="modal-title"><i class="bi bi-file-medical me-2" style="color:var(--teal)"></i>Medical Record Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="row g-3">
-                    <div class="col-md-4">
-                        <div class="detail-group">
-                            <div class="detail-label">Record ID</div>
-                            <div class="detail-value" id="mrec-id">—</div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="detail-group">
-                            <div class="detail-label">Date</div>
-                            <div class="detail-value" id="mrec-date">—</div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="detail-group">
-                            <div class="detail-label">Department</div>
-                            <div class="detail-value" id="mrec-dept">—</div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="detail-group">
-                            <div class="detail-label">Attending Physician</div>
-                            <div class="detail-value" id="mrec-doctor">—</div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="detail-group">
-                            <div class="detail-label">Diagnosis</div>
-                            <div class="detail-value" id="mrec-diag" style="color:var(--teal-dark)">—</div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="detail-group">
-                            <div class="detail-label">Prescription / Treatment Plan</div>
-                            <div class="rx-box" id="mrec-rx">—</div>
-                        </div>
-                    </div>
-                    <div class="col-12">
-                        <div class="detail-group">
-                            <div class="detail-label">Physician's Notes</div>
-                            <div class="detail-text" id="mrec-notes">—</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <div class="modal-body" id="viewModalBody"></div>
             <div class="modal-footer">
                 <button class="btn-modal-close" data-bs-dismiss="modal"><i class="bi bi-x-lg"></i> Close</button>
             </div>
         </div>
     </div>
+</div>
 
-    <div id="dlToast" class="dl-toast" style="display:none">
-        <i class="bi bi-check-circle-fill"></i><span id="dlToastMsg">Downloaded successfully!</span>
-    </div>
+<div id="dlToast" class="dl-toast" style="display:none">
+    <i class="bi bi-check-circle-fill"></i><span id="dlToastMsg">Downloaded successfully!</span>
+</div>
 
-    <script>
-        function filterRecords() {
-            const q = document.getElementById('recSearch').value.toLowerCase();
-            const dept = document.getElementById('deptFilter').value;
-            let vis = 0;
-            document.querySelectorAll('#recTbody tr[data-doctor]').forEach(row => {
-                const doc = row.dataset.doctor || '';
-                const diag = row.dataset.diag || '';
-                const d = row.dataset.dept || '';
-                const show = (!q || doc.includes(q) || diag.includes(q)) && (!dept || d === dept);
-                row.style.display = show ? '' : 'none';
-                if (show) vis++;
+<script>
+    function filterRecords() {
+        const q = document.getElementById('recSearch').value.toLowerCase();
+        const dept = document.getElementById('deptFilter').value;
+        let vis = 0;
+        document.querySelectorAll('#recTbody tr[data-doctor]').forEach(row => {
+            const doc = row.dataset.doctor || '';
+            const diag = row.dataset.diag || '';
+            const d = row.dataset.dept || '';
+            const show = (!q || doc.includes(q) || diag.includes(q)) && (!dept || d === dept);
+            row.style.display = show ? '' : 'none';
+            if (show) vis++;
+        });
+        document.getElementById('emptyState').style.display = vis === 0 ? '' : 'none';
+        const total = document.querySelectorAll('#recTbody tr[data-doctor]').length;
+        document.getElementById('showingLabel').textContent = `Showing ${vis} of ${total} records`;
+    }
+
+    function viewRecord(id) {
+        fetch(`../../app/controllers/medicalRecordsHandler.php?action=get&id=${id}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) return alert('Could not load record.');
+                const d = res.data;
+
+                const fmtDate = dt => dt ? new Date(dt + 'T00:00:00').toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                }) : '—';
+
+                const typeChipClass = t => ({
+                    'Consultation': 'background:var(--blue-50);color:var(--blue-700);border:1px solid var(--blue-100)',
+                    'Lab Result': 'background:var(--violet-light);color:var(--violet-dark);border:1px solid #ddd6fe',
+                    'Imaging': 'background:var(--teal-light);color:var(--teal-dark);border:1px solid #a5f3fc',
+                    'Prescription': 'background:var(--green-light);color:var(--green-dark);border:1px solid #a7f3d0'
+                } [t] || 'background:var(--amber-light);color:var(--amber-dark);border:1px solid #fde68a');
+
+                const entriesHtml = [d, ...(d.entries || [])].map((e, idx) => `
+                <div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:.85rem 1rem;margin-bottom:.65rem;background:${idx===0?'var(--blue-50)':'#fff'};">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <span style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">${idx===0?'Initial Visit':'Visit '+(idx+1)}</span>
+                            <span style="font-size:.63rem;font-weight:600;padding:2px 8px;border-radius:5px;${typeChipClass(e.recordType)}">${e.recordType}</span>
+                        </div>
+                        <span style="font-size:.72rem;color:var(--text-muted);">${fmtDate(e.createdAt?.slice(0,10))}</span>
+                    </div>
+                    <div style="font-size:.84rem;font-weight:600;color:var(--text-dark);margin-bottom:3px;">${e.diagnosis||'—'}</div>
+                    ${e.icdCode?`<div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px;">ICD: ${e.icdCode}</div>`:''}
+                    ${e.prescription?`<div style="font-size:.78rem;color:var(--text-body);margin-top:5px;"><strong>Rx:</strong> ${e.prescription}</div>`:''}
+                    ${e.notes?`<div style="font-size:.78rem;color:var(--text-body);margin-top:5px;white-space:pre-line;border-top:1px solid var(--border);padding-top:5px;">${e.notes}</div>`:''}
+                    ${e.followUpDate?`<div style="font-size:.72rem;color:var(--amber-dark);margin-top:6px;font-weight:600;"><i class="bi bi-calendar-check"></i> Follow-up: ${fmtDate(e.followUpDate)}</div>`:''}
+                    <div style="font-size:.7rem;color:var(--text-muted);margin-top:6px;">Dr. ${e.doctorName||d.doctorName} · ${e.specialization||d.specialization||''}</div>
+                </div>`).join('');
+
+                document.getElementById('viewModalBody').innerHTML = `
+                <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.75rem 1rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <div style="font-weight:700;color:var(--text-dark);font-size:.9rem;">${d.patientName}</div>
+                        <div style="font-size:.75rem;color:var(--text-muted);">${d.patientCode} &nbsp;·&nbsp; Record: ${d.recordCode}</div>
+                    </div>
+                    <span style="font-size:.72rem;font-weight:600;color:var(--blue-600);background:var(--blue-50);border:1px solid var(--blue-100);border-radius:6px;padding:3px 10px;">
+                        ${(d.entries?.length||0)+1} visit${(d.entries?.length||0)+1!==1?'s':''}
+                    </span>
+                </div>
+                <div style="font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:.65rem;">
+                    <i class="bi bi-clock-history"></i> Visit History
+                </div>
+                ${entriesHtml}
+${d.auditLog && d.auditLog.length ? renderAuditTrail(d.auditLog) : ''}`;
+
+                new bootstrap.Modal(document.getElementById('viewRecordModal')).show();
             });
-            document.getElementById('emptyState').style.display = vis === 0 ? '' : 'none';
-            const total = document.querySelectorAll('#recTbody tr[data-doctor]').length;
-            document.getElementById('showingLabel').textContent = `Showing ${vis} of ${total} records`;
-        }
+    }
+</script>
 
-        function openViewRecord(id, doctor, dept, date, diag, rx, notes) {
-            document.getElementById('mrec-id').textContent = id;
-            document.getElementById('mrec-doctor').textContent = doctor;
-            document.getElementById('mrec-dept').textContent = dept;
-            document.getElementById('mrec-date').textContent = date;
-            document.getElementById('mrec-diag').textContent = diag;
-            document.getElementById('mrec-notes').textContent = notes;
-            const lines = rx.split(/[\n·]/).map(l => l.trim()).filter(Boolean);
-            document.getElementById('mrec-rx').innerHTML = lines.length ?
-                lines.map(l => `<div style="padding:3px 0">• ${l}</div>`).join('') :
-                '<em style="color:var(--text-muted)">No prescription recorded.</em>';
-            new bootstrap.Modal(document.getElementById('viewRecordModal')).show();
-        }
-
-        let toastTimer;
-
-        function fakeDownload(id) {
-            document.getElementById('dlToastMsg').textContent = `${id} downloaded successfully!`;
-            const toast = document.getElementById('dlToast');
-            toast.style.display = 'flex';
-            clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => {
-                toast.style.display = 'none';
-            }, 3000);
-        }
-    </script>
-
-    <?php include('./includes/footer.php'); ?>
+<?php include('./includes/footer.php'); ?>

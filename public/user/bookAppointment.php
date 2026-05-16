@@ -537,7 +537,7 @@ include('./includes/sidebar.php');
             <div class="main-card">
 
                 <!-- Hidden patient id (populated if logged-in patient found) -->
-                <input type="hidden" id="patientId" value="<?= $patientRow['id'] ?? '' ?>">
+                <input type="hidden" id="patientId" value="">
 
                 <!-- ── Patient Information ── -->
                 <div class="form-section-label mb-3">
@@ -559,7 +559,7 @@ include('./includes/sidebar.php');
                     <div class="col-md-4">
                         <label class="form-label">Middle Name</label>
                         <input type="text" id="middleName" class="form-control"
-                            value="<?= htmlspecialchars($patientRow['middleName'] ?? '') ?>"
+                            value=""
                             placeholder="e.g. Santos">
                     </div>
 
@@ -577,7 +577,7 @@ include('./includes/sidebar.php');
                         <label class="form-label">Date of Birth <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-dateOfBirth">
                             <input type="date" id="dateOfBirth" class="form-control"
-                                value="<?= htmlspecialchars($patientRow['dateOfBirth'] ?? '') ?>"
+                                value=""
                                 onchange="clearFieldError('wrap-dateOfBirth')">
                             <span class="field-err-msg">Date of birth is required.</span>
                         </div>
@@ -587,7 +587,7 @@ include('./includes/sidebar.php');
                         <label class="form-label">Contact Number <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-contactNumber">
                             <input type="tel" id="contactNumber" class="form-control"
-                                value="<?= htmlspecialchars($patientRow['contactNumber'] ?? '') ?>"
+                                value=""
                                 placeholder="e.g. 09171234567"
                                 oninput="clearFieldError('wrap-contactNumber')">
                             <span class="field-err-msg">Contact number is required.</span>
@@ -598,9 +598,9 @@ include('./includes/sidebar.php');
                         <label class="form-label">Email Address <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-emailAddress">
                             <input type="email" id="emailAddress" class="form-control"
-                                value="<?= htmlspecialchars($patientRow['emailAddress'] ?? $userEmail) ?>"
-                                placeholder="e.g. patient@email.com"
-                                oninput="clearFieldError('wrap-emailAddress')">
+                                value="<?php echo htmlspecialchars($_SESSION['authUser']['email'] ?? ''); ?>"
+                                readonly
+                                style="background:var(--surface);cursor:not-allowed;opacity:.8;">
                             <span class="field-err-msg">Email address is required.</span>
                         </div>
                     </div>
@@ -609,7 +609,7 @@ include('./includes/sidebar.php');
                         <label class="form-label">Address <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-address">
                             <input type="text" id="address" class="form-control"
-                                value="<?= htmlspecialchars($patientRow['address'] ?? '') ?>"
+                                value=""
                                 placeholder="e.g. 123 Main St., City, Province"
                                 oninput="clearFieldError('wrap-address')">
                             <span class="field-err-msg">Address is required.</span>
@@ -622,9 +622,9 @@ include('./includes/sidebar.php');
                             <select id="gender" class="form-select"
                                 onchange="clearFieldError('wrap-gender')">
                                 <option value="">Select Gender</option>
-                                <option <?= ($patientRow['gender'] ?? '') === 'Male'   ? 'selected' : '' ?>>Male</option>
-                                <option <?= ($patientRow['gender'] ?? '') === 'Female' ? 'selected' : '' ?>>Female</option>
-                                <option <?= ($patientRow['gender'] ?? '') === 'Other'  ? 'selected' : '' ?>>Other</option>
+                                <option>Male</option>
+                                <option>Female</option>
+                                <option>Other</option>
                             </select>
                             <span class="field-err-msg">Please select a gender.</span>
                         </div>
@@ -681,6 +681,7 @@ include('./includes/sidebar.php');
                         <label class="form-label">Appointment Date <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-apptDate">
                             <input type="date" id="apptDate" class="form-control"
+                                min="<?php echo date('Y-m-d'); ?>"
                                 onchange="updateSummary(); loadSlots(); clearFieldError('wrap-apptDate')">
                             <span class="field-err-msg">Please select a date.</span>
                         </div>
@@ -1002,6 +1003,22 @@ include('./includes/sidebar.php');
             markFieldError('wrap-gender');
             hasError = true;
         }
+        if (!spec) {
+            markFieldError('wrap-deptSelect');
+            hasError = true;
+        }
+        if (!doctor) {
+            markFieldError('wrap-doctorSelect');
+            hasError = true;
+        }
+        if (!date) {
+            markFieldError('wrap-apptDate');
+            hasError = true;
+        }
+        if (!time) {
+            document.getElementById('time-err-msg').style.display = 'block';
+            hasError = true;
+        }
         if (hasError) {
             showBanner(true);
             const firstErr = document.querySelector('.field-error, #time-err-msg[style*="block"]');
@@ -1028,7 +1045,7 @@ include('./includes/sidebar.php');
             lastName: lastName,
             dateOfBirth: dob,
             contact: contact,
-            email: email || '<?= $userEmail ?>',
+            email: email,
             address: address,
             gender: gender,
             doctorId: doctor,
@@ -1104,7 +1121,7 @@ include('./includes/sidebar.php');
         document.getElementById('time-err-msg').style.display = 'none';
         showBanner(false);
         const patIdEl = document.getElementById('patientId');
-        if (patIdEl) patIdEl.value = '<?= $patientRow['id'] ?? '' ?>';
+        if (patIdEl) patIdEl.value = '';
 
         updateSummary();
     }

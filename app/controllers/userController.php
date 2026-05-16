@@ -145,90 +145,134 @@ function getDashboardData($conn, $userId, $userEmail)
 
 function getMyAppointmentsData($conn, $userId, $today)
 {
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE bookedByUserId=?");
-    $stmt->bind_param('i', $userId);
+    // Get the user's email to also match by patient email
+    $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
+    $uStmt->bind_param('i', $userId);
+    $uStmt->execute();
+    $userEmail = $uStmt->get_result()->fetch_row()[0] ?? '';
+
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments a JOIN patients p ON p.id = a.patientId WHERE a.bookedByUserId = ? OR p.emailAddress = ?");
+    $stmt->bind_param('is', $userId, $userEmail);
     $stmt->execute();
     $statTotal = $stmt->get_result()->fetch_row()[0];
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE bookedByUserId=? AND appointmentDate>=? AND status IN ('Pending','In Progress')");
-    $stmt->bind_param('is', $userId, $today);
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments a JOIN patients p ON p.id = a.patientId WHERE (a.bookedByUserId = ? OR p.emailAddress = ?) AND a.appointmentDate >= ? AND a.status IN ('Pending','In Progress')");
+    $stmt->bind_param('iss', $userId, $userEmail, $today);
     $stmt->execute();
     $statUpcoming = $stmt->get_result()->fetch_row()[0];
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE bookedByUserId=? AND status='Completed'");
-    $stmt->bind_param('i', $userId);
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments a JOIN patients p ON p.id = a.patientId WHERE (a.bookedByUserId = ? OR p.emailAddress = ?) AND a.status = 'Completed'");
+    $stmt->bind_param('is', $userId, $userEmail);
     $stmt->execute();
     $statCompleted = $stmt->get_result()->fetch_row()[0];
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments WHERE bookedByUserId=? AND status='Cancelled'");
-    $stmt->bind_param('i', $userId);
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM appointments a JOIN patients p ON p.id = a.patientId WHERE (a.bookedByUserId = ? OR p.emailAddress = ?) AND a.status = 'Cancelled'");
+    $stmt->bind_param('is', $userId, $userEmail);
     $stmt->execute();
     $statCancelled = $stmt->get_result()->fetch_row()[0];
-    $appointments  = $conn->query("
-        SELECT a.*,
-               CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
+
+    $stmt = $conn->prepare("
+        SELECT a.id, a.appointmentCode, a.appointmentDate, a.appointmentTime,
+               a.channel, a.status, a.remarks,
+               CONCAT('Dr. ', d.firstName, ' ', d.lastName) AS doctorName,
                d.specialization, d.department,
-               CONCAT(p.firstName,' ',p.lastName) AS patientName
+               CONCAT(p.firstName, ' ', p.lastName) AS patientName
         FROM appointments a
-        JOIN doctors d ON d.id = a.doctorId
+        JOIN doctors  d ON d.id = a.doctorId
         JOIN patients p ON p.id = a.patientId
-        WHERE a.bookedByUserId = $userId
-        ORDER BY a.appointmentDate DESC, a.appointmentTime DESC
-    ")->fetch_all(MYSQLI_ASSOC);
+        WHERE a.bookedByUserId = ? OR p.emailAddress = ?
+
+        UNION ALL
+
+        SELECT fu.id, fu.followUpCode AS appointmentCode, fu.followUpDate AS appointmentDate,
+               fu.followUpTime AS appointmentTime,
+               'Follow-up' AS channel, IFNULL(fu.status, 'Pending') AS status,
+               fu.reason AS remarks,
+               CONCAT('Dr. ', COALESCE(fd.firstName, ad.firstName, ''), ' ', COALESCE(fd.lastName, ad.lastName, '')) AS doctorName,
+               COALESCE(fd.specialization, ad.specialization, '—') AS specialization,
+               COALESCE(fd.department, ad.department, '—') AS department,
+               CONCAT(p.firstName, ' ', p.lastName) AS patientName
+        FROM followUps fu
+        JOIN appointments a  ON a.id  = fu.appointmentId
+        JOIN patients     p  ON p.id  = fu.patientId
+        LEFT JOIN doctors fd ON fd.id = fu.doctorId
+        LEFT JOIN doctors ad ON ad.id = a.doctorId
+        WHERE a.bookedByUserId = ? OR p.emailAddress = ?
+
+        ORDER BY appointmentDate DESC, appointmentTime DESC
+    ");
+    $stmt->bind_param('isis', $userId, $userEmail, $userId, $userEmail);
+    $stmt->execute();
+    $appointments = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
     return compact('statTotal', 'statUpcoming', 'statCompleted', 'statCancelled', 'appointments');
 }
 
 function getMedicalRecordsData($conn, $userId)
 {
-    // Get patientId from appointments booked by this user
-    $stmt = $conn->prepare("
-        SELECT DISTINCT patientId FROM appointments 
-        WHERE bookedByUserId = ? LIMIT 1
-    ");
-    $stmt->bind_param('i', $userId);
-    $stmt->execute();
-    $patientId = (int)($stmt->get_result()->fetch_row()[0] ?? 0);
+    $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
+    $uStmt->bind_param('i', $userId);
+    $uStmt->execute();
+    $userEmail = $uStmt->get_result()->fetch_row()[0] ?? '';
 
-    if (!$patientId) {
+    // Get ALL patientIds linked to this user account
+    // REPLACE this block:
+    $stmt = $conn->prepare("
+    SELECT DISTINCT a.patientId FROM appointments a
+    JOIN patients p ON p.id = a.patientId
+    WHERE a.bookedByUserId = ? OR p.emailAddress = ?
+");
+    $stmt->bind_param('is', $userId, $userEmail);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $patientIds = array_column($rows, 'patientId');
+
+    // WITH this:
+    $stmt = $conn->prepare("
+    SELECT id AS patientId FROM patients
+    WHERE emailAddress = ? AND status != 'Inactive'
+    LIMIT 1
+");
+    $stmt->bind_param('s', $userEmail);
+    $stmt->execute();
+    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    $patientIds = array_column($rows, 'patientId');
+
+    if (empty($patientIds)) {
         return ['statTotal' => 0, 'statMonth' => 0, 'statDoctors' => 0, 'statDepts' => 0, 'records' => []];
     }
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM medicalRecords WHERE patientId = ? AND status = 'Finalized'");
-    $stmt->bind_param('i', $patientId);
-    $stmt->execute();
-    $statTotal = $stmt->get_result()->fetch_row()[0];
+    $ids = implode(',', array_map('intval', $patientIds));
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM medicalRecords WHERE patientId = ? AND status = 'Finalized' AND MONTH(createdAt)=MONTH(CURDATE()) AND YEAR(createdAt)=YEAR(CURDATE())");
-    $stmt->bind_param('i', $patientId);
-    $stmt->execute();
-    $statMonth = $stmt->get_result()->fetch_row()[0];
+    $statTotal   = $conn->query("SELECT COUNT(*) FROM medicalRecords WHERE patientId IN ($ids) AND status = 'Finalized'")->fetch_row()[0];
+    $statMonth   = $conn->query("SELECT COUNT(*) FROM medicalRecords WHERE patientId IN ($ids) AND status = 'Finalized' AND MONTH(createdAt)=MONTH(CURDATE()) AND YEAR(createdAt)=YEAR(CURDATE())")->fetch_row()[0];
+    $statDoctors = $conn->query("SELECT COUNT(DISTINCT doctorId) FROM medicalRecords WHERE patientId IN ($ids) AND status = 'Finalized'")->fetch_row()[0];
+    $statDepts   = $conn->query("SELECT COUNT(DISTINCT d.specialization) FROM medicalRecords mr JOIN doctors d ON d.id = mr.doctorId WHERE mr.patientId IN ($ids) AND mr.status = 'Finalized'")->fetch_row()[0];
 
-    $stmt = $conn->prepare("SELECT COUNT(DISTINCT doctorId) FROM medicalRecords WHERE patientId = ? AND status = 'Finalized'");
-    $stmt->bind_param('i', $patientId);
-    $stmt->execute();
-    $statDoctors = $stmt->get_result()->fetch_row()[0];
-
-    $stmt = $conn->prepare("SELECT COUNT(DISTINCT d.specialization) FROM medicalRecords mr JOIN doctors d ON d.id = mr.doctorId WHERE mr.patientId = ? AND mr.status = 'Finalized'");
-    $stmt->bind_param('i', $patientId);
-    $stmt->execute();
-    $statDepts = $stmt->get_result()->fetch_row()[0];
-
-    $stmt = $conn->prepare("
-        SELECT mr.*,
-               CONCAT('Dr. ', d.firstName, ' ', d.lastName) AS doctorName,
-               d.specialization, d.department,
-               CONCAT(p.firstName, ' ', p.lastName) AS patientName,
-               CASE WHEN mr.followUpId IS NOT NULL THEN 1 ELSE 0 END AS isFollowUp
-        FROM medicalRecords mr
-        JOIN doctors  d ON d.id = mr.doctorId
-        JOIN patients p ON p.id = mr.patientId
-        WHERE mr.patientId = ? AND mr.status = 'Finalized'
-        ORDER BY mr.createdAt DESC
-    ");
-    $stmt->bind_param('i', $patientId);
-    $stmt->execute();
-    $records = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    // Only get parent records (one per patient), with latest diagnosis info
+    $records = $conn->query("
+    SELECT 
+        m.id, m.recordCode, m.status, m.createdAt, m.patientId,
+        CONCAT(p.firstName, ' ', p.lastName) AS patientName,
+        p.patientCode,
+        CONCAT('Dr. ', d.firstName, ' ', d.lastName) AS doctorName,
+        d.specialization, d.department,
+        (SELECT COUNT(*) FROM medicalRecords c WHERE c.parentRecordId = m.id) + 1 AS entryCount,
+        (SELECT c2.diagnosis FROM medicalRecords c2
+         WHERE c2.parentRecordId = m.id OR c2.id = m.id
+         ORDER BY c2.createdAt DESC LIMIT 1) AS latestDiagnosis,
+        (SELECT c2.recordType FROM medicalRecords c2
+         WHERE c2.parentRecordId = m.id OR c2.id = m.id
+         ORDER BY c2.createdAt DESC LIMIT 1) AS latestType,
+        (SELECT COALESCE(c2.updatedAt, c2.createdAt) FROM medicalRecords c2
+         WHERE c2.parentRecordId = m.id OR c2.id = m.id
+         ORDER BY c2.createdAt DESC LIMIT 1) AS lastUpdated
+    FROM medicalRecords m
+    JOIN patients p ON p.id = m.patientId
+    JOIN doctors  d ON d.id = m.doctorId
+    WHERE m.patientId IN ($ids) AND m.status = 'Finalized' AND m.parentRecordId IS NULL
+    ORDER BY lastUpdated DESC
+")->fetch_all(MYSQLI_ASSOC);
 
     return compact('statTotal', 'statMonth', 'statDoctors', 'statDepts', 'records');
 }

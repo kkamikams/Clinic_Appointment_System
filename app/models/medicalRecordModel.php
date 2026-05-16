@@ -278,7 +278,32 @@ class MedicalRecordModel
 
         if ($followUpRaw) {
             $fromCode = $existingParent ? $existingParent['recordCode'] : $code;
-            $this->createFollowUp($patientId, $appointmentId, $followUpRaw, $fromCode, false, $body['doctorId'] ?? null);
+
+            // If this record is linked to a follow-up, resolve the original appointmentId
+            // so the new follow-up row correctly appears in the appointments list
+            // Start with the raw integer from the body, not the 'NULL' string version
+            $resolvedAppointmentId = (int)($body['appointmentId'] ?? 0);
+
+            // If linked to a follow-up, use that follow-up's appointmentId
+            $followUpIdFromBody = (int)($body['followUpId'] ?? 0);
+            if ($followUpIdFromBody) {
+                $fuRow = $this->conn->query("SELECT appointmentId FROM followUps WHERE id = $followUpIdFromBody LIMIT 1")->fetch_assoc();
+                if ($fuRow && $fuRow['appointmentId']) {
+                    $resolvedAppointmentId = (int)$fuRow['appointmentId'];
+                }
+            }
+
+            // Final fallback: find patient's most recent appointment
+            if (!$resolvedAppointmentId && is_numeric($patientId)) {
+                $fallback = $this->conn->query("
+        SELECT id FROM appointments 
+        WHERE patientId = $patientId AND status != 'Cancelled'
+        ORDER BY appointmentDate DESC LIMIT 1
+    ")->fetch_row();
+                if ($fallback) $resolvedAppointmentId = (int)$fallback[0];
+            }
+
+            $this->createFollowUp($patientId, $resolvedAppointmentId, $followUpRaw, $fromCode, false, $body['doctorId'] ?? null);
         }
 
         return ['success' => true, 'recordCode' => $code];
@@ -329,9 +354,17 @@ class MedicalRecordModel
                   AND followUpDate = '" . $this->conn->real_escape_string($followUpRaw) . "'
                   AND status NOT IN ('Cancelled') LIMIT 1
             ")->fetch_row();
+            $resolvedApptId = (int)($body['appointmentId'] ?? 0);
+            $followUpIdFromBody = (int)($body['followUpId'] ?? 0);
+            if ($followUpIdFromBody) {
+                $fuRow = $this->conn->query("SELECT appointmentId FROM followUps WHERE id = $followUpIdFromBody LIMIT 1")->fetch_assoc();
+                if ($fuRow && $fuRow['appointmentId']) {
+                    $resolvedApptId = (int)$fuRow['appointmentId'];
+                }
+            }
             if (!$exists) $this->createFollowUp(
                 (int)($body['patientId'] ?? 0),
-                (int)($body['appointmentId'] ?? 0),
+                $resolvedApptId,
                 $followUpRaw,
                 $recCode,
                 true,
@@ -346,7 +379,7 @@ class MedicalRecordModel
     {
         $s         = $this->conn->real_escape_string($status);
         $oldStatus = $this->conn->query("SELECT status FROM medicalRecords WHERE id=$id")->fetch_row()[0] ?? '';
-        $ok        = $this->conn->query("UPDATE medicalRecords SET status='$s', updatedAt=NOW() WHERE id=$id");
+        $ok = $this->conn->query("UPDATE medicalRecords SET status='$s', updatedAt=NOW() WHERE id=$id OR parentRecordId=$id");
 
         if ($ok && $oldStatus !== $status) {
             $oldEsc = $this->conn->real_escape_string($oldStatus);
@@ -401,8 +434,18 @@ class MedicalRecordModel
         $doctorSql = $doctorId ? (int)$doctorId : 'NULL';
 
         // Extract raw integer values since $patientId/$appointmentId may already be 'NULL' string
-        $patientIdSql    = is_numeric($patientId)    ? (int)$patientId    : 'NULL';
+        $patientIdSql     = is_numeric($patientId)     ? (int)$patientId     : 'NULL';
         $appointmentIdSql = is_numeric($appointmentId) ? (int)$appointmentId : 'NULL';
+
+        // If appointmentId is still NULL, try to find the original appointment for this patient
+        if ($appointmentIdSql === 'NULL' && $patientIdSql !== 'NULL') {
+            $fallback = $this->conn->query("
+        SELECT id FROM appointments 
+        WHERE patientId = $patientIdSql AND status != 'Cancelled'
+        ORDER BY appointmentDate DESC LIMIT 1
+    ")->fetch_row();
+            if ($fallback) $appointmentIdSql = (int)$fallback[0];
+        }
 
         $this->conn->query("
     INSERT INTO followups (followUpCode, patientId, doctorId, appointmentId, followUpDate, reason, status)

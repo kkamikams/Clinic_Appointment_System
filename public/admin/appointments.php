@@ -1042,6 +1042,7 @@ require_once('../../app/config/config.php');
                         <label class="form-label">Date <span style="color:#ef4444;">*</span></label>
                         <div class="field-wrap" id="wrap-fDate">
                             <input type="date" class="form-control" id="fDate" required
+                                min="<?php echo date('Y-m-d'); ?>"
                                 onchange="loadAdminSlots(); clearModalFieldError('wrap-fDate')" style="width:100%;">
                             <span class="field-err-msg">Please select a date.</span>
                         </div>
@@ -1273,8 +1274,8 @@ require_once('../../app/config/config.php');
         const dateHasArrived = apptDate <= today;
 
         const allowedMap = {
-            'Pending': dateHasArrived ? ['Pending', 'In Progress', 'Cancelled'] : ['Pending', 'Cancelled'],
-            'In Progress': ['In Progress', 'Cancelled'],
+            'Pending': dateHasArrived ? ['Pending', 'In Progress', 'Completed', 'Cancelled'] : ['Pending', 'Cancelled'],
+            'In Progress': ['In Progress', 'Completed', 'Cancelled'],
             'Completed': ['Completed'],
             'Cancelled': ['Cancelled'],
         };

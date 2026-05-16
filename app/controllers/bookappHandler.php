@@ -12,14 +12,15 @@ $action = $_GET['action'] ?? '';
 
 function sanitizeDate(string $val): string
 {
+    if (!$val) return '';
     $d = DateTime::createFromFormat('Y-m-d', $val);
-    return $d ? $d->format('Y-m-d') : date('Y-m-d');
+    return $d ? $d->format('Y-m-d') : '';
 }
-
 function sanitizeTime(string $val): string
 {
+    if (!$val) return '';
     $t = DateTime::createFromFormat('H:i', substr($val, 0, 5));
-    return $t ? $t->format('H:i:s') : '00:00:00';
+    return $t ? $t->format('H:i:s') : '';
 }
 
 switch ($action) {
@@ -154,7 +155,7 @@ switch ($action) {
             INSERT INTO appointments (appointmentCode, patientId, doctorId, appointmentDate, appointmentTime, channel, status, remarks, address, bookedByUserId)
             VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?)
         ");
-        $insertStmt->bind_param('siissssssi', $code, $patientId, $doctorId, $appointmentDate, $appointmentTime, $channel, $remarks, $address, $sessionUserId);
+        $insertStmt->bind_param('siisssssi', $code, $patientId, $doctorId, $appointmentDate, $appointmentTime, $channel, $remarks, $address, $sessionUserId);
         $insertStmt->execute();
         $newId = $conn->insert_id;
 

@@ -980,7 +980,7 @@ include('./includes/sidebar.php');
                 foreach ($specs as $s) echo "<option>" . htmlspecialchars($s) . "</option>";
                 ?>
             </select>
-            <a href="addDoctors.php" class="btn-primary-sm"><i class="bi bi-plus-lg"></i> Add Doctor</a>
+            <a href="addDoctor" class="btn-primary-sm"><i class="bi bi-plus-lg"></i> Add Doctor</a>
         </div>
 
         <div style="overflow-x:auto;">
@@ -1273,7 +1273,7 @@ include('./includes/sidebar.php');
         badge.textContent = label;
         dd.classList.remove('open');
 
-        fetch('../../app/controllers/DoctorController.php?action=update_status', {
+        fetch('../../app/controllers/doctorController.php?action=update_status', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -1354,7 +1354,7 @@ include('./includes/sidebar.php');
         const apptList = document.getElementById('vpApptList');
         apptList.innerHTML = '<div class="vp-empty">Loading appointments…</div>';
 
-        fetch('../../app/controllers/DoctorController.php?action=get_appointments&doctor_id=' + d.dbid)
+        fetch('../../app/controllers/doctorController.php?action=get_appointments&doctor_id=' + d.dbid)
             .then(r => r.json())
             .then(appts => {
                 if (!appts.length) {

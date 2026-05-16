@@ -15,7 +15,7 @@ class MedicalRecordModel
         $ym    = date('Y-m');
 
         return [
-            'total'         => (int) $this->conn->query("SELECT COUNT(*) FROM medicalRecords")->fetch_row()[0],
+            'total'         => (int) $this->conn->query("SELECT COUNT(*) FROM medicalRecords WHERE parentRecordId IS NULL")->fetch_row()[0],
             'today'         => (int) $this->conn->query("SELECT COUNT(*) FROM medicalRecords WHERE DATE(updatedAt)='$today'")->fetch_row()[0],
             'labPending'    => (int) $this->conn->query("SELECT COUNT(*) FROM medicalRecords WHERE recordType='Lab Result' AND status='Draft'")->fetch_row()[0],
             'prescriptions' => (int) $this->conn->query("SELECT COUNT(*) FROM medicalRecords WHERE recordType='Prescription' AND DATE_FORMAT(createdAt,'%Y-%m')='$ym'")->fetch_row()[0],
@@ -120,52 +120,86 @@ class MedicalRecordModel
 
         $whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
 
+        // Only count parent records (one per patient)
+        $parentWhere = $where ? $whereSQL . ' AND m.parentRecordId IS NULL' : 'WHERE m.parentRecordId IS NULL';
+
         $total = (int) $this->conn->query("
-            SELECT COUNT(*) FROM medicalRecords m
-            JOIN patients p ON p.id = m.patientId $whereSQL
-        ")->fetch_row()[0];
+    SELECT COUNT(*) FROM medicalRecords m
+    JOIN patients p ON p.id = m.patientId $parentWhere
+")->fetch_row()[0];
 
         $rows = $this->conn->query("
-            SELECT m.id, m.recordCode, m.recordType, m.diagnosis, m.icdCode,
-                   m.status, m.createdAt, p.patientCode,
-                   TRIM(CONCAT(p.firstName,' ',p.lastName)) AS patientName,
-                   p.photoUrl                               AS patPhoto,
-                   TRIM(CONCAT(d.firstName,' ',d.lastName)) AS doctorName,
-                   d.specialization
-            FROM medicalRecords m
-            JOIN patients p ON p.id = m.patientId
-            JOIN doctors  d ON d.id = m.doctorId
-            $whereSQL
-            ORDER BY COALESCE(m.updatedAt, m.createdAt) DESC
-            LIMIT $limit OFFSET $offset
-        ")->fetch_all(MYSQLI_ASSOC);
+    SELECT 
+        m.id, m.recordCode, m.status, m.createdAt, m.updatedAt,
+        p.patientCode, p.photoUrl AS patPhoto,
+        TRIM(CONCAT(p.firstName,' ',p.lastName)) AS patientName,
+        TRIM(CONCAT(d.firstName,' ',d.lastName)) AS doctorName,
+        d.specialization,
+        (SELECT COUNT(*) FROM medicalRecords c WHERE c.parentRecordId = m.id) + 1 AS entryCount,
+        (SELECT c2.diagnosis FROM medicalRecords c2 
+         WHERE c2.parentRecordId = m.id OR c2.id = m.id
+         ORDER BY c2.createdAt DESC LIMIT 1) AS latestDiagnosis,
+        (SELECT c2.status FROM medicalRecords c2 
+         WHERE c2.parentRecordId = m.id OR c2.id = m.id
+         ORDER BY c2.createdAt DESC LIMIT 1) AS latestStatus,
+        (SELECT c2.recordType FROM medicalRecords c2 
+         WHERE c2.parentRecordId = m.id OR c2.id = m.id
+         ORDER BY c2.createdAt DESC LIMIT 1) AS latestType,
+        (SELECT COALESCE(c2.updatedAt, c2.createdAt) FROM medicalRecords c2 
+         WHERE c2.parentRecordId = m.id OR c2.id = m.id
+         ORDER BY c2.createdAt DESC LIMIT 1) AS lastUpdated
+    FROM medicalRecords m
+    JOIN patients p ON p.id = m.patientId
+    JOIN doctors  d ON d.id = m.doctorId
+    $parentWhere
+    ORDER BY lastUpdated DESC
+    LIMIT $limit OFFSET $offset
+")->fetch_all(MYSQLI_ASSOC);
 
         return compact('rows', 'total', 'page', 'limit');
     }
 
     public function get(int $id): ?array
     {
+        // Get the parent record
         $row = $this->conn->query("
-            SELECT m.*, p.patientCode,
-                   TRIM(CONCAT(p.firstName,' ',p.lastName)) AS patientName,
-                   TRIM(CONCAT(d.firstName,' ',d.lastName)) AS doctorName,
-                   d.specialization, a.appointmentCode, a.appointmentDate
-            FROM medicalRecords m
-            JOIN patients  p ON p.id = m.patientId
-            JOIN doctors   d ON d.id = m.doctorId
-            LEFT JOIN appointments a ON a.id = m.appointmentId
-            WHERE m.id = $id LIMIT 1
-        ")->fetch_assoc();
+        SELECT m.*, p.patientCode,
+               TRIM(CONCAT(p.firstName,' ',p.lastName)) AS patientName,
+               TRIM(CONCAT(d.firstName,' ',d.lastName)) AS doctorName,
+               d.specialization, a.appointmentCode, a.appointmentDate
+        FROM medicalRecords m
+        JOIN patients  p ON p.id = m.patientId
+        JOIN doctors   d ON d.id = m.doctorId
+        LEFT JOIN appointments a ON a.id = m.appointmentId
+        WHERE m.id = $id AND m.parentRecordId IS NULL
+        LIMIT 1
+    ")->fetch_assoc();
 
         if (!$row) return null;
 
+        // Get all child entries (follow-up visits)
+        $entries = $this->conn->query("
+        SELECT m.*,
+               TRIM(CONCAT(d.firstName,' ',d.lastName)) AS doctorName,
+               d.specialization,
+               a.appointmentCode, a.appointmentDate
+        FROM medicalRecords m
+        LEFT JOIN doctors d ON d.id = m.doctorId
+        LEFT JOIN appointments a ON a.id = m.appointmentId
+        WHERE m.parentRecordId = $id
+        ORDER BY m.createdAt ASC
+    ")->fetch_all(MYSQLI_ASSOC);
+
+        $row['entries'] = $entries;
+
+        // Audit log
         $rid      = (int) $row['id'];
         $auditLog = [];
         $logs     = $this->conn->query("
-            SELECT action, changedBy, changedAt, oldValue, newValue
-            FROM medicalRecordAudit
-            WHERE recordId = $rid ORDER BY changedAt DESC
-        ");
+        SELECT action, changedBy, changedAt, oldValue, newValue
+        FROM medicalRecordAudit
+        WHERE recordId = $rid ORDER BY changedAt DESC
+    ");
         if ($logs) {
             while ($l = $logs->fetch_assoc()) {
                 $auditLog[] = [
@@ -184,13 +218,14 @@ class MedicalRecordModel
 
     public function add(array $body, string $changedBy): array
     {
-        $lastCode = $this->conn->query("
-            SELECT MAX(CAST(SUBSTRING_INDEX(recordCode, '-', -1) AS UNSIGNED)) FROM medicalRecords
-        ")->fetch_row()[0];
-        $code = 'REC-' . date('Y') . '-' . str_pad((int)$lastCode + 1, 4, '0', STR_PAD_LEFT);
-
         $patientId     = (int)($body['patientId']     ?? 0) ?: 'NULL';
-        $doctorId      = (int)($body['doctorId']      ?? 0) ?: 'NULL';
+        $doctorIdRaw = (int)($body['doctorId'] ?? 0);
+        if ($doctorIdRaw > 0) {
+            $check = $this->conn->query("SELECT id FROM doctors WHERE id = $doctorIdRaw LIMIT 1");
+            $doctorId = ($check && $check->num_rows > 0) ? $doctorIdRaw : 'NULL';
+        } else {
+            $doctorId = 'NULL';
+        }
         $appointmentId = (int)($body['appointmentId'] ?? 0) ?: 'NULL';
         $recordType    = $this->conn->real_escape_string($body['recordType']   ?? 'Consultation');
         $diagnosis     = $this->conn->real_escape_string($body['diagnosis']    ?? '');
@@ -201,23 +236,49 @@ class MedicalRecordModel
         $followUpRaw   = ($body['followUpDate'] ?? '') ?: null;
         $followUpDate  = $followUpRaw ? "'" . $this->conn->real_escape_string($followUpRaw) . "'" : 'NULL';
 
+        // Check if this patient already has a parent record
+        $existingParent = null;
+        if ($patientId !== 'NULL') {
+            $existingParent = $this->conn->query("
+            SELECT id, recordCode FROM medicalRecords 
+            WHERE patientId = $patientId AND parentRecordId IS NULL 
+            LIMIT 1
+        ")->fetch_assoc();
+        }
+
+        // Generate code
+        $lastCode = $this->conn->query("
+        SELECT MAX(CAST(SUBSTRING_INDEX(recordCode, '-', -1) AS UNSIGNED)) FROM medicalRecords
+    ")->fetch_row()[0];
+        $code = 'REC-' . date('Y') . '-' . str_pad((int)$lastCode + 1, 4, '0', STR_PAD_LEFT);
+
+        // parentRecordId: NULL if first record, or existing parent's id if returning patient
+        $parentRecordId = $existingParent ? $existingParent['id'] : 'NULL';
+
         $ok = $this->conn->query("
-            INSERT INTO medicalRecords
-                (recordCode, patientId, doctorId, appointmentId, recordType, diagnosis, icdCode, prescription, notes, status, followUpDate)
-            VALUES
-                ('$code', $patientId, $doctorId, $appointmentId, '$recordType', '$diagnosis', '$icdCode', '$prescription', '$notes', '$status', $followUpDate)
-        ");
+        INSERT INTO medicalRecords
+            (recordCode, patientId, doctorId, appointmentId, recordType,
+             diagnosis, icdCode, prescription, notes, status, followUpDate, parentRecordId)
+        VALUES
+            ('$code', $patientId, $doctorId, $appointmentId, '$recordType',
+             '$diagnosis', '$icdCode', '$prescription', '$notes', '$status', $followUpDate, $parentRecordId)
+    ");
 
         if (!$ok) return ['success' => false, 'error' => $this->conn->error];
 
         $newId = $this->conn->insert_id;
+
+        // If no existing parent, this new record IS the parent — no change needed
+        // If there was an existing parent, this new record is a child entry
+
         $this->conn->query("
-            INSERT INTO medicalRecordAudit (recordId, action, changedBy, changedAt)
-            VALUES ($newId, 'Created', '$changedBy', NOW())
-        ");
+        INSERT INTO medicalRecordAudit (recordId, action, changedBy, changedAt)
+        VALUES ($newId, 'Created', '$changedBy', NOW())
+    ");
 
         if ($followUpRaw) {
-            $this->createFollowUp($patientId, $appointmentId, $followUpRaw, $code);
+            $fromCode = $existingParent ? $existingParent['recordCode'] : $code;
+            $this->createFollowUp($patientId, $appointmentId, $followUpRaw, $fromCode, false, $body['doctorId'] ?? null);
         }
 
         return ['success' => true, 'recordCode' => $code];
@@ -227,7 +288,13 @@ class MedicalRecordModel
     {
         $id            = (int)($body['id']            ?? 0);
         $patientId     = (int)($body['patientId']     ?? 0) ?: 'NULL';
-        $doctorId      = (int)($body['doctorId']      ?? 0) ?: 'NULL';
+        $doctorIdRaw = (int)($body['doctorId'] ?? 0);
+        if ($doctorIdRaw > 0) {
+            $check = $this->conn->query("SELECT id FROM doctors WHERE id = $doctorIdRaw LIMIT 1");
+            $doctorId = ($check && $check->num_rows > 0) ? $doctorIdRaw : 'NULL';
+        } else {
+            $doctorId = 'NULL';
+        }
         $appointmentId = (int)($body['appointmentId'] ?? 0) ?: 'NULL';
         $recordType    = $this->conn->real_escape_string($body['recordType']   ?? 'Consultation');
         $diagnosis     = $this->conn->real_escape_string($body['diagnosis']    ?? '');
@@ -262,7 +329,14 @@ class MedicalRecordModel
                   AND followUpDate = '" . $this->conn->real_escape_string($followUpRaw) . "'
                   AND status NOT IN ('Cancelled') LIMIT 1
             ")->fetch_row();
-            if (!$exists) $this->createFollowUp($patientId, $appointmentId, $followUpRaw, $recCode, true);
+            if (!$exists) $this->createFollowUp(
+                (int)($body['patientId'] ?? 0),
+                (int)($body['appointmentId'] ?? 0),
+                $followUpRaw,
+                $recCode,
+                true,
+                $body['doctorId'] ?? null
+            );
         }
 
         return ['success' => true];
@@ -313,17 +387,29 @@ class MedicalRecordModel
         ")->fetch_all(MYSQLI_ASSOC);
     }
 
-    private function createFollowUp($patientId, $appointmentId, string $followUpRaw, string $fromCode, bool $isEdit = false): void
+    private function createFollowUp($patientId, $appointmentId, string $followUpRaw, string $fromCode, bool $isEdit = false, $doctorId = null): void
     {
         $followUpEsc = $this->conn->real_escape_string($followUpRaw);
         $folLast     = $this->conn->query("SELECT MAX(CAST(SUBSTRING_INDEX(followUpCode, '-', -1) AS UNSIGNED)) FROM followups")->fetch_row()[0];
         $folCode     = 'FOL-' . date('Y') . '-' . str_pad((int)$folLast + 1, 4, '0', STR_PAD_LEFT);
         $reason      = 'Follow-up from record ' . $fromCode . ($isEdit ? ' (edit)' : '');
 
+        // If doctorId not passed directly, pull it from the linked appointment
+        if (!$doctorId && $appointmentId && $appointmentId !== 'NULL') {
+            $doctorId = $this->conn->query("SELECT doctorId FROM appointments WHERE id = $appointmentId")->fetch_row()[0] ?? null;
+        }
+        $doctorSql = $doctorId ? (int)$doctorId : 'NULL';
+
+        // Extract raw integer values since $patientId/$appointmentId may already be 'NULL' string
+        $patientIdSql    = is_numeric($patientId)    ? (int)$patientId    : 'NULL';
+        $appointmentIdSql = is_numeric($appointmentId) ? (int)$appointmentId : 'NULL';
+
         $this->conn->query("
-            INSERT INTO followups (followUpCode, patientId, appointmentId, followUpDate, reason, status)
-            VALUES ('$folCode', $patientId, $appointmentId, '$followUpEsc', '$reason', 'Pending')
-        ");
-        logActivity($this->conn, 'New Follow-up', "Follow-up $folCode created from $fromCode", $this->conn->insert_id, 'Followup');
+    INSERT INTO followups (followUpCode, patientId, doctorId, appointmentId, followUpDate, reason, status)
+    VALUES ('$folCode', $patientIdSql, $doctorSql, $appointmentIdSql, '$followUpEsc', '$reason', 'Pending')
+");
+        if (function_exists('logActivity')) {
+            logActivity($this->conn, 'New Follow-up', "Follow-up $folCode created from $fromCode", $this->conn->insert_id, 'Followup');
+        }
     }
 }

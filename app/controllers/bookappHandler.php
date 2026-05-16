@@ -26,23 +26,33 @@ switch ($action) {
 
 
     case 'get_departments':
-        $rows = $conn->query("
+        $result = $conn->query("
             SELECT DISTINCT department FROM doctors
             WHERE employmentStatus='Active' AND department IS NOT NULL AND department!=''
             ORDER BY department
-        ")->fetch_all(MYSQLI_ASSOC);
+        ");
+        if (!$result) {
+            echo json_encode(['success' => false]);
+            break;
+        }
+        $rows = $result->fetch_all(MYSQLI_ASSOC);
         echo json_encode(['success' => true, 'data' => array_column($rows, 'department')]);
         break;
 
 
     case 'get_doctors':
-        $dept = $conn->real_escape_string($_GET['department'] ?? '');
-        $where = $dept ? "AND department='$dept'" : '';
-        $rows = $conn->query("
+        $dept = $_GET['department'] ?? '';
+        $stmt = $conn->prepare("
             SELECT id, CONCAT(firstName,' ',lastName) AS name, specialization, department, patientCapacity, photoUrl
-            FROM doctors WHERE employmentStatus='Active' $where
+            FROM doctors WHERE employmentStatus='Active' " . ($dept ? "AND department = ?" : "") . "
             ORDER BY lastName, firstName
-        ")->fetch_all(MYSQLI_ASSOC);
+        ");
+        if ($dept) {
+            $stmt->bind_param('s', $dept);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $rows = $result->fetch_all(MYSQLI_ASSOC);
         echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
@@ -53,9 +63,10 @@ switch ($action) {
         $appointmentDate = sanitizeDate($body['appointmentDate'] ?? '');
         $appointmentTime = sanitizeTime($body['appointmentTime'] ?? '');
         $channel         = in_array($body['channel'] ?? '', ['Walk-in', 'Online', 'Phone', 'Referral']) ? $body['channel'] : 'Online';
-        $remarks         = $conn->real_escape_string($body['remarks'] ?? '');
+        $remarks         = $body['remarks'] ?? '';
+        $address         = trim($body['address'] ?? '');
 
-        if (!$doctorId || !$appointmentDate || !$appointmentTime || empty($body['patientName'])) {
+        if (!$doctorId || !$appointmentDate || !$appointmentTime || empty($body['patientName']) || !$address) {
             echo json_encode(['success' => false, 'message' => 'Required fields missing.']);
             break;
         }
@@ -65,18 +76,25 @@ switch ($action) {
             break;
         }
 
-
-        $doc = $conn->query("SELECT id FROM doctors WHERE id=$doctorId AND employmentStatus='Active'")->fetch_assoc();
+        $docStmt = $conn->prepare("SELECT id FROM doctors WHERE id = ? AND employmentStatus = 'Active'");
+        $docStmt->bind_param('i', $doctorId);
+        $docStmt->execute();
+        $docResult = $docStmt->get_result();
+        $doc = $docResult->fetch_assoc();
         if (!$doc) {
             echo json_encode(['success' => false, 'message' => 'Doctor not available.']);
             break;
         }
 
-        $taken = $conn->query("
+        $takenStmt = $conn->prepare("
             SELECT id FROM appointments
-            WHERE doctorId=$doctorId AND appointmentDate='$appointmentDate' AND appointmentTime='$appointmentTime'
+            WHERE doctorId = ? AND appointmentDate = ? AND appointmentTime = ?
             AND status NOT IN ('Cancelled')
-        ")->fetch_assoc();
+        ");
+        $takenStmt->bind_param('iss', $doctorId, $appointmentDate, $appointmentTime);
+        $takenStmt->execute();
+        $takenResult = $takenStmt->get_result();
+        $taken = $takenResult->fetch_assoc();
         if ($taken) {
             echo json_encode(['success' => false, 'message' => 'This slot is already booked. Please choose another.']);
             break;
@@ -84,16 +102,28 @@ switch ($action) {
 
         $patientId = (int)($body['patientId'] ?? 0);
         if (!$patientId) {
-            $email    = $conn->real_escape_string(trim($body['email']   ?? ''));
-            $contact  = $conn->real_escape_string(trim($body['contact'] ?? ''));
+            $email    = trim($body['email']   ?? '');
+            $contact  = trim($body['contact'] ?? '');
             $fullName = trim($body['patientName'] ?? 'Unknown');
 
             $existing = null;
-            if ($email) $existing = $conn->query("SELECT id, CONCAT(firstName,' ',lastName) AS name FROM patients WHERE emailAddress='$email' AND status!='Inactive' LIMIT 1")->fetch_assoc();
+            if ($email) {
+                $existingStmt = $conn->prepare("SELECT id, CONCAT(firstName,' ',lastName) AS name FROM patients WHERE emailAddress = ? AND status != 'Inactive' LIMIT 1");
+                $existingStmt->bind_param('s', $email);
+                $existingStmt->execute();
+                $existingResult = $existingStmt->get_result();
+                $existing = $existingResult->fetch_assoc();
+            }
 
             // Only reuse existing patient if name also matches (same person)
             if ($existing && strtolower($existing['name']) === strtolower($fullName)) {
                 $patientId = (int)$existing['id'];
+                $address = trim($body['address'] ?? '');
+                if ($address) {
+                    $updateAddrStmt = $conn->prepare("UPDATE patients SET address = ? WHERE id = ?");
+                    $updateAddrStmt->bind_param('si', $address, $patientId);
+                    $updateAddrStmt->execute();
+                }
             } else {
 
                 $patientModel = new patientModel($conn);
@@ -105,6 +135,7 @@ switch ($action) {
                     'dob'        => !empty($body['dateOfBirth']) ? sanitizeDate($body['dateOfBirth']) : null,
                     'contact'    => $contact,
                     'email'      => $email,
+                    'address'    => trim($body['address'] ?? ''),
                 ]);
                 $fullName = trim(($body['firstName'] ?? '') . ' ' . ($body['middleName'] ?? '') . ' ' . ($body['lastName'] ?? ''));
                 logActivity($conn, 'patient', "New patient registered: $fullName", $patientId, 'Patient');
@@ -118,13 +149,21 @@ switch ($action) {
 
         $code = generateAppointmentCode($conn);
         $sessionUserId = $_SESSION['authUser']['user_id'] ?? 0;
-        $conn->query("
-    INSERT INTO appointments (appointmentCode,patientId,doctorId,appointmentDate,appointmentTime,channel,status,remarks,bookedByUserId)
-    VALUES ('$code',$patientId,$doctorId,'$appointmentDate','$appointmentTime','$channel','Pending','$remarks',$sessionUserId)
-");
+        $address = trim($body['address'] ?? '');
+        $insertStmt = $conn->prepare("
+            INSERT INTO appointments (appointmentCode, patientId, doctorId, appointmentDate, appointmentTime, channel, status, remarks, address, bookedByUserId)
+            VALUES (?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?)
+        ");
+        $insertStmt->bind_param('siissssssi', $code, $patientId, $doctorId, $appointmentDate, $appointmentTime, $channel, $remarks, $address, $sessionUserId);
+        $insertStmt->execute();
         $newId = $conn->insert_id;
 
-        $patName = $conn->query("SELECT CONCAT(firstName,' ',lastName) FROM patients WHERE id=$patientId")->fetch_row()[0] ?? '';
+        $patStmt = $conn->prepare("SELECT CONCAT(firstName,' ',lastName) FROM patients WHERE id = ?");
+        $patStmt->bind_param('i', $patientId);
+        $patStmt->execute();
+        $patResult = $patStmt->get_result();
+        $patRow = $patResult->fetch_row();
+        $patName = $patRow ? $patRow[0] : '';
         logActivity($conn, 'appointment', "Appointment $code booked for $patName via booking form.", $newId, 'Appointment');
 
         echo json_encode(['success' => true, 'appointmentCode' => $code, 'appointmentId' => $newId, 'message' => 'Appointment booked!']);
@@ -139,19 +178,24 @@ switch ($action) {
             break;
         }
 
-
         $userId = $_SESSION['authUser']['user_id'] ?? 0;
         $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
         $uStmt->bind_param('i', $userId);
         $uStmt->execute();
-        $userEmail = $conn->real_escape_string($uStmt->get_result()->fetch_assoc()['emailAddress'] ?? '');
-        $check = $conn->query("
-    SELECT a.id, a.appointmentCode, a.appointmentDate, a.status
-    FROM appointments a
-    JOIN patients p ON p.id = a.patientId
-    WHERE a.id=$id
-      AND (a.bookedByUserId=$userId OR p.emailAddress='$userEmail')
-")->fetch_assoc();
+        $userResult = $uStmt->get_result();
+        $userRow = $userResult->fetch_assoc();
+        $userEmail = $userRow['emailAddress'] ?? '';
+
+        $checkStmt = $conn->prepare("
+            SELECT a.id, a.appointmentCode, a.appointmentDate, a.status
+            FROM appointments a
+            JOIN patients p ON p.id = a.patientId
+            WHERE a.id = ? AND (a.bookedByUserId = ? OR p.emailAddress = ?)
+        ");
+        $checkStmt->bind_param('iis', $id, $userId, $userEmail);
+        $checkStmt->execute();
+        $checkResult = $checkStmt->get_result();
+        $check = $checkResult->fetch_assoc();
 
         if (!$check) {
             echo json_encode(['success' => false, 'message' => 'Appointment not found.']);
@@ -166,7 +210,9 @@ switch ($action) {
             break;
         }
 
-        $conn->query("UPDATE appointments SET status='Cancelled', updatedAt=NOW() WHERE id=$id");
+        $updateStmt = $conn->prepare("UPDATE appointments SET status='Cancelled', updatedAt=NOW() WHERE id = ?");
+        $updateStmt->bind_param('i', $id);
+        $updateStmt->execute();
         logActivity($conn, 'cancel', "Appointment {$check['appointmentCode']} cancelled by patient.", $id, 'Appointment');
         echo json_encode(['success' => true]);
         break;
@@ -181,25 +227,27 @@ switch ($action) {
         $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
         $uStmt->bind_param('i', $userId);
         $uStmt->execute();
-        $userEmail = $conn->real_escape_string(
-            $uStmt->get_result()->fetch_assoc()['emailAddress'] ?? ''
-        );
+        $userResult = $uStmt->get_result();
+        $userRow = $userResult->fetch_assoc();
+        $userEmail = $userRow['emailAddress'] ?? '';
 
-        $rows = $conn->query("
-        SELECT a.id, a.appointmentCode, a.appointmentDate, a.appointmentTime,
-               a.channel, a.status, a.remarks,
-               CONCAT(p.firstName, ' ', p.lastName) AS patientName,
-               CONCAT('Dr. ', d.firstName, ' ', d.lastName) AS doctorName,
-               d.specialization, d.department
-        FROM appointments a
-        JOIN patients p ON p.id = a.patientId
-        JOIN doctors  d ON d.id = a.doctorId
-        WHERE a.bookedByUserId = $userId
-           OR p.emailAddress = '$userEmail'
-        ORDER BY a.appointmentDate DESC, a.appointmentTime DESC
-    ")->fetch_all(MYSQLI_ASSOC);
-
-        echo json_encode(['success' => true, 'rows' => $rows]);
+        $rowsStmt = $conn->prepare("
+            SELECT a.id, a.appointmentCode, a.appointmentDate, a.appointmentTime,
+                   a.channel, a.status, a.remarks,
+                   CONCAT(p.firstName, ' ', p.lastName) AS patientName,
+                   CONCAT('Dr. ', d.firstName, ' ', d.lastName) AS doctorName,
+                   d.specialization, d.department
+            FROM appointments a
+            JOIN patients p ON p.id = a.patientId
+            JOIN doctors  d ON d.id = a.doctorId
+            WHERE a.bookedByUserId = ? OR p.emailAddress = ?
+            ORDER BY a.appointmentDate DESC, a.appointmentTime DESC
+        ");
+        $rowsStmt->bind_param('is', $userId, $userEmail);
+        $rowsStmt->execute();
+        $rowsResult = $rowsStmt->get_result();
+        $rows = $rowsResult->fetch_all(MYSQLI_ASSOC);
+        echo json_encode(['success' => true, 'data' => $rows]);
         break;
 
     case 'get_doctor_schedule':

@@ -592,7 +592,7 @@ include('./includes/sidebar.php');
     <?php endif; ?>
 
     <div class="stat-strip">
-        <a href="myAppointment class=" stat-card">
+        <a href="myAppointment.php" class="stat-card">
             <div class="sc-label">Total Appointments</div>
             <div class="sc-num"><?= $totalAppts ?></div>
             <div class="sc-sub">All time bookings</div>

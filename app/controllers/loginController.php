@@ -30,14 +30,31 @@ if (isset($_POST['loginButton'])) {
 
         if (mysqli_num_rows($result) > 0) {
             $data = mysqli_fetch_assoc($result);
+            $storedPassword = $data['password'];
+            $passwordOk = false;
 
-            if ($password !== $data['password']) {
+            if (password_verify($password, $storedPassword)) {
+                $passwordOk = true;
+            } elseif ($password === $storedPassword) {
+                // Backwards compatibility for older plaintext passwords.
+                $passwordOk = true;
+                $rehash = password_hash($password, PASSWORD_DEFAULT);
+                $rehashStmt = $conn->prepare("UPDATE users SET password = ? WHERE id = ?");
+                if ($rehashStmt) {
+                    $rehashStmt->bind_param('si', $rehash, $data['id']);
+                    $rehashStmt->execute();
+                    $rehashStmt->close();
+                }
+            }
+
+            if (!$passwordOk) {
                 $_SESSION['message'] = "Invalid username or password";
                 $_SESSION['code'] = "error";
                 header("Location: /Clinic_Appointment_System/public/login");
                 exit();
             }
 
+            session_regenerate_id(true);
             $user_id  = $data['id'];
             $fullName = trim($data['firstName'] . ' ' . $data['lastName']);
             $username = $data['username'];
@@ -100,21 +117,30 @@ if (isset($_POST['registerButton'])) {
         exit();
     }
     //check if email already exists
-    $checkEmail = mysqli_query($conn, "SELECT id FROM users WHERE emailAddress = '$emailAddress' LIMIT 1");
-    if ($checkEmail && mysqli_num_rows($checkEmail) > 0) {
+    $checkEmailStmt = $conn->prepare("SELECT id FROM users WHERE emailAddress = ? LIMIT 1");
+    $checkEmailStmt->bind_param('s', $emailAddress);
+    $checkEmailStmt->execute();
+    $checkEmailStmt->store_result();
+    if ($checkEmailStmt->num_rows > 0) {
         $_SESSION['message'] = "Email already exists";
         $_SESSION['code'] = "error";
         header("Location: /Clinic_Appointment_System/public/registration");
         exit();
     }
+    $checkEmailStmt->close();
+
     //check if username already exists
-    $checkUsername = mysqli_query($conn, "SELECT id FROM users WHERE username = '$username' LIMIT 1");
-    if ($checkUsername && mysqli_num_rows($checkUsername) > 0) {
+    $checkUsernameStmt = $conn->prepare("SELECT id FROM users WHERE username = ? LIMIT 1");
+    $checkUsernameStmt->bind_param('s', $username);
+    $checkUsernameStmt->execute();
+    $checkUsernameStmt->store_result();
+    if ($checkUsernameStmt->num_rows > 0) {
         $_SESSION['message'] = "Username already exists";
         $_SESSION['code'] = "error";
         header("Location: /Clinic_Appointment_System/public/registration");
         exit();
     }
+    $checkUsernameStmt->close();
     //check if password and confirm password match
     if ($password !== $confirmPassword) {
         $_SESSION['message'] = "Password do not match";
@@ -123,8 +149,25 @@ if (isset($_POST['registerButton'])) {
         exit();
     }
 
-    $query = "INSERT INTO `users`(`uuid`, `firstName`, `middleName`, `lastName`, `emailAddress`, `username`, `password`, `street`, `barangay`, `city`, `role`) VALUES ('$uuid','$firstName','$middleName','$lastName','$emailAddress','$username','$password','$street','$barangay','$city','$role')";
-    if (mysqli_query($conn, $query)) {
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
+    $insertStmt = $conn->prepare(
+        "INSERT INTO `users`(`uuid`, `firstName`, `middleName`, `lastName`, `emailAddress`, `username`, `password`, `street`, `barangay`, `city`, `role`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+    );
+    $insertStmt->bind_param(
+        'sssssssssss',
+        $uuid,
+        $firstName,
+        $middleName,
+        $lastName,
+        $emailAddress,
+        $username,
+        $hashedPassword,
+        $street,
+        $barangay,
+        $city,
+        $role
+    );
+    if ($insertStmt->execute()) {
         $_SESSION['message'] = "Registration successful. Please login.";
         $_SESSION['code'] = "success";
         header("Location: /Clinic_Appointment_System/public/login");

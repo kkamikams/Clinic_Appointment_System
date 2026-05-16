@@ -46,27 +46,6 @@ require_once('../../app/config/config.php');
         --shadow-lg: 0 8px 30px rgba(0, 0, 0, .10);
     }
 
-    .field-tag {
-        font-size: .6rem;
-        font-weight: 600;
-        padding: 1px 6px;
-        border-radius: 4px;
-        margin-left: 5px;
-        vertical-align: middle;
-        text-transform: uppercase;
-        letter-spacing: .06em;
-    }
-
-    .field-tag.req {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .field-tag.opt {
-        background: #f3f4f6;
-        color: #6b7280;
-    }
-
     /* Audit trail timeline */
     .audit-trail {
         margin-top: 1.25rem;
@@ -830,6 +809,13 @@ require_once('../../app/config/config.php');
         display: flex;
     }
 
+    .field-warning {
+        font-size: .72rem;
+        color: var(--red);
+        margin-top: 5px;
+        font-weight: 500;
+    }
+
     .pill-clear {
         background: none;
         border: none;
@@ -945,10 +931,10 @@ require_once('../../app/config/config.php');
                     <tr>
                         <th>#</th>
                         <th>Patient</th>
-                        <th>Type</th>
-                        <th>Diagnosis</th>
+                        <th>Latest Diagnosis</th>
                         <th>Doctor</th>
-                        <th>Date</th>
+                        <th>Visits</th>
+                        <th>Last Updated</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
@@ -975,6 +961,7 @@ require_once('../../app/config/config.php');
             </div>
             <div class="modal-body">
                 <input type="hidden" id="editId">
+                <input type="hidden" id="fFollowUpId">
                 <div class="finalized-notice" id="finalizedNotice">
                     <i class="bi bi-lock-fill"></i>
                     <span>Record is Finalized. Patient, Doctor, Linked Appointment, Type, Diagnosis, ICD Code, and Prescription are locked.</span>
@@ -1029,10 +1016,7 @@ require_once('../../app/config/config.php');
 
                     <!-- Linked Appointment -->
                     <div class="col-md-6">
-                        <label class="form-label">
-                            Linked Appointment
-                            <small style="text-transform:none;letter-spacing:0;font-weight:400;">(optional)</small>
-                        </label>
+                        <label class="form-label">Linked Appointment</label>
                         <div class="live-search-wrap">
                             <div id="apptInputWrap" style="position:relative;">
                                 <i class="bi bi-search" id="apptSearchIcon" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:.8rem;pointer-events:none;"></i>
@@ -1068,31 +1052,31 @@ require_once('../../app/config/config.php');
 
                     <!-- Diagnosis -->
                     <div class="col-md-8">
-                        <label class="form-label">Diagnosis <span class="field-tag req">Required</span></label>
+                        <label class="form-label">Diagnosis <span style="color:var(--red);">*</span></label>
                         <input type="text" class="form-control" id="fDiagnosis" placeholder="e.g. Hypertension Stage 1">
                     </div>
 
                     <!-- ICD Code -->
                     <div class="col-md-4">
-                        <label class="form-label">ICD Code <span class="field-tag opt">Optional</span></label>
+                        <label class="form-label">ICD Code</label>
                         <input type="text" class="form-control" id="fIcdCode" placeholder="e.g. I10">
                     </div>
 
                     <!-- Prescription -->
                     <div class="col-12">
-                        <label class="form-label">Prescription <span class="field-tag req">Required</span></label>
+                        <label class="form-label">Prescription <span style="color:var(--red);">*</span></label>
                         <textarea class="form-control" id="fPrescription" rows="2" placeholder="Medications, dosage…"></textarea>
                     </div>
 
                     <!-- Notes -->
                     <div class="col-12">
-                        <label class="form-label">Notes <span class="field-tag opt">Optional</span></label>
+                        <label class="form-label">Notes</label>
                         <textarea class="form-control" id="fNotes" rows="2" placeholder="Additional notes…"></textarea>
                     </div>
 
                     <!-- Follow-Up Date -->
                     <div class="col-md-6">
-                        <label class="form-label">Follow-Up Date <span class="field-tag opt">Optional</span></label>
+                        <label class="form-label">Follow-Up Date</label>
                         <input type="date" class="form-control" id="fFollowUpDate">
                     </div>
 
@@ -1177,6 +1161,7 @@ require_once('../../app/config/config.php');
 
     let currentPage = 1;
     let searchTimer = null;
+    let finalizeResolve = null;
 
     const STATUS_CONFIG = {
         'Draft': {
@@ -1204,10 +1189,10 @@ require_once('../../app/config/config.php');
         const params = new URLSearchParams(window.location.search);
         const apptId = params.get('apptId');
         const patientId = params.get('patientId');
+        const followUpId = params.get('followUpId');
 
         if (apptId) {
             openAddModal();
-
             fetch(`${HANDLER}?action=get_appointment_details&apptId=${apptId}`)
                 .then(r => r.json())
                 .then(res => {
@@ -1217,33 +1202,78 @@ require_once('../../app/config/config.php');
                     document.getElementById('apptPillName').textContent = appt.appointmentCode;
                     document.getElementById('apptPillSub').textContent = appt.doctorName + ' · ' + fmtDate(appt.appointmentDate);
                     document.getElementById('apptPill').classList.add('show');
-
                     document.getElementById('fDoctor').value = appt.doctorId;
                     document.getElementById('doctorPillName').textContent = appt.doctorName;
                     document.getElementById('doctorPillSub').textContent = appt.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
-
                     if (appt.remarks) document.getElementById('fDiagnosis').value = appt.remarks;
                 });
 
             if (patientId) {
-                fetch(`${HANDLER}?action=get_patients&q=`)
+                fetch(`${HANDLER}?action=get_patient_by_id&patientId=${patientId}`)
                     .then(r => r.json())
                     .then(res => {
-                        if (!res.success) return;
-                        const patient = res.data.find(p => p.id == patientId);
-                        if (!patient) return;
-                        document.getElementById('fPatient').value = patient.id;
-                        document.getElementById('patientPillName').textContent = patient.name;
-                        document.getElementById('patientPillSub').textContent = patient.patientCode;
+                        if (!res.success || !res.data) return;
+                        const p = res.data;
+                        document.getElementById('fPatient').value = p.id;
+                        document.getElementById('patientPillName').textContent = p.name;
+                        document.getElementById('patientPillSub').textContent = p.patientCode;
                         document.getElementById('patientPill').classList.add('show');
                     });
             }
         }
+
+        if (followUpId && !apptId) {
+            openAddModal();
+            fetch(`../../app/controllers/appointmentsHandler.php?action=get_followup&id=${followUpId}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (!res.success || !res.data) return;
+                    const fu = res.data;
+
+                    // Set default status to Draft
+                    document.getElementById('fStatus').value = 'Draft';
+
+                    if (fu.patientId) {
+                        document.getElementById('fPatient').value = fu.patientId;
+                        document.getElementById('patientPillName').textContent = fu.patientName || '—';
+                        document.getElementById('patientPillSub').textContent = '';
+                        document.getElementById('patientPill').classList.add('show');
+                    }
+
+                    const doctorId = fu.doctorId || fu.resolvedDoctorId;
+                    const doctorName = fu.doctorName || '—';
+                    const doctorSpec = fu.specialization || '';
+
+                    if (doctorId) {
+                        document.getElementById('fDoctor').value = doctorId;
+                        document.getElementById('doctorPillName').textContent = doctorName;
+                        document.getElementById('doctorPillSub').textContent = doctorSpec;
+                        document.getElementById('doctorPill').classList.add('show');
+                    }
+
+                    document.getElementById('fFollowUpId').value = followUpId;
+
+                    // Lock patient and doctor: hide search inputs, hide clear (X) buttons
+                    ['patient', 'doctor'].forEach(field => {
+                        const inputEl = document.getElementById(field === 'patient' ? 'patientInput' : 'doctorInput');
+                        const pillEl = document.getElementById(field === 'patient' ? 'patientPill' : 'doctorPill');
+                        const clearBtn = pillEl.querySelector('.pill-clear');
+                        const searchIcon = inputEl.previousElementSibling; // the <i> tag
+
+                        inputEl.style.display = 'none';
+                        if (searchIcon) searchIcon.style.display = 'none';
+                        if (clearBtn) clearBtn.style.display = 'none';
+
+                        pillEl.style.cursor = 'default';
+                        pillEl.style.background = 'var(--surface)';
+                        pillEl.style.border = '1px solid var(--border)';
+                    });
+                });
+        }
     });
 
-    let finalizeResolve = null;
-
+    /* ── Finalize modal ── */
     function openFinalizeModal(msg) {
         document.getElementById('finalizeConfirmMsg').textContent = msg;
         document.getElementById('finalizeConfirmModal').style.display = 'flex';
@@ -1260,20 +1290,41 @@ require_once('../../app/config/config.php');
         }
     }
 
-    function openFinalizeModal(msg) {
-        document.getElementById('finalizeConfirmMsg').textContent = msg;
-        document.getElementById('finalizeConfirmModal').style.display = 'flex';
-        return new Promise(resolve => {
-            finalizeResolve = resolve;
-        });
-    }
+    /* ── Add entry modal ── */
+    function openAddEntryModal(parentRecordId, patientId) {
+        openAddModal();
+        document.getElementById('recModalTitle').textContent = 'Add Visit Entry';
+        document.getElementById('saveBtnLabel').textContent = 'Save Entry';
+        document.getElementById('fPatient').value = patientId;
 
-    function closeFinalizeModal(confirmed) {
-        document.getElementById('finalizeConfirmModal').style.display = 'none';
-        if (finalizeResolve) {
-            finalizeResolve(confirmed);
-            finalizeResolve = null;
-        }
+        fetch(`${HANDLER}?action=get_patient_by_id&patientId=${patientId}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success || !res.data) return;
+                const patient = res.data;
+                document.getElementById('fPatient').value = patient.id;
+                document.getElementById('patientPillName').textContent = patient.name;
+                document.getElementById('patientPillSub').textContent = patient.patientCode;
+                document.getElementById('patientPill').classList.add('show');
+
+                fetch(`${HANDLER}?action=get_patient_doctor&patientId=${patientId}`)
+                    .then(r => r.json())
+                    .then(docRes => {
+                        if (docRes.success && docRes.data) {
+                            document.getElementById('fDoctor').value = docRes.data.doctorId;
+                            document.getElementById('doctorPillName').textContent = docRes.data.doctorName;
+                            document.getElementById('doctorPillSub').textContent = docRes.data.specialization || '';
+                            document.getElementById('doctorPill').classList.add('show');
+                        }
+                        lockPatientDoctor(true);
+                        const patBox = document.getElementById('patientLockedBox');
+                        if (patBox) patBox.value = patient.name + ' (' + patient.patientCode + ')';
+                        const docBox = document.getElementById('doctorLockedBox');
+                        if (docBox && docRes.success && docRes.data) {
+                            docBox.value = docRes.data.doctorName + (docRes.data.specialization ? ' (' + docRes.data.specialization + ')' : '');
+                        }
+                    });
+            });
     }
 
     /* ── Debounced live-search ── */
@@ -1304,34 +1355,25 @@ require_once('../../app/config/config.php');
             url = `${HANDLER}?action=get_appointments&q=${encodeURIComponent(q)}&patientId=${patId}`;
         }
 
-        fetch(url)
-            .then(r => r.json())
-            .then(res => {
-                if (!res.success || !res.data.length) {
-                    box.innerHTML = `<div style="padding:.6rem 1rem;font-size:.8rem;color:var(--text-muted);">No results found.</div>`;
-                    box.classList.add('open');
-                    return;
-                }
-                box.innerHTML = res.data.map(item => {
-                    if (field === 'patient') {
-                        return `<div class="live-item" onclick="selectField('patient',${item.id},'${esc(item.name)}','${esc(item.patientCode)}','${esc(item.patientCode)}')">
-                            <div class="live-avatar">${inits(item.name)}</div>
-                            <div><div class="live-name">${item.name}</div><div class="live-sub">${item.patientCode}</div></div>
-                        </div>`;
-                    }
-                    if (field === 'doctor') {
-                        return `<div class="live-item" onclick="selectField('doctor',${item.id},'${esc(item.name)}','${esc(item.specialization)}','')">
-                            <div class="live-avatar" style="background:var(--green-light);color:var(--green-dark);">${inits(item.name)}</div>
-                            <div><div class="live-name">${item.name}</div><div class="live-sub">${item.specialization}</div></div>
-                        </div>`;
-                    }
-                    return `<div class="live-item" onclick="selectAppt(${item.id},'${esc(item.appointmentCode)}','${esc(item.doctorName+' · '+fmtDate(item.appointmentDate))}')">
-                        <div class="live-avatar" style="background:var(--violet-light);color:var(--violet-dark);"><i class="bi bi-calendar2-check" style="font-size:.7rem;"></i></div>
-                        <div><div class="live-name">${item.appointmentCode}</div><div class="live-sub">${item.doctorName} · ${fmtDate(item.appointmentDate)}</div></div>
-                    </div>`;
-                }).join('');
+        fetch(url).then(r => r.json()).then(res => {
+            if (!res.success || !res.data.length) {
+                box.innerHTML = `<div style="padding:.6rem 1rem;font-size:.8rem;color:var(--text-muted);">No results found.</div>`;
                 box.classList.add('open');
-            });
+                return;
+            }
+            box.innerHTML = res.data.map(item => {
+                if (field === 'patient') return `<div class="live-item" onclick="selectField('patient',${item.id},'${esc(item.name)}','${esc(item.patientCode)}')">
+                    <div class="live-avatar">${inits(item.name)}</div>
+                    <div><div class="live-name">${item.name}</div><div class="live-sub">${item.patientCode}</div></div></div>`;
+                if (field === 'doctor') return `<div class="live-item" onclick="selectField('doctor',${item.id},'${esc(item.name)}','${esc(item.specialization)}')">
+                    <div class="live-avatar" style="background:var(--green-light);color:var(--green-dark);">${inits(item.name)}</div>
+                    <div><div class="live-name">${item.name}</div><div class="live-sub">${item.specialization}</div></div></div>`;
+                return `<div class="live-item" onclick="selectAppt(${item.id},'${esc(item.appointmentCode)}','${esc(item.doctorName+' · '+fmtDate(item.appointmentDate))}')">
+                    <div class="live-avatar" style="background:var(--violet-light);color:var(--violet-dark);"><i class="bi bi-calendar2-check" style="font-size:.7rem;"></i></div>
+                    <div><div class="live-name">${item.appointmentCode}</div><div class="live-sub">${item.doctorName} · ${fmtDate(item.appointmentDate)}</div></div></div>`;
+            }).join('');
+            box.classList.add('open');
+        });
     }
 
     function selectField(field, id, name, sub) {
@@ -1346,13 +1388,12 @@ require_once('../../app/config/config.php');
         document.getElementById(inputId).value = '';
         document.getElementById(resultsId).classList.remove('open');
         document.getElementById(nameId).textContent = name;
-        document.getElementById(subId).textContent = sub;
+        document.getElementById(subId).textContent = sub || '';
         document.getElementById(pillId).classList.add('show');
 
         const inp = document.getElementById(inputId);
         inp.style.borderColor = '';
         inp.style.background = '';
-        inp.placeholder = inputId === 'patientInput' ? 'Type patient name or code…' : 'Type doctor name…';
 
         if (field === 'patient') {
             clearField('appt');
@@ -1375,7 +1416,6 @@ require_once('../../app/config/config.php');
         const inputId = field === 'patient' ? 'patientInput' : field === 'doctor' ? 'doctorInput' : 'apptInput';
         const resultsId = field === 'patient' ? 'patientResults' : field === 'doctor' ? 'doctorResults' : 'apptResults';
         const pillId = field === 'patient' ? 'patientPill' : field === 'doctor' ? 'doctorPill' : 'apptPill';
-
         document.getElementById(hiddenId).value = '';
         document.getElementById(inputId).value = '';
         document.getElementById(resultsId).classList.remove('open');
@@ -1389,28 +1429,19 @@ require_once('../../app/config/config.php');
             bg: '#f3f4f6',
             color: '#374151'
         };
-        const STATUS_FLOW = {
-            'Draft': ['Draft', 'Finalized'],
-            'Finalized': ['Finalized']
-        };
-        const allowed = STATUS_FLOW[current] || [current];
-
+        const allowed = current === 'Draft' ? ['Draft', 'Finalized'] : ['Finalized'];
         const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => {
             const isAllowed = allowed.includes(label);
             const isActive = label === current;
-            return `<div class="status-opt"
-                style="${!isAllowed ? 'opacity:.35;pointer-events:none;cursor:not-allowed;' : ''}"
+            return `<div class="status-opt" style="${!isAllowed?'opacity:.35;pointer-events:none;cursor:not-allowed;':''}"
                 onclick="${isAllowed && !isActive ? `pickRecStatus(this,'${label}',${id})` : ''}">
                 <span class="dot" style="background:${c.dot};"></span>
                 ${label}${isActive ? ' <span style="font-size:.68rem;opacity:.6;">(Current)</span>' : ''}
             </div>`;
         }).join('');
-
         return `<div class="status-cell">
             <button class="badge-btn" onclick="toggleStatusDrop(this)">
-                <span class="rec-badge badge-label" style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;letter-spacing:.03em;">
-                    ${current}
-                </span>
+                <span class="rec-badge badge-label" style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:999px;padding:3px 12px;letter-spacing:.03em;">${current}</span>
                 <span class="badge-caret">▾</span>
             </button>
             <div class="status-dropdown">${opts}</div>
@@ -1428,16 +1459,13 @@ require_once('../../app/config/config.php');
         const cfg = STATUS_CONFIG[newStatus];
         const dd = optEl.closest('.status-dropdown');
         const badge = dd.previousElementSibling.querySelector('.rec-badge');
-
         badge.style.background = cfg.bg;
         badge.style.color = cfg.color;
         badge.textContent = newStatus;
         dd.classList.remove('open');
-
         const fd = new FormData();
         fd.append('id', id);
         fd.append('status', newStatus);
-
         fetch(`${HANDLER}?action=update_status`, {
                 method: 'POST',
                 body: fd
@@ -1482,10 +1510,8 @@ require_once('../../app/config/config.php');
         const search = encodeURIComponent(document.getElementById('recSearch').value.trim());
         const type = encodeURIComponent(document.getElementById('recType').value);
         const status = encodeURIComponent(document.getElementById('recStatus').value);
-        const url = `${HANDLER}?action=list&search=${search}&type=${type}&status=${status}&page=${currentPage}`;
-
         document.getElementById('tblLoading').style.display = 'flex';
-        fetch(url)
+        fetch(`${HANDLER}?action=list&search=${search}&type=${type}&status=${status}&page=${currentPage}`)
             .then(r => r.json())
             .then(res => {
                 document.getElementById('tblLoading').style.display = 'none';
@@ -1548,25 +1574,36 @@ require_once('../../app/config/config.php');
         tbody.innerHTML = rows.map((r, i) => {
             const [bg, fg] = avatarColors[i % avatarColors.length];
             const avatarHtml = r.patPhoto ? `<img src="${r.patPhoto}" alt="">` : inits(r.patientName);
+            const cfg = STATUS_CONFIG[r.latestStatus] || {
+                dot: '#9ca3af',
+                bg: '#f3f4f6',
+                color: '#374151'
+            };
             return `<tr>
-                <td><a href="#" class="rec-id">${r.recordCode}</a></td>
-                <td><div class="pat-cell">
-                    <div class="pat-avatar" style="background:${bg};color:${fg}">${avatarHtml}</div>
-                    <div><div class="pat-name">${r.patientName}</div><div class="pat-sub">${r.patientCode}</div></div>
-                </div></td>
-                <td>${typeChip(r.recordType)}</td>
-                <td class="diagnosis-cell">
-                    <div class="diag-text">${r.diagnosis||'—'}</div>
-                    ${r.icdCode ? `<div class="diag-icd">ICD: ${r.icdCode}</div>` : ''}
-                </td>
-                <td>${r.doctorName}</td>
-                <td>${fmtDate(r.createdAt?.slice(0,10))}</td>
-                <td>${statusDropdown(r.id, r.status)}</td>
-                <td><div class="action-btns">
-                    <button class="btn-act" title="Edit" onclick="editRecord(${r.id})"><i class="bi bi-pencil"></i></button>
-                    <button class="btn-act" title="View" onclick="viewRecord(${r.id})"><i class="bi bi-eye"></i></button>
-                </div></td>
-            </tr>`;
+            <td><a href="#" class="rec-id">${r.recordCode}</a></td>
+            <td><div class="pat-cell">
+                <div class="pat-avatar" style="background:${bg};color:${fg}">${avatarHtml}</div>
+                <div><div class="pat-name">${r.patientName}</div><div class="pat-sub">${r.patientCode}</div></div>
+            </div></td>
+            <td class="diagnosis-cell">
+                <div class="diag-text">${r.latestDiagnosis||'—'}</div>
+                ${r.latestType?`<div class="diag-icd">${r.latestType}</div>`:''}
+            </td>
+            <td>${r.doctorName||'—'}</td>
+            <td><span style="background:var(--blue-50);color:var(--blue-700);font-size:.63rem;font-weight:700;padding:2px 9px;border-radius:5px;border:1px solid var(--blue-100);">
+                ${r.entryCount} visit${r.entryCount!=1?'s':''}
+            </span></td>
+            <td>${fmtDate((r.lastUpdated||r.createdAt)?.slice(0,10))}</td>
+            <td>${statusDropdown(r.id, r.latestStatus)}</td>
+            <td><div class="action-btns">
+                <button class="btn-act" title="Edit" 
+    onclick="editRecord(${r.id})"
+    ${r.latestStatus === 'Finalized' ? 'disabled style="opacity:.4;cursor:not-allowed;" title="Record is finalized and cannot be edited."' : ''}>
+    <i class="bi bi-pencil"></i>
+</button>
+                <button class="btn-act" title="View History" onclick="viewRecord(${r.id})"><i class="bi bi-eye"></i></button>
+            </div></td>
+        </tr>`;
         }).join('');
     }
 
@@ -1581,8 +1618,7 @@ require_once('../../app/config/config.php');
         const pages = Math.ceil(total / limit);
         const start = (page - 1) * limit + 1,
             end = Math.min(page * limit, total);
-        document.getElementById('paginationInfo').textContent =
-            total ? `Showing ${start}–${end} of ${total} records` : 'No records';
+        document.getElementById('paginationInfo').textContent = total ? `Showing ${start}–${end} of ${total} records` : 'No records';
         const wrap = document.getElementById('paginationBtns');
         wrap.innerHTML = '';
         if (pages <= 1) return;
@@ -1606,13 +1642,10 @@ require_once('../../app/config/config.php');
         const pill = document.getElementById('apptPill');
         const clearBtn = document.querySelector('#apptPill .pill-clear');
         const input = document.getElementById('apptInput');
-
         input.disabled = lock;
         wrap.style.display = lock ? 'none' : '';
         if (clearBtn) clearBtn.style.display = lock ? 'none' : '';
-
         if (lock) {
-            pill.classList.remove('locked');
             pill.style.background = 'var(--surface)';
             pill.style.border = '1px solid var(--border)';
             pill.style.cursor = 'not-allowed';
@@ -1620,7 +1653,6 @@ require_once('../../app/config/config.php');
             pill.style.background = '';
             pill.style.border = '';
             pill.style.cursor = '';
-            pill.classList.remove('locked');
         }
     }
 
@@ -1669,25 +1701,20 @@ require_once('../../app/config/config.php');
     /* ── Reset ── */
     function resetModal() {
         ['patient', 'doctor', 'appt'].forEach(f => clearField(f));
-        document.getElementById('fType').value = '';
-        document.getElementById('fDiagnosis').value = '';
-        document.getElementById('fIcdCode').value = '';
-        document.getElementById('fPrescription').value = '';
-        document.getElementById('fNotes').value = '';
-        document.getElementById('fStatus').value = '';
-        document.getElementById('editId').value = '';
-        document.getElementById('fFollowUpDate').value = '';
-
-        ['fType', 'fDiagnosis', 'fIcdCode', 'fPrescription', 'fStatus', 'fFollowUpDate'].forEach(fid => {
-            const el = document.getElementById(fid);
+        ['fType', 'fDiagnosis', 'fIcdCode', 'fPrescription', 'fNotes', 'fStatus', 'fFollowUpDate'].forEach(id => {
+            const el = document.getElementById(id);
+            el.value = '';
             el.style.borderColor = '';
             el.style.background = '';
             el.parentNode.querySelectorAll('.field-err').forEach(e => e.remove());
         });
+        document.getElementById('editId').value = '';
+        document.getElementById('fFollowUpId').value = '';
         ['patientInput', 'doctorInput'].forEach(id => {
             const el = document.getElementById(id);
             el.style.borderColor = '';
             el.style.background = '';
+            el.style.display = '';
             el.placeholder = id === 'patientInput' ? 'Type patient name or code…' : 'Type doctor name…';
         });
     }
@@ -1715,6 +1742,11 @@ require_once('../../app/config/config.php');
             .then(res => {
                 if (!res.success) return alert('Could not load record.');
                 const d = res.data;
+
+                if (d.status === 'Finalized') {
+                    showToast('This record is finalized and cannot be edited.', 'error');
+                    return;
+                }
                 resetModal();
                 document.getElementById('recModalTitle').textContent = 'Edit Medical Record';
                 document.getElementById('saveBtnLabel').textContent = 'Update Record';
@@ -1751,119 +1783,105 @@ require_once('../../app/config/config.php');
                 lockPatientDoctor(true);
                 lockAppt(true);
                 showFinalizedNotice(isFinalized);
-
-                ['fDiagnosis', 'fIcdCode', 'fPrescription', 'fType'].forEach(fid => {
+                ['fDiagnosis', 'fIcdCode', 'fPrescription', 'fType', 'fStatus'].forEach(fid => {
                     const el = document.getElementById(fid);
                     el.disabled = isFinalized;
                     el.style.opacity = isFinalized ? '.7' : '';
                     el.style.cursor = isFinalized ? 'not-allowed' : '';
                     el.style.background = isFinalized ? 'var(--surface)' : '';
                 });
-
-                const fStatus = document.getElementById('fStatus');
-                fStatus.disabled = isFinalized;
-                fStatus.style.opacity = isFinalized ? '.7' : '';
-                fStatus.style.cursor = isFinalized ? 'not-allowed' : '';
-                fStatus.style.background = isFinalized ? 'var(--surface)' : '';
-
                 new bootstrap.Modal(document.getElementById('recModal')).show();
             });
     }
 
+    /* ── Save record ── */
     async function saveRecord() {
         const id = document.getElementById('editId').value;
         const diagnosis = document.getElementById('fDiagnosis').value.trim();
         const icdCode = document.getElementById('fIcdCode').value.trim();
         const followUp = document.getElementById('fFollowUpDate').value;
         const status = document.getElementById('fStatus').value;
-
         let hasError = false;
 
         if (!document.getElementById('fPatient').value) {
-            const el = document.getElementById('patientInput');
-            el.style.borderColor = 'var(--red)';
-            el.style.background = 'var(--red-light)';
-            el.placeholder = 'Patient is required!';
-            el.addEventListener('input', function c() {
-                el.style.borderColor = '';
-                el.style.background = '';
-                el.placeholder = 'Type patient name or code…';
-                el.removeEventListener('input', c);
-            });
+            const lockedBox = document.getElementById('patientLockedBox');
+            if (lockedBox && lockedBox.style.display !== 'none') {
+                lockedBox.style.borderColor = 'var(--red)';
+                lockedBox.style.background = '#fff0f0';
+            } else {
+                const el = document.getElementById('patientInput');
+                el.style.borderColor = 'var(--red)';
+                el.style.background = 'var(--red-light)';
+            }
             hasError = true;
         }
 
         if (!document.getElementById('fDoctor').value) {
-            const el = document.getElementById('doctorInput');
-            el.style.borderColor = 'var(--red)';
-            el.style.background = 'var(--red-light)';
-            el.placeholder = 'Doctor is required!';
-            el.addEventListener('input', function c() {
-                el.style.borderColor = '';
-                el.style.background = '';
-                el.placeholder = 'Type doctor name…';
-                el.removeEventListener('input', c);
-            });
+            const lockedBox = document.getElementById('doctorLockedBox');
+            if (lockedBox && lockedBox.style.display !== 'none') {
+                lockedBox.style.borderColor = 'var(--red)';
+                lockedBox.style.background = '#fff0f0';
+            } else {
+                const el = document.getElementById('doctorInput');
+                el.style.borderColor = 'var(--red)';
+                el.style.background = 'var(--red-light)';
+            }
             hasError = true;
         }
+
         if (!document.getElementById('fType').value) {
             showFieldError('fType', 'Please select a record type.');
             hasError = true;
         }
-
         if (!diagnosis) {
-            showFieldError('fDiagnosis', 'Diagnosis is required before saving.');
+            showFieldError('fDiagnosis', 'Diagnosis is required.');
+            hasError = true;
+        }
+        if (!document.getElementById('fPrescription').value.trim()) {
+            showFieldError('fPrescription', 'Prescription is required.');
+            hasError = true;
+        }
+        if (!status) {
+            showFieldError('fStatus', 'Please select a status.');
             hasError = true;
         }
 
         if (icdCode) {
             const icdPattern = /^[A-Z][0-9]{1,3}(\.[0-9A-Z]{0,4})?$/i;
             if (!icdPattern.test(icdCode)) {
-                showFieldError('fIcdCode', 'ICD code format looks wrong (e.g. I10, J18.9).');
+                showFieldError('fIcdCode', 'ICD code format wrong (e.g. I10, J18.9).');
                 hasError = true;
             }
-        }
-
-        if (!document.getElementById('fPrescription').value.trim()) {
-            showFieldError('fPrescription', 'Prescription is required.');
-            hasError = true;
-        }
-
-        if (!status) {
-            showFieldError('fStatus', 'Please select a status.');
-            hasError = true;
         }
 
         if (followUp) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
-            if (new Date(followUp + 'T00:00:00') <= today) {
-                showFieldError('fFollowUpDate', 'Follow-up date must be a future date.');
+            if (new Date(followUp + 'T00:00:00') < today) {
+                showFieldError('fFollowUpDate', 'Follow-up date must be today or future.');
                 hasError = true;
             }
         }
 
         if (hasError) {
-            showToast('<i class="bi bi-exclamation-circle-fill"></i> Please fill in all required fields.', 'warn');
+            showToast('Please fill in all required fields.', 'warn');
             return;
         }
 
-        if (status === 'Finalized' && !id) {
-            const ok = await openFinalizeModal('Finalizing will lock this record and prevent editing of clinical fields. Continue?');
-            if (!ok) return;
-        }
-        if (status === 'Finalized' && id) {
+        if (status === 'Finalized') {
             const origStatus = document.getElementById('fStatus').dataset.original;
-            if (origStatus !== 'Finalized') {
-                const ok = await openFinalizeModal('Finalizing will lock this record permanently. Are you sure?');
+            if (!id || origStatus !== 'Finalized') {
+                const ok = await openFinalizeModal('Finalizing will lock this record permanently. Continue?');
                 if (!ok) return;
             }
         }
+
         const payload = {
             id: id || undefined,
             patientId: document.getElementById('fPatient').value,
             doctorId: document.getElementById('fDoctor').value,
             appointmentId: document.getElementById('fAppointment').value || null,
+            followUpId: document.getElementById('fFollowUpId').value || null,
             recordType: document.getElementById('fType').value,
             diagnosis,
             icdCode,
@@ -1873,7 +1891,7 @@ require_once('../../app/config/config.php');
             followUpDate: followUp || null,
         };
 
-        fetch(`${HANDLER}?action=${id ? 'edit' : 'add'}`, {
+        fetch(`${HANDLER}?action=${id?'edit':'add'}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1887,7 +1905,7 @@ require_once('../../app/config/config.php');
                     loadRecords(currentPage);
                     showToast(id ? 'Record updated!' : 'Record saved!', 'success');
                 } else {
-                    alert('Failed to save. Please try again.');
+                    showToast('Failed to save. Please try again.', 'error');
                 }
             });
     }
@@ -1897,72 +1915,71 @@ require_once('../../app/config/config.php');
         const el = document.getElementById(fieldId);
         el.style.borderColor = 'var(--red)';
         el.style.background = '#fff0f0';
-        el.focus();
-
         const prev = el.parentNode.querySelector('.field-err');
         if (prev) prev.remove();
-
         const tip = document.createElement('div');
         tip.className = 'field-err';
-        tip.style.cssText = 'font-size:.72rem;color:var(--red-dark);margin-top:4px;display:flex;align-items:center;gap:5px;';
-        tip.innerHTML = msg;
+        tip.style.cssText = 'font-size:.72rem;color:var(--red-dark);margin-top:4px;';
+        tip.textContent = msg;
         el.parentNode.appendChild(tip);
-
-        el.addEventListener('input', function clear() {
+        const clear = () => {
             el.style.borderColor = '';
             el.style.background = '';
             tip.remove();
             el.removeEventListener('input', clear);
-        });
-
-        el.addEventListener('change', function clear() {
-            el.style.borderColor = '';
-            el.style.background = '';
-            tip.remove();
             el.removeEventListener('change', clear);
-        });
+        };
+        el.addEventListener('input', clear);
+        el.addEventListener('change', clear);
     }
 
     /* ── View record ── */
-    function viewRecord(id, print = false) {
+    function viewRecord(id) {
         fetch(`${HANDLER}?action=get&id=${id}`)
             .then(r => r.json())
             .then(res => {
                 if (!res.success) return alert('Could not load record.');
                 const d = res.data;
-                const cfg = STATUS_CONFIG[d.status] || {
-                    bg: '#f3f4f6',
-                    color: '#374151',
-                    dot: '#9ca3af'
-                };
+                const entriesHtml = [d, ...(d.entries || [])].map((e, idx) => {
+                    const eCfg = STATUS_CONFIG[e.status] || {
+                        bg: '#f3f4f6',
+                        color: '#374151',
+                        dot: '#9ca3af'
+                    };
+                    return `<div style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:.85rem 1rem;margin-bottom:.65rem;background:${idx===0?'var(--blue-50)':'#fff'};">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                <span style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);">${idx===0?'Initial Visit':'Visit '+(idx+1)}</span>
+                                ${typeChip(e.recordType)}
+                                <span style="background:${eCfg.bg};color:${eCfg.color};font-size:.63rem;font-weight:600;border-radius:5px;padding:2px 8px;">${e.status}</span>
+                            </div>
+                            <span style="font-size:.72rem;color:var(--text-muted);">${fmtDate(e.createdAt?.slice(0,10))}</span>
+                        </div>
+                        <div style="font-size:.84rem;font-weight:600;color:var(--text-dark);margin-bottom:3px;">${e.diagnosis||'—'}</div>
+                        ${e.icdCode?`<div style="font-size:.7rem;color:var(--text-muted);margin-bottom:4px;">ICD: ${e.icdCode}</div>`:''}
+                        ${e.prescription?`<div style="font-size:.78rem;color:var(--text-body);margin-top:5px;"><strong>Rx:</strong> ${e.prescription}</div>`:''}
+                        ${e.notes?`<div style="font-size:.78rem;color:var(--text-body);margin-top:5px;white-space:pre-line;border-top:1px solid var(--border);padding-top:5px;">${e.notes}</div>`:''}
+                        ${e.followUpDate?`<div style="font-size:.72rem;color:var(--amber-dark);margin-top:6px;font-weight:600;"><i class="bi bi-calendar-check"></i> Follow-up: ${fmtDate(e.followUpDate)}</div>`:''}
+                        <div style="font-size:.7rem;color:var(--text-muted);margin-top:6px;">Dr. ${e.doctorName||d.doctorName} &middot; ${e.specialization||d.specialization||''}</div>
+                    </div>`;
+                }).join('');
+
                 document.getElementById('viewModalBody').innerHTML = `
-                    <div class="detail-row"><span class="detail-label">Code</span>           <span class="detail-value">${d.recordCode}</span></div>
-                    <div class="detail-row"><span class="detail-label">Patient</span>         <span class="detail-value">${d.patientName} (${d.patientCode})</span></div>
-                    <div class="detail-row"><span class="detail-label">Doctor</span>          <span class="detail-value">${d.doctorName}</span></div>
-                    <div class="detail-row"><span class="detail-label">Specialization</span>  <span class="detail-value">${d.specialization||'—'}</span></div>
-                    <div class="detail-row"><span class="detail-label">Type</span>            <span class="detail-value">${typeChip(d.recordType)}</span></div>
-                    <div class="detail-row"><span class="detail-label">Diagnosis</span>       <span class="detail-value">${d.diagnosis||'—'}</span></div>
-                    <div class="detail-row"><span class="detail-label">ICD Code</span>        <span class="detail-value">${d.icdCode||'—'}</span></div>
-                    <div class="detail-row"><span class="detail-label">Prescription</span>    <span class="detail-value" style="white-space:pre-line">${d.prescription||'—'}</span></div>
-                    <div class="detail-row"><span class="detail-label">Notes</span>           <span class="detail-value" style="white-space:pre-line">${d.notes||'—'}</span></div>
-                    <div class="detail-row"><span class="detail-label">Status</span>
-                        <span class="detail-value">
-                            <span style="background:${cfg.bg};color:${cfg.color};font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;font-family:'DM Sans',sans-serif;display:inline-flex;align-items:center;gap:5px;">
-                                <span style="width:7px;height:7px;border-radius:50%;background:${cfg.dot};display:inline-block;"></span>${d.status}
-                            </span>
+                    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:.75rem 1rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-weight:700;color:var(--text-dark);font-size:.9rem;">${d.patientName}</div>
+                            <div style="font-size:.75rem;color:var(--text-muted);">${d.patientCode} &nbsp;·&nbsp; Record: ${d.recordCode}</div>
+                        </div>
+                        <span style="font-size:.72rem;font-weight:600;color:var(--blue-600);background:var(--blue-50);border:1px solid var(--blue-100);border-radius:6px;padding:3px 10px;">
+                            ${(d.entries?.length||0)+1} visit${(d.entries?.length||0)+1!==1?'s':''}
                         </span>
                     </div>
-                    <div class="detail-row"><span class="detail-label">Follow-Up Date</span>  <span class="detail-value">${d.followUpDate ? fmtDate(d.followUpDate) : '—'}</span></div>
-                    <div class="detail-row"><span class="detail-label">Created</span>         <span class="detail-value">${fmtDate(d.createdAt?.slice(0,10))}</span></div>
-                    ${renderAuditTrail(d.auditLog || [])}
-                `;
-                const modal = new bootstrap.Modal(document.getElementById('viewModal'));
-                modal.show();
-                if (print) {
-                    document.getElementById('viewModal').addEventListener('shown.bs.modal', () => window.print(), {
-                        once: true
-                    });
-                }
+                    <div style="font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:.65rem;">
+                        <i class="bi bi-clock-history"></i> Visit History
+                    </div>
+                    ${entriesHtml}
+                    ${renderAuditTrail(d.auditLog||[])}`;
+                new bootstrap.Modal(document.getElementById('viewModal')).show();
             });
     }
 
@@ -1985,9 +2002,7 @@ require_once('../../app/config/config.php');
                     bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
                     loadRecords(currentPage);
                     showToast('Record deleted.', 'success');
-                } else {
-                    alert('Failed to delete. Please try again.');
-                }
+                } else alert('Failed to delete.');
             });
     }
 
@@ -1999,35 +2014,26 @@ require_once('../../app/config/config.php');
             warn: '#9b1c1c'
         };
         const el = document.createElement('div');
-        const isWarn = type === 'warn';
-        el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;background:${colors[type]||colors.success};color:#fff;border-radius:${isWarn?'999px':'10px'};padding:${isWarn?'.65rem 1.4rem':'.65rem 1.1rem'};font-size:.82rem;font-family:'DM Sans',sans-serif;box-shadow:${isWarn?'0 4px 20px rgba(120,20,20,.25)':'0 8px 30px rgba(0,0,0,.1)'};display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease both;`;
-        el.innerHTML = msg;
+        el.style.cssText = `position:fixed;bottom:24px;right:24px;z-index:99999;background:${colors[type]||colors.success};color:#fff;border-radius:999px;padding:.65rem 1.4rem;font-size:.82rem;font-family:'DM Sans',sans-serif;box-shadow:0 4px 20px rgba(0,0,0,.2);display:flex;align-items:center;gap:8px;animation:fadeUp .25s ease both;`;
+        el.textContent = msg;
         document.body.appendChild(el);
         setTimeout(() => el.remove(), 3500);
     }
 
-    /* ── Audit trail ── */
     function renderAuditTrail(log) {
         if (!log.length) return '';
         const typeClass = {
-            'create': 'create',
-            'edit': 'edit',
-            'status': 'status'
+            create: 'create',
+            edit: 'edit',
+            status: 'status'
         };
         const items = log.map(entry => {
             let detail = '';
             if (entry.type === 'status') {
-                detail = `<span class="audit-arrow">
-                    <span class="from">${entry.from}</span>
-                    <i class="bi bi-arrow-right" style="font-size:.65rem;color:var(--text-muted);"></i>
-                    <span class="to">${entry.to}</span>
-                </span>`;
+                detail = `<span class="audit-arrow"><span class="from">${entry.from}</span><i class="bi bi-arrow-right" style="font-size:.65rem;color:var(--text-muted);"></i><span class="to">${entry.to}</span></span>`;
             }
             return `<div class="audit-item ${typeClass[entry.type]||'edit'}">
-                <div>
-                    <div class="audit-action">${entry.action} ${detail}</div>
-                    <div class="audit-who">${entry.by} &middot; ${entry.at}</div>
-                </div>
+                <div><div class="audit-action">${entry.action} ${detail}</div><div class="audit-who">${entry.by} &middot; ${entry.at}</div></div>
             </div>`;
         }).join('');
         return `<div class="audit-trail">

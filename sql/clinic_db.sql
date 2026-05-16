@@ -37,6 +37,7 @@ CREATE TABLE `appointments` (
   `channel` enum('Walk-in','Online','Phone','Referral','Follow-up') NOT NULL DEFAULT 'Walk-in',
   `status` enum('Pending','In Progress','Completed','Cancelled') NOT NULL DEFAULT 'Pending',
   `remarks` text DEFAULT NULL,
+  `address` text DEFAULT NULL,
   `bookedByUserId` int(11) DEFAULT NULL,
   `createdAt` timestamp NOT NULL DEFAULT current_timestamp(),
   `updatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
@@ -46,15 +47,15 @@ CREATE TABLE `appointments` (
 -- Dumping data for table `appointments`
 --
 
-INSERT INTO `appointments` (`id`, `appointmentCode`, `patientId`, `doctorId`, `appointmentDate`, `appointmentTime`, `channel`, `status`, `remarks`, `bookedByUserId`, `createdAt`, `updatedAt`) VALUES
-(2, 'APP-2026-0002', 2, 22, '2026-05-01', '11:30:00', 'Phone', 'Completed', '', NULL, '2026-04-30 14:50:18', '2026-05-04 06:33:05'),
-(3, 'APP-2026-0003', 3, 23, '2026-05-06', '08:30:00', 'Walk-in', 'Cancelled', '', NULL, '2026-04-30 14:51:38', '2026-05-04 06:26:43'),
-(4, 'APP-2026-0004', 4, 21, '2026-05-04', '14:30:00', 'Online', 'Completed', '', NULL, '2026-04-30 14:52:54', '2026-05-06 06:53:36'),
-(5, 'APP-2026-0005', 5, 25, '2026-05-03', '11:30:00', 'Walk-in', 'Cancelled', '', NULL, '2026-04-30 14:53:57', '2026-05-01 08:37:36'),
-(6, 'APP-2026-0006', 1, 24, '2026-05-01', '16:30:00', 'Walk-in', 'Completed', '', NULL, '2026-05-01 09:36:54', '2026-05-01 09:36:57'),
-(7, 'APP-2026-0007', 6, 21, '2026-05-04', '10:00:00', 'Online', 'Completed', 'test 1', 2, '2026-05-01 11:13:45', '2026-05-02 10:22:56'),
-(8, 'APP-2026-0008', 8, 22, '2026-05-04', '09:30:00', 'Walk-in', 'Completed', '', NULL, '2026-05-04 05:36:11', '2026-05-04 06:19:26'),
-(9, 'APP-2026-0009', NULL, 25, '2026-05-10', '11:30:00', 'Online', 'Cancelled', '', 2, '2026-05-04 06:43:37', '2026-05-04 10:20:39');
+INSERT INTO `appointments` (`id`, `appointmentCode`, `patientId`, `doctorId`, `appointmentDate`, `appointmentTime`, `channel`, `status`, `remarks`, `address`, `bookedByUserId`, `createdAt`, `updatedAt`) VALUES
+(2, 'APP-2026-0002', 2, 22, '2026-05-01', '11:30:00', 'Phone', 'Completed', '', NULL, NULL, '2026-04-30 14:50:18', '2026-05-04 06:33:05'),
+(3, 'APP-2026-0003', 3, 23, '2026-05-06', '08:30:00', 'Walk-in', 'Cancelled', '', NULL, NULL, '2026-04-30 14:51:38', '2026-05-04 06:26:43'),
+(4, 'APP-2026-0004', 4, 21, '2026-05-04', '14:30:00', 'Online', 'Completed', '', NULL, NULL, '2026-04-30 14:52:54', '2026-05-06 06:53:36'),
+(5, 'APP-2026-0005', 5, 25, '2026-05-03', '11:30:00', 'Walk-in', 'Cancelled', '', NULL, NULL, '2026-04-30 14:53:57', '2026-05-01 08:37:36'),
+(6, 'APP-2026-0006', 1, 24, '2026-05-01', '16:30:00', 'Walk-in', 'Completed', '', NULL, NULL, '2026-05-01 09:36:54', '2026-05-01 09:36:57'),
+(7, 'APP-2026-0007', 6, 21, '2026-05-04', '10:00:00', 'Online', 'Completed', 'test 1', NULL, 2, '2026-05-01 11:13:45', '2026-05-02 10:22:56'),
+(8, 'APP-2026-0008', 8, 22, '2026-05-04', '09:30:00', 'Walk-in', 'Completed', '', NULL, NULL, '2026-05-04 05:36:11', '2026-05-04 06:19:26'),
+(9, 'APP-2026-0009', NULL, 25, '2026-05-10', '11:30:00', 'Online', 'Cancelled', '', NULL, 2, '2026-05-04 06:43:37', '2026-05-04 10:20:39');
 
 -- --------------------------------------------------------
 

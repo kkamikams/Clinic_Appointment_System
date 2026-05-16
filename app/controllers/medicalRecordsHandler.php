@@ -75,6 +75,21 @@ switch ($action) {
         echo json_encode($result);
         break;
 
+    case 'get_patient_by_id':
+        $patientId = (int)($_GET['patientId'] ?? 0);
+        if (!$patientId) {
+            echo json_encode(['success' => false]);
+            break;
+        }
+        $row = $conn->query("
+        SELECT id, patientCode,
+               TRIM(CONCAT(firstName,' ',COALESCE(NULLIF(middleName,''),''),' ',lastName)) AS name
+        FROM patients
+        WHERE id = $patientId LIMIT 1
+    ")->fetch_assoc();
+        echo json_encode(['success' => (bool)$row, 'data' => $row]);
+        break;
+
     case 'update_status':
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') break;
         $id     = (int)($_POST['id'] ?? 0);

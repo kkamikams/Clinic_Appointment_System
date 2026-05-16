@@ -507,9 +507,10 @@ require_once('../../app/config/config.php');
                     </select>
                     <span class="err-msg">Please select a gender.</span>
                 </div>
-                <div class="field">
-                    <label>Date of Birth</label>
-                    <input type="date" id="dob">
+                <div class="field" id="field-dob">
+                    <label>Date of Birth <span class="req">*</span></label>
+                    <input type="date" id="dob" onchange="clearError('field-dob')">
+                    <span class="err-msg">Date of birth is required.</span>
                 </div>
                 <div class="field" id="field-license">
                     <label>PRC License No. <span class="req">*</span></label>
@@ -595,13 +596,15 @@ require_once('../../app/config/config.php');
                     </div>
                 </div>
                 <div class="field"></div>
-                <div class="field">
-                    <label>Shift Start</label>
-                    <input type="time" id="shiftStart" value="08:00">
+                <div class="field" id="field-shiftStart">
+                    <label>Shift Start <span class="req">*</span></label>
+                    <input type="time" id="shiftStart" value="08:00" onchange="clearError('field-shiftStart')">
+                    <span class="err-msg">Shift start is required.</span>
                 </div>
-                <div class="field">
-                    <label>Shift End</label>
-                    <input type="time" id="shiftEnd" value="17:00">
+                <div class="field" id="field-shiftEnd">
+                    <label>Shift End <span class="req">*</span></label>
+                    <input type="time" id="shiftEnd" value="17:00" onchange="clearError('field-shiftEnd')">
+                    <span class="err-msg">Shift end is required.</span>
                 </div>
             </div>
 
@@ -717,6 +720,18 @@ require_once('../../app/config/config.php');
                 id: 'address',
                 field: 'field-address'
             },
+            {
+                id: 'dob',
+                field: 'field-dob'
+            },
+            {
+                id: 'shiftStart',
+                field: 'field-shiftStart'
+            },
+            {
+                id: 'shiftEnd',
+                field: 'field-shiftEnd'
+            },
         ].forEach(({
             id,
             field
@@ -767,7 +782,7 @@ require_once('../../app/config/config.php');
         formData.append('empStatus', document.querySelector('input[name="empStatus"]:checked')?.value || 'Active');
         days.forEach(d => formData.append('days[]', d));
 
-        fetch('../../app/controllers/DoctorController.php?action=save', {
+        fetch('../../app/controllers/doctorController.php?action=save', {
                 method: 'POST',
                 body: formData
             })

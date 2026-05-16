@@ -11,57 +11,78 @@ class dashboardModel
     // FROM: $apptToday = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate = '$today'")
     public function getAppointmentsToday($today)
     {
-        return $this->conn->query(
+        $result = $this->conn->query(
             "SELECT COUNT(*) FROM appointments WHERE appointmentDate = '$today'"
-        )->fetch_row()[0];
+        );
+        if (!$result) return 0;
+        $row = $result->fetch_row();
+        return $row ? (int)$row[0] : 0;
     }
 
     // FROM: $apptYesterday = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate = DATE_SUB...")
     public function getAppointmentsYesterday($today)
     {
-        return $this->conn->query(
+        $result = $this->conn->query(
             "SELECT COUNT(*) FROM appointments WHERE appointmentDate = DATE_SUB('$today', INTERVAL 1 DAY)"
-        )->fetch_row()[0];
+        );
+        if (!$result) return 0;
+        $row = $result->fetch_row();
+        return $row ? (int)$row[0] : 0;
     }
 
     // FROM: $patMonth = $conn->query("SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(CURDATE())...")
     public function getPatientsThisMonth()
     {
-        return $this->conn->query(
+        $result = $this->conn->query(
             "SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(CURDATE()) AND YEAR(createdAt)=YEAR(CURDATE())"
-        )->fetch_row()[0];
+        );
+        if (!$result) return 0;
+        $row = $result->fetch_row();
+        return $row ? (int)$row[0] : 0;
     }
 
     // FROM: $patLastMonth = $conn->query("SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(DATE_SUB...)")
     public function getPatientsLastMonth()
     {
-        return $this->conn->query(
+        $result = $this->conn->query(
             "SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(DATE_SUB(CURDATE(),INTERVAL 1 MONTH)) AND YEAR(createdAt)=YEAR(DATE_SUB(CURDATE(),INTERVAL 1 MONTH))"
-        )->fetch_row()[0];
+        );
+        if (!$result) return 0;
+        $row = $result->fetch_row();
+        return $row ? (int)$row[0] : 0;
     }
 
     // FROM: $totalPatients = $conn->query("SELECT COUNT(*) FROM patients WHERE status='Active'")
     public function getTotalActivePatients()
     {
-        return $this->conn->query(
+        $result = $this->conn->query(
             "SELECT COUNT(*) FROM patients WHERE status='Active'"
-        )->fetch_row()[0];
+        );
+        if (!$result) return 0;
+        $row = $result->fetch_row();
+        return $row ? (int)$row[0] : 0;
     }
 
     // FROM: $totalDoctors = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus='Active'")
     public function getTotalActiveDoctors()
     {
-        return $this->conn->query(
+        $result = $this->conn->query(
             "SELECT COUNT(*) FROM doctors WHERE employmentStatus='Active'"
-        )->fetch_row()[0];
+        );
+        if (!$result) return 0;
+        $row = $result->fetch_row();
+        return $row ? (int)$row[0] : 0;
     }
 
     // FROM: $onDutyNow = $conn->query("SELECT COUNT(*) FROM doctors WHERE status='On Duty'")
     public function getOnDutyCount()
     {
-        return $this->conn->query(
+        $result = $this->conn->query(
             "SELECT COUNT(*) FROM doctors WHERE status='On Duty'"
-        )->fetch_row()[0];
+        );
+        if (!$result) return 0;
+        $row = $result->fetch_row();
+        return $row ? (int)$row[0] : 0;
     }
 
     // FROM: $chartData = []; for ($i = 6; $i >= 0; $i--) { ... }
@@ -79,9 +100,11 @@ class dashboardModel
         WHERE appointmentDate >= '$start'
         GROUP BY appointmentDate
         ORDER BY appointmentDate ASC
-    ")->fetch_all(MYSQLI_ASSOC);
+    ");
+        if (!$result) return [];
+        $rows = $result->fetch_all(MYSQLI_ASSOC);
 
-        $indexed = array_column($result, null, 'date');
+        $indexed = array_column($rows, null, 'date');
 
         $chartData = [];
         for ($i = 6; $i >= 0; $i--) {
@@ -100,7 +123,7 @@ class dashboardModel
     // FROM: $apptRows = $conn->query("SELECT a.appointmentCode, a.appointmentTime...")
     public function getTodayAppointments($today)
     {
-        return $this->conn->query("
+        $result = $this->conn->query("
             SELECT a.appointmentCode, a.appointmentTime, a.status, a.channel,
                 CONCAT(p.firstName,' ',p.lastName) AS patientName,
                 CONCAT('Dr. ',d.firstName,' ',d.lastName) AS doctorName,
@@ -111,7 +134,9 @@ class dashboardModel
             WHERE a.appointmentDate='$today'
             ORDER BY a.appointmentTime ASC
             LIMIT 10
-        ")->fetch_all(MYSQLI_ASSOC);
+        ");
+        if (!$result) return [];
+        return $result->fetch_all(MYSQLI_ASSOC);
     }
 
     // FROM: $conn->query("UPDATE doctors d LEFT JOIN doctorSchedules ds...")
@@ -130,7 +155,7 @@ class dashboardModel
     // FROM: $dutyDoctors = $conn->query("SELECT d.id, d.firstName, d.lastName...")
     public function getDutyDoctors($today)
     {
-        return $this->conn->query("
+        $result = $this->conn->query("
             SELECT d.id, d.firstName, d.lastName, d.specialization,
                    d.patientCapacity, d.status,
                    COUNT(DISTINCT a.id) AS currentLoad,
@@ -142,21 +167,25 @@ class dashboardModel
             WHERE d.employmentStatus = 'Active'
             GROUP BY d.id
             LIMIT 8
-        ")->fetch_all(MYSQLI_ASSOC);
+        ");
+        if (!$result) return [];
+        return $result->fetch_all(MYSQLI_ASSOC);
     }
 
     // FROM: $activities = $conn->query("SELECT * FROM recentActivity ORDER BY createdAt DESC LIMIT 8")
     public function getRecentActivity()
     {
-        return $this->conn->query(
+        $result = $this->conn->query(
             "SELECT * FROM recentActivity ORDER BY createdAt DESC LIMIT 8"
-        )->fetch_all(MYSQLI_ASSOC);
+        );
+        if (!$result) return [];
+        return $result->fetch_all(MYSQLI_ASSOC);
     }
 
     // FROM: $apptCompleted, $apptPending, $apptInProgress, $apptCancelled = $conn->query(...)
     public function getStatusBreakdown($today)
     {
-        $row = $this->conn->query("
+        $result = $this->conn->query("
         SELECT
             SUM(status = 'Completed')   AS completed,
             SUM(status = 'Pending')     AS pending,
@@ -164,7 +193,10 @@ class dashboardModel
             SUM(status = 'Cancelled')   AS cancelled
         FROM appointments
         WHERE appointmentDate = '$today'
-    ")->fetch_assoc();
+    ");
+        if (!$result) return ['completed' => 0, 'pending' => 0, 'inProgress' => 0, 'cancelled' => 0];
+        $row = $result->fetch_assoc();
+        if (!$row) return ['completed' => 0, 'pending' => 0, 'inProgress' => 0, 'cancelled' => 0];
 
         return [
             'completed'  => (int) $row['completed'],

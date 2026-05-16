@@ -624,7 +624,14 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                             <tr data-doctor="<?= htmlspecialchars(strtolower($rec['doctorName'])) ?>"
                                 data-dept="<?= htmlspecialchars($rec['specialization']) ?>"
                                 data-diag="<?= htmlspecialchars(strtolower($rec['diagnosis'] ?? '')) ?>">
-                                <td><span class="rec-id"><?= htmlspecialchars($rec['recordCode']) ?></span></td>
+                                <td>
+                                    <span class="rec-id"><?= htmlspecialchars($rec['recordCode']) ?></span>
+                                    <?php if (!empty($rec['isFollowUp'])): ?>
+                                        <div style="font-size:.62rem;font-weight:700;color:var(--amber-dark);margin-top:2px;">
+                                            <i class="bi bi-arrow-return-right"></i> Follow-up
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
                                 <td style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= htmlspecialchars($rec['patientName']) ?></td>
                                 <td>
                                     <div class="doc-cell">

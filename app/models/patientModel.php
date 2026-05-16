@@ -77,15 +77,16 @@ class patientModel
         $dob        = !empty($data['dob']) ? $data['dob'] : null;
         $contact    = $data['contact'] ?? null;
         $email      = $data['email']   ?? null;
+        $address    = $data['address'] ?? null;
 
         $stmt = $this->conn->prepare("
         INSERT INTO patients
             (patientCode, firstName, middleName, lastName, gender, dateOfBirth,
-             contactNumber, emailAddress, status, patientCondition)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Active', 'Stable')
+             contactNumber, emailAddress, address, status, patientCondition)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', 'Stable')
     ");
         $stmt->bind_param(
-            'ssssssss',
+            'sssssssss',
             $pCode,
             $firstName,
             $middleName,
@@ -93,7 +94,8 @@ class patientModel
             $gender,
             $dob,
             $contact,
-            $email
+            $email,
+            $address
         );
         $stmt->execute();
         return $this->conn->insert_id;

@@ -809,7 +809,7 @@ include('./includes/sidebar.php');
         const form = e.target;
         const data = new FormData(form);
 
-        fetch('../../app/controllers/DoctorController.php?action=update', {
+        fetch('../../app/controllers/doctorController.php?action=update', {
                 method: 'POST',
                 body: data
             })

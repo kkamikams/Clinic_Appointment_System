@@ -1,18 +1,5 @@
 <?php
-session_start();
-
-if (!isset($_SESSION['user_id'])) {
-  header('Location: /Clinic_Appointment_System/public/login.php');
-  exit();
-}
-
-if ($_SESSION['userRole'] !== 'admin') {
-  $_SESSION['message'] = 'You do not have permission to access this page.';
-  $_SESSION['code'] = 'error';
-  header('Location: /Clinic_Appointment_System/public/user/index');
-  exit();
-}
-
+require_once('../../app/middleware/admin.php');
 require_once('../../app/config/config.php');
 require_once('../../app/models/DashboardModel.php');
 

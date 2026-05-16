@@ -326,11 +326,29 @@ require_once('../../app/config/config.php');
         padding: .7rem .6rem;
     }
 
+    .table tbody tr {
+        position: relative;
+    }
+
+    .table tbody td.status-cell {
+        position: static;
+    }
+
+    .table tbody td:has(.status-dropdown.open) {
+        position: relative;
+        z-index: 100;
+    }
+
+    .status-dropdown {
+        left: auto;
+        right: 10px;
+    }
+
     .table tbody tr:last-child td {
         border-bottom: none;
     }
 
-    .table tbody tr:hover td {
+    .table tbody tr:hover td:not(:has(.status-dropdown.open)) {
         background: var(--blue-50);
     }
 
@@ -395,6 +413,8 @@ require_once('../../app/config/config.php');
 
     .status-cell {
         position: relative;
+        z-index: 1;
+        display: inline-block;
     }
 
     .badge-btn {
@@ -402,6 +422,8 @@ require_once('../../app/config/config.php');
         border: none;
         background: none;
         padding: 0;
+        position: relative;
+        z-index: 2;
         font-family: 'DM Sans', sans-serif;
         display: inline-flex;
         align-items: center;
@@ -423,13 +445,16 @@ require_once('../../app/config/config.php');
         position: absolute;
         top: calc(100% + 4px);
         left: 0;
-        background: #fff;
+        right: auto;
+        background: #fff !important;
         border: 1px solid var(--border);
         border-radius: var(--radius-sm);
         box-shadow: var(--shadow-md);
-        z-index: 500;
+        z-index: 1000;
         min-width: 155px;
+        min-width: max-content;
         overflow: hidden;
+        pointer-events: auto;
         animation: fadeUp .18s ease both;
     }
 
@@ -873,7 +898,6 @@ require_once('../../app/config/config.php');
                 <div class="row g-3">
 
                     <div class="col-12">
-                        <label class="form-label">Patient</label>
                         <div id="patientSection">
 
                             <div id="patientTabSwitcher" style="display:flex;gap:0;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px;">
@@ -888,9 +912,13 @@ require_once('../../app/config/config.php');
                             </div>
 
                             <div id="containerExisting" style="display:flex;flex-direction:column;gap:8px;">
-                                <input type="text" id="patientSearchInput" class="form-control"
-                                    placeholder="Type name or patient code…"
-                                    oninput="debouncePatientSearch()" autocomplete="off">
+                                <label class="form-label">Patient <span style="color:#ef4444;">*</span></label>
+                                <div class="field-wrap" id="wrap-fPatient">
+                                    <input type="text" id="patientSearchInput" class="form-control"
+                                        placeholder="Type name or patient code…"
+                                        oninput="debouncePatientSearch(); clearModalFieldError('wrap-fPatient')" autocomplete="off">
+                                    <span class="field-err-msg">Please search and select a patient.</span>
+                                </div>
                                 <div id="patientSearchResults"
                                     style="display:none;border:1px solid var(--border);border-radius:var(--radius-sm);background:#fff;max-height:180px;overflow-y:auto;"></div>
                                 <div id="selectedPatientCard"
@@ -899,6 +927,7 @@ require_once('../../app/config/config.php');
                                         <div>
                                             <div style="font-weight:700;color:var(--text-dark);" id="selPatName">—</div>
                                             <div style="color:var(--text-muted);font-size:.72rem;" id="selPatMeta">—</div>
+                                            <div style="color:var(--text-muted);font-size:.72rem;" id="selPatAddress"></div>
                                         </div>
                                         <button type="button" onclick="clearSelectedPatient()"
                                             style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.85rem;padding:2px 6px;">
@@ -907,6 +936,7 @@ require_once('../../app/config/config.php');
                                     </div>
                                 </div>
                                 <input type="hidden" id="fPatient">
+                                <input type="hidden" id="fPatientAddress">
                             </div>
 
                             <div id="containerNew" style="display:none;flex-direction:column;gap:6px;">
@@ -948,29 +978,50 @@ require_once('../../app/config/config.php');
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="form-label">Gender</label>
-                                        <select class="form-select" id="fNewPatientGender">
-                                            <option value="">Select gender</option>
-                                            <option>Male</option>
-                                            <option>Female</option>
-                                            <option>Other</option>
-                                        </select>
+                                        <label class="form-label">Gender <span style="color:#ef4444;">*</span></label>
+                                        <div class="field-wrap" id="wrap-fNewGender">
+                                            <select class="form-select" id="fNewPatientGender"
+                                                onchange="clearModalFieldError('wrap-fNewGender')">
+                                                <option value="">Select gender</option>
+                                                <option>Male</option>
+                                                <option>Female</option>
+                                                <option>Other</option>
+                                            </select>
+                                            <span class="field-err-msg">Gender is required.</span>
+                                        </div>
                                     </div>
                                     <div>
-                                        <label class="form-label">Contact Number</label>
-                                        <input type="tel" class="form-control" id="fNewPatientContact" placeholder="e.g. 09171234567">
+                                        <label class="form-label">Contact Number <span style="color:#ef4444;">*</span></label>
+                                        <div class="field-wrap" id="wrap-fNewContact">
+                                            <input type="tel" class="form-control" id="fNewPatientContact"
+                                                placeholder="e.g. 09171234567"
+                                                oninput="clearModalFieldError('wrap-fNewContact')">
+                                            <span class="field-err-msg">Contact number is required.</span>
+                                        </div>
                                     </div>
                                 </div>
                                 <div>
-                                    <label class="form-label">Email Address</label>
-                                    <input type="email" class="form-control" id="fNewPatientEmail" placeholder="e.g. juan@gmail.com">
+                                    <label class="form-label">Email Address <span style="color:#ef4444;">*</span></label>
+                                    <div class="field-wrap" id="wrap-fNewEmail">
+                                        <input type="email" class="form-control" id="fNewPatientEmail" placeholder="e.g. juan@gmail.com"
+                                            oninput="clearModalFieldError('wrap-fNewEmail')">
+                                        <span class="field-err-msg">Email address is required.</span>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="form-label">Address <span style="color:#ef4444;">*</span></label>
+                                    <div class="field-wrap" id="wrap-fNewAddress">
+                                        <input type="text" class="form-control" id="fNewPatientAddress"
+                                            placeholder="e.g. 123 Main St., City, Province"
+                                            oninput="clearModalFieldError('wrap-fNewAddress')">
+                                        <span class="field-err-msg">Address is required.</span>
+                                    </div>
                                 </div>
                             </div>
-
                         </div>
                     </div>
 
-                    <div class="col-md-4" id="doctorCol">
+                    <div class="col-md-6" id="doctorCol">
                         <label class="form-label">Doctor <span style="color:#ef4444;">*</span></label>
                         <div class="field-wrap" id="wrap-fDoctor">
                             <select class="form-select" id="fDoctor" required
@@ -987,7 +1038,7 @@ require_once('../../app/config/config.php');
                         </div>
                     </div>
 
-                    <div class="col-md-4">
+                    <div class="col-md-6">
                         <label class="form-label">Date <span style="color:#ef4444;">*</span></label>
                         <div class="field-wrap" id="wrap-fDate">
                             <input type="date" class="form-control" id="fDate" required
@@ -1031,12 +1082,12 @@ require_once('../../app/config/config.php');
                     </div>
 
                 </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn-secondary-sm" data-bs-dismiss="modal">Cancel</button>
-                <button class="btn-primary-sm" onclick="saveAppointment()">
-                    <i class="bi bi-check-lg"></i> <span id="saveBtnLabel">Save Appointment</span>
-                </button>
+                <div class="modal-footer">
+                    <button class="btn-secondary-sm" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn-primary-sm" onclick="saveAppointment()">
+                        <i class="bi bi-check-lg"></i> <span id="saveBtnLabel">Save Appointment</span>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1124,7 +1175,7 @@ require_once('../../app/config/config.php');
     document.addEventListener('click', e => {
         const opt = e.target.closest('.status-opt');
         if (opt && opt.dataset.clickable === 'true') {
-            pickApptStatus(opt, opt.dataset.status, opt.dataset.id);
+            pickApptStatus(opt, opt.dataset.status, opt.dataset.id, opt.dataset.isFollowup);
             return;
         }
         if (!e.target.closest('.status-cell')) {
@@ -1142,40 +1193,32 @@ require_once('../../app/config/config.php');
     }
 
     function clearAllModalErrors() {
-        ['wrap-fNewFirstName', 'wrap-fNewLastName', 'wrap-fNewDOB', 'wrap-fDoctor', 'wrap-fDate']
+        ['wrap-fNewFirstName', 'wrap-fNewLastName', 'wrap-fNewDOB', 'wrap-fNewAddress',
+            'wrap-fNewGender', 'wrap-fNewContact', 'wrap-fNewEmail', 'wrap-fPatient', 'wrap-fDoctor', 'wrap-fDate'
+        ]
         .forEach(id => clearModalFieldError(id));
         document.getElementById('modal-time-err').style.display = 'none';
     }
 
     /* ─── Status dropdown ─── */
     function toggleStatusDrop(btn) {
-        const badge = btn.querySelector('.appt-badge');
-        const currentStatus = badge ? badge.textContent.trim() : '';
-        const dd = btn.nextElementSibling;
+        const container = btn.closest('.status-cell');
+        const dd = container ? container.querySelector('.status-dropdown') : null;
+        if (!dd) return;
         const isOpen = dd.classList.contains('open');
         document.querySelectorAll('.status-dropdown.open').forEach(el => el.classList.remove('open'));
         if (!isOpen) dd.classList.add('open');
     }
 
-    function markModalFieldError(wrapperId) {
-        document.getElementById(wrapperId)?.classList.add('field-error');
-    }
-
-    function clearModalFieldError(wrapperId) {
-        document.getElementById(wrapperId)?.classList.remove('field-error');
-    }
-
-    function clearAllModalErrors() {
-        ['wrap-fNewFirstName', 'wrap-fNewLastName', 'wrap-fNewDOB', 'wrap-fDoctor', 'wrap-fDate']
-        .forEach(id => clearModalFieldError(id));
-        document.getElementById('modal-time-err').style.display = 'none';
-    }
-
-    function pickApptStatus(optEl, newStatus, id) {
+    function pickApptStatus(optEl, newStatus, id, isFollowUp) {
         const cfg = STATUS_CONFIG[newStatus];
         const dd = optEl.closest('.status-dropdown');
         const btn = dd.previousElementSibling;
         const badge = btn.querySelector('.appt-badge');
+
+        const oldBg = badge.style.background;
+        const oldColor = badge.style.color;
+        const oldText = badge.textContent;
 
         badge.style.background = cfg.bg;
         badge.style.color = cfg.color;
@@ -1186,7 +1229,9 @@ require_once('../../app/config/config.php');
         fd.append('id', id);
         fd.append('status', newStatus);
 
-        fetch(`${HANDLER}?action=update_status`, {
+        const action = isFollowUp === '1' ? 'update_followup_status' : 'update_status';
+
+        fetch(`${HANDLER}?action=${action}`, {
                 method: 'POST',
                 body: fd
             })
@@ -1194,13 +1239,20 @@ require_once('../../app/config/config.php');
             .then(res => {
                 if (res.success) {
                     renderStats(res.stats, showAllDates);
-                    const displayNew = newStatus === 'Pending' ? 'Upcoming' : newStatus;
-                    showToast('Status updated to "' + displayNew + '"', 'success');
+                    showToast('Status updated to "' + (newStatus === 'Pending' ? 'Upcoming' : newStatus) + '"', 'success');
                 } else {
-                    loadAppointments(currentPage);
+                    badge.style.background = oldBg;
+                    badge.style.color = oldColor;
+                    badge.textContent = oldText;
+                    showToast('Failed to update status.', 'error');
                 }
             })
-            .catch(() => loadAppointments(currentPage));
+            .catch(() => {
+                badge.style.background = oldBg;
+                badge.style.color = oldColor;
+                badge.textContent = oldText;
+                loadAppointments(currentPage);
+            });
     }
 
     const STATUS_FLOW = {
@@ -1210,7 +1262,7 @@ require_once('../../app/config/config.php');
         'Cancelled': ['Cancelled'],
     };
 
-    function statusDropdown(id, current, apptDate) {
+    function statusDropdown(id, current, apptDate, isFollowUp = false) {
         const cfg = STATUS_CONFIG[current] || {
             dot: '#9ca3af',
             bg: '#f3f4f6',
@@ -1222,11 +1274,10 @@ require_once('../../app/config/config.php');
 
         const allowedMap = {
             'Pending': dateHasArrived ? ['Pending', 'In Progress', 'Cancelled'] : ['Pending', 'Cancelled'],
-            'In Progress': dateHasArrived ? ['In Progress', 'Completed', 'Cancelled'] : ['In Progress', 'Cancelled'],
+            'In Progress': ['In Progress', 'Cancelled'],
             'Completed': ['Completed'],
             'Cancelled': ['Cancelled'],
         };
-
         const allowed = allowedMap[current] || [current];
         const opts = Object.entries(STATUS_CONFIG).map(([label, c]) => {
             const isAllowed = allowed.includes(label);
@@ -1236,7 +1287,7 @@ require_once('../../app/config/config.php');
             return `
         <div class="status-opt ${clickable ? 'status-opt-clickable' : ''}"
             style="${!isAllowed ? 'opacity:.35;cursor:not-allowed;' : isActive ? 'cursor:default;' : 'cursor:pointer;'}"
-            data-id="${id}" data-status="${label}" data-clickable="${clickable}">
+            data-id="${id}" data-status="${label}" data-clickable="${clickable}" data-is-followup="${isFollowUp ? '1' : '0'}">
             <span class="dot" style="background:${c.dot};"></span>
             ${displayLabel}${isActive ? ' (Current)' : ''}
         </div>
@@ -1245,7 +1296,7 @@ require_once('../../app/config/config.php');
 
         return `
         <div class="status-cell">
-            <button class="badge-btn" onclick="toggleStatusDrop(this)">
+            <button type="button" class="badge-btn" onclick="toggleStatusDrop(this)">
                 <span class="appt-badge"
     style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;letter-spacing:.03em;">
     ${current === 'Pending' ? 'Upcoming' : current}
@@ -1331,7 +1382,7 @@ require_once('../../app/config/config.php');
                     return;
                 }
                 results.innerHTML = res.data.map(p => `
-                    <div onclick="selectPatient(${p.id},'${escHtml(p.name)}','${escHtml(p.patientCode)}','${escHtml(p.contact||'')}','${escHtml(p.dob||'')}')"
+                    <div onclick="selectPatient(${p.id},'${escHtml(p.name)}','${escHtml(p.patientCode)}','${escHtml(p.contact||'')}','${escHtml(p.dob||'')}','${escHtml(p.address||'')}')"
                         style="padding:.55rem 1rem;font-size:.82rem;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;"
                         onmouseover="this.style.background='var(--blue-50)'" onmouseout="this.style.background='#fff'">
                         <div style="width:30px;height:30px;border-radius:50%;background:var(--blue-50);color:var(--blue-700);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;">
@@ -1347,21 +1398,26 @@ require_once('../../app/config/config.php');
             });
     }
 
-    function selectPatient(id, name, code, contact, dob) {
+    function selectPatient(id, name, code, contact, dob, address) {
         document.getElementById('fPatient').value = id;
+        clearModalFieldError('wrap-fPatient');
+        document.getElementById('fPatientAddress').value = address || '';
         document.getElementById('patientSearchInput').value = '';
         document.getElementById('patientSearchResults').style.display = 'none';
         document.getElementById('selPatName').textContent = name;
         document.getElementById('selPatMeta').textContent =
             `${code}${dob ? ' · DOB: ' + fmtDate(dob) : ''}${contact ? ' · ' + contact : ''}`;
+        document.getElementById('selPatAddress').textContent = address ? `Address: ${address}` : '';
         document.getElementById('selectedPatientCard').style.display = 'block';
     }
 
     function clearSelectedPatient() {
         document.getElementById('fPatient').value = '';
+        document.getElementById('fPatientAddress').value = '';
         document.getElementById('patientSearchInput').value = '';
         document.getElementById('patientSearchResults').style.display = 'none';
         document.getElementById('selectedPatientCard').style.display = 'none';
+        document.getElementById('selPatAddress').textContent = '';
     }
 
     function clearNewPatientFields() {
@@ -1446,9 +1502,9 @@ require_once('../../app/config/config.php');
         const tbody = document.getElementById('apptTbody');
         if (!rows.length) {
             tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
-                <i class="bi bi-calendar-x"></i>
-                <p>No appointments found for the selected filters.</p>
-            </div></td></tr>`;
+            <i class="bi bi-calendar-x"></i>
+            <p>No appointments found for the selected filters.</p>
+        </div></td></tr>`;
             return;
         }
         tbody.innerHTML = rows.map((r, i) => {
@@ -1456,26 +1512,38 @@ require_once('../../app/config/config.php');
             const avatarHtml = r.patPhoto ?
                 `<img src="${r.patPhoto}" alt="">` :
                 initials(r.patientName || '??');
+            const isFollowUpRow = r.isFollowUp == 1;
+
+
             return `<tr>
-               <td>
-                    <a href="#" class="appt-id">${r.appointmentCode}</a>
-                    ${r.followUpCode ? `<div style="font-size:.65rem;font-weight:600;color:var(--amber-dark);margin-top:2px;">${r.followUpCode}</div>` : ''}
-                </td>
-                <td><div class="pat-cell">
+<td>
+    <a href="#" class="appt-id" style="${isFollowUpRow ? 'color:var(--amber-dark);' : ''}">${r.appointmentCode}</a>
+    ${isFollowUpRow
+        ? `<div style="font-size:.62rem;font-weight:700;color:var(--amber-dark);margin-top:2px;">
+               <i class="bi bi-arrow-return-right"></i> Follow-up
+           </div>`
+        : ''
+    }
+</td>
+            <td>
+                <div class="pat-cell">
                     <div class="pat-avatar" style="background:${bg};color:${fg}">${avatarHtml}</div>
                     <span class="pat-name">${r.patientName || '—'}</span>
-                </div></td>
-                <td>${r.doctorName || '—'}</td>
-                <td>${r.specialization || '—'}</td>
-                <td>${fmtDate(r.appointmentDate)}</td>
-                <td><div class="time-cell"><i class="bi bi-clock"></i>${fmtTime(r.appointmentTime)}</div></td>
-                <td><span class="channel-chip ${r.followUpDate ? 'followup' : ''}">${r.followUpDate ? 'Follow-up' : r.channel}</span></td>
-                <td>${statusDropdown(r.id, r.status, r.appointmentDate)}</td>
-                <td><div class="action-btns">
-                    <button class="btn-act" title="Edit" onclick="${r.isFollowUp == 1 ? `editFollowUp(${r.followUpId})` : `editAppt(${r.id})`}"><i class="bi bi-pencil"></i></button>
-                    <button class="btn-act" title="View" onclick="viewAppt(${r.id})"><i class="bi bi-eye"></i></button>
-                </div></td>
-            </tr>`;
+                </div>
+            </td>
+            <td>${r.doctorName || '—'}</td>
+            <td>${r.specialization || '—'}</td>
+            <td>${fmtDate(r.appointmentDate)}</td>
+            <td><div class="time-cell"><i class="bi bi-clock"></i>${fmtTime(r.appointmentTime)}</div></td>
+            <td><span class="channel-chip ${isFollowUpRow ? 'followup' : ''}">${isFollowUpRow ? 'Follow-up' : r.channel}</span></td>
+            <td>${isFollowUpRow ? statusDropdown(r.followUpId ?? r.id, r.status, r.appointmentDate, true) : statusDropdown(r.id, r.status, r.appointmentDate, false)}</td>
+            <td>
+                <div class="action-btns">
+                    <button class="btn-act" title="Edit" onclick="${isFollowUpRow ? `editFollowUp(${r.followUpId ?? r.id})` : `editAppt(${r.id})`}"><i class="bi bi-pencil"></i></button>
+                    <button class="btn-act" title="View" onclick="${isFollowUpRow ? `viewFollowUp(${r.followUpId})` : `viewAppt(${r.id})`}"><i class="bi bi-eye"></i></button>
+                </div>
+            </td>
+        </tr>`;
         }).join('');
     }
 
@@ -1489,7 +1557,9 @@ require_once('../../app/config/config.php');
         document.getElementById('statCompletedSub').textContent = `${rate}% completion rate`;
     }
 
+
     function editFollowUp(followUpId) {
+        if (!followUpId) return showToast('Follow-up ID not found.', 'error');
         fetch(`${HANDLER}?action=get_followup&id=${followUpId}`)
             .then(r => r.json())
             .then(res => {
@@ -1498,12 +1568,13 @@ require_once('../../app/config/config.php');
                 const status = d.status;
 
                 clearAllModalErrors();
-
+                const prevLockedBox = document.getElementById('lockedDoctorBox');
+                if (prevLockedBox) prevLockedBox.style.display = 'none';
+                document.getElementById('fDoctor').style.display = '';
                 document.getElementById('apptModalTitle').textContent = 'Edit Follow-up';
                 document.getElementById('saveBtnLabel').textContent = 'Update Follow-up';
                 document.getElementById('editId').value = d.id;
                 document.getElementById('fDate').value = d.followUpDate;
-                document.getElementById('fDoctor').value = d.doctorId;
                 document.getElementById('fChannel').value = 'Follow-up';
                 document.getElementById('fStatus').value = d.status;
                 document.getElementById('fRemarks').value = d.reason || '';
@@ -1526,54 +1597,190 @@ require_once('../../app/config/config.php');
                 document.getElementById('selectedPatientCard').style.display = 'block';
 
                 const locked = ['Completed', 'Cancelled'].includes(status);
-                ['fDate', 'fDoctor', 'fChannel', 'fStatus'].forEach(id => {
+                const inProgress = status === 'In Progress';
+
+                // Lock or show doctor field
+                const docEl = document.getElementById('fDoctor');
+                const lockedDocBox = (() => {
+                    let box = document.getElementById('lockedDoctorBox');
+                    if (!box) {
+                        box = document.createElement('input');
+                        box.type = 'text';
+                        box.id = 'lockedDoctorBox';
+                        box.className = 'form-control';
+                        box.disabled = true;
+                        box.style.cssText = 'background:var(--surface);color:var(--text-dark);font-weight:600;cursor:not-allowed;';
+                        const doctorCol = document.getElementById('doctorCol');
+                        doctorCol.insertBefore(box, doctorCol.querySelector('#wrap-fDoctor').nextSibling);
+                    }
+                    return box;
+                })();
+
+                if (locked || inProgress) {
+                    lockedDocBox.value = d.doctorName + (d.specialization ? ` (${d.specialization})` : '');
+                    lockedDocBox.style.display = '';
+                    docEl.style.display = 'none';
+                    docEl.dataset.lockedId = d.doctorId;
+                    document.getElementById('modalDoctorScheduleBox').style.display = 'none';
+                } else {
+                    // Pending — doctor is editable
+                    lockedDocBox.style.display = 'none';
+                    docEl.style.display = '';
+                    docEl.disabled = false;
+                    docEl.classList.remove('field-locked');
+                }
+
+                ['fDate', 'fChannel', 'fStatus'].forEach(id => {
                     const el = document.getElementById(id);
                     el.disabled = locked;
                     el.classList.toggle('field-locked', locked);
                 });
+
                 document.getElementById('fRemarks').disabled = false;
                 document.getElementById('fRemarks').classList.remove('field-locked');
 
                 const modalBody = document.querySelector('#apptModal .modal-body');
                 const oldBanner = modalBody.querySelector('.lock-banner');
                 if (oldBanner) oldBanner.remove();
-                if (locked) {
-                    const bannerStyle = status === 'Cancelled' ?
-                        'background:var(--red-light);border-color:#fca5a5;color:var(--red-dark);' :
-                        'background:var(--amber-light);border-color:#fde68a;color:var(--amber-dark);';
-                    const bannerMsg = status === 'Cancelled' ?
-                        'Follow-up is Cancelled. Only remarks can be edited.' :
-                        'Follow-up is Completed. Only remarks can be edited.';
-                    modalBody.insertAdjacentHTML('afterbegin', `
-        <div class="lock-banner" style="${bannerStyle}">
-            <i class="bi bi-lock-fill"></i> ${bannerMsg}
-        </div>`);
+
+                const bannerMap = {
+                    'Cancelled': {
+                        style: 'background:var(--red-light);border-color:#fca5a5;color:var(--red-dark);',
+                        msg: 'Follow-up is Cancelled. Only remarks can be edited.'
+                    },
+                    'Completed': {
+                        style: 'background:var(--amber-light);border-color:#fde68a;color:var(--amber-dark);',
+                        msg: 'Follow-up is Completed. Only remarks can be edited.'
+                    },
+                    'In Progress': {
+                        style: 'background:var(--teal-light);border-color:#a5f3fc;color:var(--teal-dark);',
+                        msg: 'Follow-up is In Progress. Doctor and date/time are locked.'
+                    },
+                };
+                const banner = bannerMap[status] || {
+                    style: 'background:var(--blue-50);border-color:var(--blue-200);color:var(--blue-700);',
+                    msg: 'Patient cannot be changed after booking. All other fields are editable.'
+                };
+                modalBody.insertAdjacentHTML('afterbegin', `
+    <div class="lock-banner" style="${banner.style}">
+        <i class="bi bi-${locked ? 'lock-fill' : 'info-circle-fill'}"></i> ${banner.msg}
+    </div>`);
+
+                const channelLocked = status === 'Pending' || locked;
+
+                const chanEl = document.getElementById('fChannel');
+                if (channelLocked) {
+                    chanEl.disabled = true;
+                    chanEl.classList.add('field-locked');
                 } else {
-                    modalBody.insertAdjacentHTML('afterbegin', `
-                        <div class="lock-banner" style="background:var(--blue-50);border-color:var(--blue-200);color:var(--blue-700);">
-                            <i class="bi bi-info-circle-fill"></i> Patient cannot be changed after booking. All other fields are editable.
-                        </div>`);
+                    chanEl.disabled = false;
+                    chanEl.classList.remove('field-locked');
                 }
 
-                loadModalDoctorSchedule();
+                document.getElementById('fRemarks').disabled = false;
+                document.getElementById('fRemarks').classList.remove('field-locked');
 
                 // Set fTime so save works
                 document.getElementById('fTime').value = d.appointmentTime ? d.appointmentTime.slice(0, 5) : '';
 
-                // Load slots or show static time badge depending on lock state
-                if (locked) {
-                    const t = d.appointmentTime.slice(0, 5);
-                    const [h, m] = t.split(':');
-                    const hr = parseInt(h);
-                    const label = `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
-                    document.getElementById('adminSlotsContainer').innerHTML =
-                        `<div style="display:inline-block;background:var(--blue-600);color:#fff;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;font-family:'DM Sans',sans-serif;">${label}</div>`;
-                } else {
-                    loadAdminSlots(d.appointmentTime.slice(0, 5));
-                }
+                // Reliably set doctor value then load slots
+                setDoctorValue(d.doctorId || d.resolvedDoctorId, () => {
+                    if (!locked) {
+                        // Pass docId directly since fDoctor select is hidden for Pending follow-ups
+                        const docIdForSchedule = d.doctorId || d.resolvedDoctorId;
+                        fetch(`${HANDLER}?action=get_doctor_schedule&doctorId=${docIdForSchedule}`)
+                            .then(r => r.json())
+                            .then(res => {
+                                const box = document.getElementById('modalDoctorScheduleBox');
+                                const list = document.getElementById('modalDoctorScheduleList');
+                                if (!res.success || !res.data || !res.data.length) {
+                                    box.style.display = 'none';
+                                    return;
+                                }
+                                list.innerHTML = res.data.map(s => {
+                                    const fmt = t => {
+                                        const [h, m] = t.split(':');
+                                        const hr = parseInt(h);
+                                        return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+                                    };
+                                    return `<div style="display:flex;justify-content:space-between;font-size:.78rem;">
+                    <span style="font-weight:600;color:var(--text-dark);">${s.dayOfWeek}</span>
+                    <span style="color:var(--text-body);">${fmt(s.shiftStart)} – ${fmt(s.shiftEnd)}</span>
+                </div>`;
+                                }).join('');
+                                box.style.display = 'block';
+                            })
+                            .catch(() => {
+                                document.getElementById('modalDoctorScheduleBox').style.display = 'none';
+                            });
+                    }
+                    if (locked || inProgress) {
+                        const t = (d.appointmentTime || d.followUpTime || '').slice(0, 5);
+                        const [h, m] = t.split(':');
+                        const hr = parseInt(h);
+                        const label = `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+                        document.getElementById('adminSlotsContainer').innerHTML =
+                            `<div style="display:inline-block;background:var(--blue-600);color:#fff;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;font-family:'DM Sans',sans-serif;">${label}</div>`;
+                    } else {
+                        // For Pending follow-ups, doctor select is hidden but value is set —
+                        // pass doctorId directly to fetch slots
+                        const preselect = (d.appointmentTime || d.followUpTime || '').slice(0, 5);
+                        const docId = d.doctorId || d.resolvedDoctorId;
+                        const date = document.getElementById('fDate').value;
+                        const container = document.getElementById('adminSlotsContainer');
+                        container.innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">Loading slots…</div>';
+                        fetch(`${HANDLER}?action=get_slots&doctorId=${docId}&date=${date}`)
+                            .then(r => r.json())
+                            .then(res => {
+                                if (!res.success || !res.slots.length) {
+                                    container.innerHTML = '<div style="font-size:.78rem;color:var(--text-muted);">No slots available for this day.</div>';
+                                    return;
+                                }
+                                let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;width:100%;">';
+                                res.slots.forEach(slot => {
+                                    html += `<button type="button" data-val="${slot.value}"
+                        style="border:1px solid var(--border);border-radius:8px;padding:6px 4px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-dark);cursor:pointer;width:100%;text-align:center;font-weight:600;${!slot.available ? 'text-decoration:line-through;opacity:.45;cursor:not-allowed;color:var(--text-muted);background:#e5e7eb;border-color:#d1d5db;' : ''}"
+                        ${!slot.available ? 'disabled' : ''}
+                        onclick="selectAdminSlot('${slot.value}', this)">${slot.label}</button>`;
+                                });
+                                html += '</div>';
+                                container.innerHTML = html;
+                                if (preselect) {
+                                    const btn = container.querySelector(`button[data-val="${preselect}"]`);
+                                    if (btn) selectAdminSlot(preselect, btn);
+                                }
+                            })
+                            .catch(() => {
+                                container.innerHTML = '<div style="font-size:.78rem;color:var(--red);">Failed to load slots.</div>';
+                            });
+                    }
+                });
 
                 new bootstrap.Modal(document.getElementById('apptModal')).show();
             });
+    }
+
+    function setDoctorValue(doctorId, callback) {
+        const sel = document.getElementById('fDoctor');
+        if ([...sel.options].some(o => o.value == doctorId)) {
+            sel.value = doctorId;
+            if (callback) callback();
+        } else {
+            // Doctors not loaded yet — poll briefly
+            let tries = 0;
+            let called = false;
+            const interval = setInterval(() => {
+                const found = [...sel.options].some(o => o.value == doctorId);
+                if (found || ++tries > 20) {
+                    clearInterval(interval);
+                    if (!called) {
+                        called = true;
+                        sel.value = doctorId;
+                        if (callback) callback();
+                    }
+                }
+            }, 100);
+        }
     }
 
     function renderPagination(total, page, limit) {
@@ -1609,13 +1816,7 @@ require_once('../../app/config/config.php');
     }
 
     function openAddModal() {
-        clearAllModalErrors(); <<
-        << << < HEAD
-            ===
-            === =
-
-            >>>
-            >>> > 07 f149a5cf80a46cb6fdb6af1aa2782672c72d5c
+        clearAllModalErrors();
         document.getElementById('apptModalTitle').textContent = 'New Appointment';
         document.getElementById('saveBtnLabel').textContent = 'Save Appointment';
         document.getElementById('editId').value = '';
@@ -1652,6 +1853,9 @@ require_once('../../app/config/config.php');
         statEl.classList.add('field-locked');
         const oldBanner = document.querySelector('#apptModal .modal-body .lock-banner');
         if (oldBanner) oldBanner.remove();
+        const oldLockedBox = document.getElementById('lockedDoctorBox');
+        if (oldLockedBox) oldLockedBox.style.display = 'none';
+        document.getElementById('fDoctor').style.display = '';
 
         switchPatientTab('existing');
         clearSelectedPatient();
@@ -1709,7 +1913,6 @@ require_once('../../app/config/config.php');
                 document.getElementById('saveBtnLabel').textContent = 'Update Appointment';
                 document.getElementById('editId').value = d.id;
                 document.getElementById('fDate').value = d.appointmentDate;
-                document.getElementById('fDoctor').value = d.doctorId;
                 document.getElementById('fChannel').value = d.channel;
                 document.getElementById('fStatus').value = d.status;
                 document.getElementById('fRemarks').value = d.remarks || '';
@@ -1742,6 +1945,9 @@ require_once('../../app/config/config.php');
                 if (rule.doctor === true) {
                     docEl.disabled = false;
                     docEl.classList.remove('field-locked');
+                    docEl.style.display = '';
+                    const prevBox = document.getElementById('lockedDoctorBox');
+                    if (prevBox) prevBox.style.display = 'none';
                 } else if (rule.doctor === 'confirm') {
                     docEl.disabled = false;
                     docEl.classList.remove('field-locked');
@@ -1754,8 +1960,26 @@ require_once('../../app/config/config.php');
                         loadModalDoctorSchedule();
                     };
                 } else {
+                    // Doctor is locked — show read-only box using d.doctorName directly
                     docEl.disabled = true;
                     docEl.classList.add('field-locked');
+                    docEl.style.display = 'none';
+
+                    let lockedDocBox = document.getElementById('lockedDoctorBox');
+                    if (!lockedDocBox) {
+                        lockedDocBox = document.createElement('input');
+                        lockedDocBox.type = 'text';
+                        lockedDocBox.id = 'lockedDoctorBox';
+                        lockedDocBox.className = 'form-control';
+                        lockedDocBox.disabled = true;
+                        lockedDocBox.style.cssText = 'background:var(--surface);color:var(--text-dark);font-weight:600;cursor:not-allowed;';
+                        const doctorCol = document.getElementById('doctorCol');
+                        doctorCol.insertBefore(lockedDocBox, doctorCol.querySelector('#wrap-fDoctor').nextSibling);
+                    }
+                    lockedDocBox.value = (d.doctorName || '—') + (d.specialization ? ` (${d.specialization})` : '');
+                    lockedDocBox.style.display = '';
+                    docEl.dataset.lockedId = d.doctorId;
+                    document.getElementById('modalDoctorScheduleBox').style.display = 'none';
                 }
 
                 const dateEl = document.getElementById('fDate');
@@ -1791,53 +2015,20 @@ require_once('../../app/config/config.php');
                 document.getElementById('fRemarks').disabled = false;
                 document.getElementById('fRemarks').classList.remove('field-locked');
 
-                const modalBody = document.querySelector('#apptModal .modal-body');
-                const oldBanner = modalBody.querySelector('.lock-banner');
-                if (oldBanner) oldBanner.remove();
-
-                const banners = {
-                    'Pending': {
-                        icon: 'bi-info-circle-fill',
-                        style: 'background:var(--blue-50);border-color:var(--blue-200);color:var(--blue-700);',
-                        msg: 'Patient cannot be changed after booking. All other fields are editable.'
-                    },
-                    'In Progress': {
-                        icon: 'bi-exclamation-circle-fill',
-                        style: 'background:var(--amber-light);border-color:#fde68a;color:var(--amber-dark);',
-                        msg: 'Appointment is in progress. Date and time are locked.'
-                    },
-                    'Completed': {
-                        icon: 'bi-lock-fill',
-                        style: 'background:var(--amber-light);border-color:#fde68a;color:var(--amber-dark);',
-                        msg: 'Appointment is Completed. Only remarks can be edited.'
-                    },
-                    'Cancelled': {
-                        icon: 'bi-lock-fill',
-                        style: 'background:var(--red-light);border-color:#fca5a5;color:var(--red-dark);',
-                        msg: 'Appointment is Cancelled. Only remarks can be edited.'
-                    },
-                };
-                const b = banners[status];
-                if (b) {
-                    modalBody.insertAdjacentHTML('afterbegin', `
-                    <div class="lock-banner" style="${b.style}">
-                        <i class="bi ${b.icon}"></i> ${b.msg}
-                    </div>`);
-                }
-
-                loadModalDoctorSchedule();
-
-                if (rule.datetime) {
-                    loadAdminSlots(d.appointmentTime.slice(0, 5));
-                } else {
-                    const t = d.appointmentTime.slice(0, 5);
-                    const [h, m] = t.split(':');
-                    const hr = parseInt(h);
-                    const label = `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
-                    document.getElementById('fTime').value = t;
-                    document.getElementById('adminSlotsContainer').innerHTML =
-                        `<div style="display:inline-block;background:var(--blue-600);color:#fff;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;font-family:'DM Sans',sans-serif;">${label}</div>`;
-                }
+                setDoctorValue(d.doctorId || d.resolvedDoctorId, () => {
+                    loadModalDoctorSchedule();
+                    if (rule.datetime) {
+                        loadAdminSlots(d.appointmentTime.slice(0, 5));
+                    } else {
+                        const t = d.appointmentTime.slice(0, 5);
+                        const [h, m] = t.split(':');
+                        const hr = parseInt(h);
+                        const label = `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+                        document.getElementById('fTime').value = t;
+                        document.getElementById('adminSlotsContainer').innerHTML =
+                            `<div style="display:inline-block;background:var(--blue-600);color:#fff;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;font-family:'DM Sans',sans-serif;">${label}</div>`;
+                    }
+                });
 
                 new bootstrap.Modal(document.getElementById('apptModal')).show();
             });
@@ -1851,6 +2042,7 @@ require_once('../../app/config/config.php');
         const newMiddleName = document.getElementById('fNewPatientMiddleName')?.value.trim();
         const newLastName = document.getElementById('fNewPatientLastName')?.value.trim();
         const newDOB = document.getElementById('fNewPatientDOB')?.value;
+        const newAddress = document.getElementById('fNewPatientAddress')?.value.trim();
         const newName = [newFirstName, newMiddleName, newLastName].filter(Boolean).join(' ');
 
         clearAllModalErrors();
@@ -1870,14 +2062,37 @@ require_once('../../app/config/config.php');
                 markModalFieldError('wrap-fNewDOB');
                 hasError = true;
             }
+            if (!newAddress) {
+                markModalFieldError('wrap-fNewAddress');
+                hasError = true;
+            }
         } else {
             if (!document.getElementById('fPatient').value) {
-                showToast('Please search and select a patient.', 'error');
-                return;
+                markModalFieldError('wrap-fPatient');
+                hasError = true;
             }
         }
 
-        if (!document.getElementById('fDoctor').value) {
+        if (isNew) {
+            if (!document.getElementById('fNewPatientGender').value) {
+                markModalFieldError('wrap-fNewGender');
+                hasError = true;
+            }
+            const contact = document.getElementById('fNewPatientContact').value.trim();
+            if (!contact) {
+                markModalFieldError('wrap-fNewContact');
+                hasError = true;
+            }
+
+            const email = document.getElementById('fNewPatientEmail').value.trim();
+            if (!email) {
+                markModalFieldError('wrap-fNewEmail');
+                hasError = true;
+            }
+        }
+
+        const fDocEl = document.getElementById('fDoctor');
+        if (!fDocEl.value && !fDocEl.dataset.lockedId) {
             markModalFieldError('wrap-fDoctor');
             hasError = true;
         }
@@ -1907,13 +2122,13 @@ require_once('../../app/config/config.php');
             patientDOB: isNew ? newDOB : '',
             patientContact: isNew ? document.getElementById('fNewPatientContact').value.trim() : '',
             patientEmail: isNew ? document.getElementById('fNewPatientEmail').value.trim() : '',
-            patientGender: isNew ? document.getElementById('fNewPatientGender').value : '',
-            doctorId: document.getElementById('fDoctor').value,
+            patientAddress: isNew ? newAddress : document.getElementById('fPatientAddress').value.trim(),
+            doctorId: document.getElementById('fDoctor').value || document.getElementById('fDoctor').dataset.lockedId || '',
             appointmentDate: document.getElementById('fDate').value,
             appointmentTime: document.getElementById('fTime').value,
             channel: document.getElementById('fChannel').value,
             status: document.getElementById('fStatus').value,
-            remarks: document.getElementById('fRemarks').value,
+            remarks: document.getElementById('fRemarks').value.trim(),
         };
 
         const isFollowUp = document.getElementById('apptModalTitle').textContent === 'Edit Follow-up';
@@ -1933,6 +2148,116 @@ require_once('../../app/config/config.php');
                 } else {
                     showToast('Failed to save. Please try again.', 'error');
                 }
+            });
+    }
+
+    function viewFollowUp(followUpId) {
+        fetch(`${HANDLER}?action=get_followup&id=${followUpId}`)
+            .then(r => r.json())
+            .then(res => {
+                if (!res.success) return showToast('Could not load follow-up.', 'error');
+                const d = res.data;
+                const cfg = STATUS_CONFIG[d.status] || {
+                    bg: '#f3f4f6',
+                    color: '#374151'
+                };
+                document.getElementById('viewModalBody').innerHTML = `
+                <div style="background:var(--amber-light);border:1px solid #fde68a;border-radius:var(--radius-sm);padding:.5rem .85rem;font-size:.78rem;font-weight:600;color:var(--amber-dark);margin-bottom:1rem;">
+                    <i class="bi bi-arrow-return-right"></i> Follow-up Appointment
+                </div>
+                <div class="detail-row"><span class="detail-label">Code</span><span class="detail-value">${d.followUpCode || '—'}</span></div>
+                <div class="detail-row"><span class="detail-label">Patient</span><span class="detail-value">${d.patientName || '—'}</span></div>
+                <div class="detail-row"><span class="detail-label">Date</span><span class="detail-value">${fmtDate(d.followUpDate)}</span></div>
+                <div class="detail-row"><span class="detail-label">Time</span><span class="detail-value">${fmtTime(d.appointmentTime)}</span></div>
+                <div class="detail-row"><span class="detail-label">Status</span>
+                    <span class="detail-value">
+                        <span style="background:${cfg.bg};color:${cfg.color};font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;font-family:'DM Sans',sans-serif;">
+                            ${d.status === 'Pending' ? 'Upcoming' : d.status}
+                        </span>
+                    </span>
+                </div>
+                <div class="detail-row"><span class="detail-label">Reason</span><span class="detail-value">${d.reason || '—'}</span></div>
+<div class="detail-row"><span class="detail-label">Medical Record</span><span class="detail-value" id="followUpLinkedRecord"><span style="font-size:.8rem;color:var(--text-muted);">Loading…</span></span></div>
+<div class="detail-row"><span class="detail-label">Follow-up</span><span class="detail-value" id="followUpLinkedNext"><span style="font-size:.8rem;color:var(--text-muted);">Loading…</span></span></div>
+`;
+
+                fetch(HANDLER + '?action=get_linked_followup&apptId=' + d.appointmentId + '&excludeId=' + followUpId)
+                    .then(r => r.json())
+                    .then(res => {
+                        const container = document.getElementById('followUpLinkedNext');
+                        if (!container) return;
+                        if (!res.data || !res.data.length) {
+                            container.innerHTML = '<span style="font-size:.8rem;color:var(--text-muted);">N/A</span>';
+                            return;
+                        }
+                        container.innerHTML = res.data.map(fu => {
+                            const fuCfg = STATUS_CONFIG[fu.status] || {
+                                bg: '#f3f4f6',
+                                color: '#374151'
+                            };
+                            const fuLabel = fu.status === 'Pending' ? 'Upcoming' : fu.status;
+                            const isCurrent = fu.id == followUpId;
+                            return '<div style="background:' + (isCurrent ? '#eff6ff' : 'var(--amber-light)') + ';border:1px solid ' + (isCurrent ? '#bfdbfe' : '#fde68a') + ';border-radius:10px;padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;">' +
+                                '<div>' +
+                                '<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:' + (isCurrent ? 'var(--blue-600)' : 'var(--amber-dark)') + ';margin-bottom:3px;">' +
+                                '<i class="bi bi-arrow-return-right"></i> ' + (isCurrent ? 'Current Follow-up' : 'Follow-up') + '</div>' +
+                                '<div style="font-size:.75rem;font-weight:700;color:var(--text-dark);">' + (fu.followUpCode || '—') + '</div>' +
+                                '<div style="font-size:.78rem;color:var(--text-body);margin-top:2px;">' + fmtDate(fu.followUpDate) + ' &nbsp;&middot;&nbsp; ' + fmtTime(fu.appointmentTime) + '</div>' +
+                                (fu.reason ? '<div style="font-size:.72rem;color:var(--text-muted);margin-top:2px;font-style:italic;">' + fu.reason + '</div>' : '') +
+                                '</div>' +
+                                '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">' +
+                                '<span style="background:' + fuCfg.bg + ';color:' + fuCfg.color + ';font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;white-space:nowrap;">' + fuLabel + '</span>' +
+                                (!isCurrent ? '<button onclick="bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide(); setTimeout(()=>viewFollowUp(' + fu.id + '),300);" style="border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-size:.75rem;color:var(--text-muted);background:none;cursor:pointer;" onmouseover="this.style.background=\'var(--blue-50)\';this.style.color=\'var(--blue-600)\'" onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-muted)\'"><i class="bi bi-eye"></i></button>' : '') +
+                                '</div>' +
+                                '</div>';
+                        }).join('');
+                    })
+                    .catch(() => {
+                        const container = document.getElementById('followUpLinkedNext');
+                        if (container) container.innerHTML = '<span style="font-size:.8rem;color:var(--text-muted);">N/A</span>';
+                    });
+
+                fetch(HANDLER + '?action=get_linked_record_followup&followUpId=' + followUpId)
+                    .then(r => r.json())
+                    .then(res => {
+                        const container = document.getElementById('followUpLinkedRecord');
+                        if (!container) return;
+                        if (!res.data) {
+                            const canCreate = d.status === 'Completed';
+                            container.innerHTML = '<div style="display:flex;align-items:center;gap:8px;">' +
+                                '<span style="font-size:.8rem;color:var(--text-muted);">No medical record linked.</span>' +
+                                (canCreate ?
+                                    '<a href="medicalRecords?followUpId=' + followUpId + '&patientId=' + d.patientId + '" style="font-size:.78rem;color:var(--blue-600);font-weight:600;text-decoration:none;"><i class="bi bi-plus-lg"></i> Create one</a>' :
+                                    '<span style="font-size:.72rem;color:var(--text-muted);font-style:italic;">Available once follow-up is Completed.</span>') +
+                                '</div>';
+                        } else {
+                            const r = res.data;
+                            const recCfg = (r.status === 'Draft') ? {
+                                    bg: '#fef3c7',
+                                    color: '#92400e',
+                                    dot: '#f59e0b'
+                                } :
+                                (r.status === 'Finalized') ? {
+                                    bg: '#d1fae5',
+                                    color: '#065f46',
+                                    dot: '#10b981'
+                                } : {
+                                    bg: '#f3f4f6',
+                                    color: '#374151',
+                                    dot: '#9ca3af'
+                                };
+                            container.innerHTML = '<div style="background:var(--blue-50);border:1px solid var(--blue-100);border-radius:10px;padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
+                                '<div>' +
+                                '<div style="font-size:.75rem;font-weight:700;color:var(--blue-700);">' + r.recordCode + '</div>' +
+                                '<div style="font-size:.82rem;color:var(--text-dark);font-weight:600;margin-top:2px;">' + (r.diagnosis || '—') + '</div>' +
+                                '<div style="font-size:.7rem;color:var(--text-muted);margin-top:2px;">' + r.recordType + ' &nbsp;·&nbsp;<span style="background:' + recCfg.bg + ';color:' + recCfg.color + ';font-size:.63rem;font-weight:600;border-radius:5px;padding:2px 7px;">' + r.status + '</span></div>' +
+                                '</div>' +
+                                '<a href="medicalRecords" style="border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-size:.75rem;color:var(--text-muted);text-decoration:none;"><i class="bi bi-eye"></i></a>' +
+                                '</div>';
+                        }
+                    });
+
+                new bootstrap.Modal(document.getElementById('viewModal')).show();
             });
     }
 
@@ -1964,6 +2289,7 @@ require_once('../../app/config/config.php');
                     </div>
                     <div class="detail-row"><span class="detail-label">Remarks</span><span class="detail-value">${d.remarks || '—'}</span></div>
                     <div class="detail-row"><span class="detail-label">Medical Record</span><span class="detail-value" id="apptLinkedRecord"><span style="font-size:.8rem;color:var(--text-muted);">Loading…</span></span></div>
+                    <div class="detail-row"><span class="detail-label">Follow-up</span><span class="detail-value" id="apptLinkedFollowUp"><span style="font-size:.8rem;color:var(--text-muted);">Loading…</span></span></div>
                 `;
 
                 fetch(`${HANDLER}?action=get_linked_record&apptId=${id}`)
@@ -1978,7 +2304,7 @@ require_once('../../app/config/config.php');
 <div style="display:flex;align-items:center;gap:8px;">
     <span style="font-size:.8rem;color:var(--text-muted);">No medical record linked.</span>
     ${canCreate
-        ? `<a href="medical_records?apptId=${id}&patientId=${d.patientId}" style="font-size:.78rem;color:var(--blue-600);font-weight:600;text-decoration:none;">
+        ? `<a href="medicalRecords?apptId=${id}&patientId=${d.patientId}" style="font-size:.78rem;color:var(--blue-600);font-weight:600;text-decoration:none;">
                <i class="bi bi-plus-lg"></i> Create one
            </a>`
         : isCancelled
@@ -2022,6 +2348,40 @@ require_once('../../app/config/config.php');
                                     </a>
                                 </div>`;
                         }
+                    });
+
+                fetch(HANDLER + '?action=get_linked_followup&apptId=' + id)
+                    .then(r => r.json())
+                    .then(res => {
+                        const container = document.getElementById('apptLinkedFollowUp');
+                        if (!container) return;
+                        if (!res.data || !res.data.length) {
+                            container.innerHTML = '<span style="font-size:.8rem;color:var(--text-muted);">N/A</span>';
+                            return;
+                        }
+                        container.innerHTML = res.data.map(fu => {
+                            const fuCfg = STATUS_CONFIG[fu.status] || {
+                                bg: '#f3f4f6',
+                                color: '#374151'
+                            };
+                            const fuLabel = fu.status === 'Pending' ? 'Upcoming' : fu.status;
+                            return '<div style="background:var(--amber-light);border:1px solid #fde68a;border-radius:10px;padding:.75rem 1rem;display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:6px;">' +
+                                '<div>' +
+                                '<div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--amber-dark);margin-bottom:3px;"><i class="bi bi-arrow-return-right"></i> Follow-up</div>' +
+                                '<div style="font-size:.75rem;font-weight:700;color:var(--text-dark);">' + (fu.followUpCode || '—') + '</div>' +
+                                '<div style="font-size:.78rem;color:var(--text-body);margin-top:2px;">' + fmtDate(fu.followUpDate) + ' &nbsp;&middot;&nbsp; ' + fmtTime(fu.appointmentTime) + '</div>' +
+                                (fu.reason ? '<div style="font-size:.72rem;color:var(--text-muted);margin-top:2px;font-style:italic;">' + fu.reason + '</div>' : '') +
+                                '</div>' +
+                                '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">' +
+                                '<span style="background:' + fuCfg.bg + ';color:' + fuCfg.color + ';font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 9px;white-space:nowrap;">' + fuLabel + '</span>' +
+                                '<button onclick="bootstrap.Modal.getInstance(document.getElementById(\'viewModal\')).hide(); setTimeout(()=>viewFollowUp(' + fu.id + '),300);" style="border:1px solid var(--border);border-radius:7px;padding:4px 9px;font-size:.75rem;color:var(--text-muted);background:none;cursor:pointer;" onmouseover="this.style.background=\'var(--blue-50)\';this.style.color=\'var(--blue-600)\'" onmouseout="this.style.background=\'none\';this.style.color=\'var(--text-muted)\'"><i class="bi bi-eye"></i></button>' +
+                                '</div>' +
+                                '</div>';
+                        }).join('');
+                    })
+                    .catch(() => {
+                        const container = document.getElementById('apptLinkedFollowUp');
+                        if (container) container.innerHTML = '<span style="font-size:.8rem;color:var(--text-muted);">N/A</span>';
                     });
 
                 new bootstrap.Modal(document.getElementById('viewModal')).show();
@@ -2176,16 +2536,6 @@ require_once('../../app/config/config.php');
         document.getElementById('tabNew').style.color = isExisting ? 'var(--text-body)' : '#fff';
         document.getElementById('containerExisting').style.display = isExisting ? 'flex' : 'none';
         document.getElementById('containerNew').style.display = isExisting ? 'none' : 'flex';
-
-        const patientCol = document.getElementById('patientSection').closest('.col-12, .col-md-6, [class*="col-"]');
-        const doctorCol = document.getElementById('doctorCol');
-        if (isExisting) {
-            patientCol.className = 'col-md-6';
-            doctorCol.className = 'col-md-6';
-        } else {
-            patientCol.className = 'col-12';
-            doctorCol.className = 'col-md-6 offset-md-0';
-        }
 
         if (isExisting) clearNewPatientFields();
         else clearSelectedPatient();

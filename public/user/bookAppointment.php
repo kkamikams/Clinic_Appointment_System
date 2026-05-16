@@ -606,6 +606,17 @@ include('./includes/sidebar.php');
                     </div>
 
                     <div class="col-md-6">
+                        <label class="form-label">Address <span class="req">*</span></label>
+                        <div class="field-wrap" id="wrap-address">
+                            <input type="text" id="address" class="form-control"
+                                value="<?= htmlspecialchars($patientRow['address'] ?? '') ?>"
+                                placeholder="e.g. 123 Main St., City, Province"
+                                oninput="clearFieldError('wrap-address')">
+                            <span class="field-err-msg">Address is required.</span>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
                         <label class="form-label">Gender <span class="req">*</span></label>
                         <div class="field-wrap" id="wrap-gender">
                             <select id="gender" class="form-select"
@@ -735,6 +746,7 @@ include('./includes/sidebar.php');
             <div class="summary-card mb-3">
                 <h6><i class="bi bi-clipboard2-pulse-fill"></i> Appointment Summary</h6>
                 <div class="summary-item"><span class="s-label">Patient</span> <span id="sum-patient" class="s-placeholder">Not entered</span></div>
+                <div class="summary-item"><span class="s-label">Address</span> <span id="sum-address" class="s-placeholder">Not entered</span></div>
                 <div class="summary-item"><span class="s-label">Specialization</span><span id="sum-spec" class="s-placeholder">Not selected</span></div>
                 <div class="summary-item"><span class="s-label">Doctor</span> <span id="sum-doctor" class="s-placeholder">Not selected</span></div>
                 <div class="summary-item"><span class="s-label">Date</span> <span id="sum-date" class="s-placeholder">Not selected</span></div>
@@ -762,12 +774,6 @@ include('./includes/sidebar.php');
 
 
 </section>
-
-<!-- Fixed bottom-right "Please fill in all required fields." pill — same as add_patient / add_doctors -->
-<div class="form-banner-error" id="formBannerError">
-    <i class="bi bi-exclamation-circle-fill"></i>
-    Please fill in all required fields.
-</div>
 
 <script>
     const HANDLER = '../../app/controllers/bookappHandler.php';
@@ -836,6 +842,8 @@ include('./includes/sidebar.php');
         } else {
             set('sum-date', '', 'Not selected');
         }
+
+        set('sum-address', document.getElementById('address').value.trim(), 'Not entered');
 
         const rawTime = document.getElementById('apptTime').value;
         if (rawTime) {
@@ -958,6 +966,7 @@ include('./includes/sidebar.php');
         const dob = document.getElementById('dateOfBirth').value;
         const contact = document.getElementById('contactNumber').value.trim();
         const email = document.getElementById('emailAddress').value.trim();
+        const address = document.getElementById('address').value.trim();
         const gender = document.getElementById('gender').value;
         const spec = document.getElementById('deptSelect').value;
         const doctor = document.getElementById('doctorSelect').value;
@@ -973,20 +982,24 @@ include('./includes/sidebar.php');
             markFieldError('wrap-lastName');
             hasError = true;
         }
-        if (!document.getElementById('deptSelect').value) {
-            markFieldError('wrap-deptSelect');
+        if (!dob) {
+            markFieldError('wrap-dateOfBirth');
             hasError = true;
         }
-        if (!doctor) {
-            markFieldError('wrap-doctorSelect');
+        if (!contact) {
+            markFieldError('wrap-contactNumber');
             hasError = true;
         }
-        if (!date) {
-            markFieldError('wrap-apptDate');
+        if (!email) {
+            markFieldError('wrap-emailAddress');
             hasError = true;
         }
-        if (!time) {
-            document.getElementById('time-err-msg').style.display = 'block';
+        if (!address) {
+            markFieldError('wrap-address');
+            hasError = true;
+        }
+        if (!gender) {
+            markFieldError('wrap-gender');
             hasError = true;
         }
         if (hasError) {
@@ -1003,15 +1016,20 @@ include('./includes/sidebar.php');
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Booking…';
 
+        const name = [firstName, document.getElementById('middleName').value.trim(), lastName]
+            .filter(Boolean)
+            .join(' ');
+
         const payload = {
             patientId: document.getElementById('patientId')?.value || '',
             patientName: name,
             firstName: firstName,
-            middleName: middleName,
+            middleName: document.getElementById('middleName').value.trim(),
             lastName: lastName,
             dateOfBirth: dob,
             contact: contact,
             email: email || '<?= $userEmail ?>',
+            address: address,
             gender: gender,
             doctorId: doctor,
             appointmentDate: date,

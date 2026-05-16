@@ -25,107 +25,200 @@ class appointmentModel
         $limit   = 15;
         $offset  = ($page - 1) * $limit;
 
-        $where  = [];
-        $types  = '';
-        $params = [];
+        // ── Appointment branch filters ──────────────────
+        $aWhere  = [];
+        $aTypes  = '';
+        $aParams = [];
 
         if ($date) {
-            $where[]  = 'a.appointmentDate = ?';
-            $types   .= 's';
-            $params[] = $date;
+            $aWhere[]  = 'a.appointmentDate = ?';
+            $aTypes   .= 's';
+            $aParams[] = $date;
         }
         if ($search) {
-            $like     = '%' . $search . '%';
-            $where[]  = '(CONCAT(p.firstName," ",p.lastName) LIKE ? OR CONCAT(d.firstName," ",d.lastName) LIKE ? OR a.appointmentCode LIKE ?)';
-            $types   .= 'sss';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
+            $like      = '%' . $search . '%';
+            $aWhere[]  = '(CONCAT(p.firstName," ",p.lastName) LIKE ? OR CONCAT(d.firstName," ",d.lastName) LIKE ? OR a.appointmentCode LIKE ?)';
+            $aTypes   .= 'sss';
+            $aParams[] = $like;
+            $aParams[] = $like;
+            $aParams[] = $like;
         }
         if ($status) {
-            $where[]  = 'a.status = ?';
-            $types   .= 's';
-            $params[] = $status;
+            $aWhere[]  = 'a.status = ?';
+            $aTypes   .= 's';
+            $aParams[] = $status;
         }
-        if ($channel) {
-            $where[]  = 'a.channel = ?';
-            $types   .= 's';
-            $params[] = $channel;
+        if ($channel && $channel !== 'Follow-up') {
+            $aWhere[]  = 'a.channel = ?';
+            $aTypes   .= 's';
+            $aParams[] = $channel;
         }
         if ($doctor) {
-            $where[]  = 'a.doctorId = ?';
-            $types   .= 'i';
-            $params[] = (int)$doctor;
+            $aWhere[]  = 'a.doctorId = ?';
+            $aTypes   .= 'i';
+            $aParams[] = (int)$doctor;
         }
+        $aWhereSQL = $aWhere ? 'WHERE ' . implode(' AND ', $aWhere) : '';
 
-        $whereSQL = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+        // ── Follow-up branch filters ────────────────────
+        $fWhere  = [];
+        $fTypes  = '';
+        $fParams = [];
 
-        // ✅ Base query WITHOUT followUps — used for COUNT and stats
-        $baseSQL = "
-        FROM appointments a
-        JOIN patients p ON p.id = a.patientId
-        JOIN doctors  d ON d.id = a.doctorId
-        $whereSQL
-    ";
+        if ($date) {
+            $fWhere[]  = 'fu.followUpDate = ?';
+            $fTypes   .= 's';
+            $fParams[] = $date;
+        }
+        if ($search) {
+            $like      = '%' . $search . '%';
+            $fWhere[]  = '(CONCAT(p.firstName," ",p.lastName) LIKE ? OR CONCAT(d.firstName," ",d.lastName) LIKE ? OR fu.followUpCode LIKE ?)';
+            $fTypes   .= 'sss';
+            $fParams[] = $like;
+            $fParams[] = $like;
+            $fParams[] = $like;
+        }
+        if ($status) {
+            $fWhere[]  = 'fu.status = ?';
+            $fTypes   .= 's';
+            $fParams[] = $status;
+        }
+        if ($doctor) {
+            $fWhere[]  = 'fu.doctorId = ?';
+            $fTypes   .= 'i';
+            $fParams[] = (int)$doctor;
+        }
+        $fWhereSQL = $fWhere ? 'WHERE ' . implode(' AND ', $fWhere) : '';
 
-        // Total count
-        $countStmt = $this->conn->prepare("SELECT COUNT(*) $baseSQL");
-        if ($params) $countStmt->bind_param($types, ...$params);
-        $countStmt->execute();
-        $total = (int) $countStmt->get_result()->fetch_row()[0];
-
-        // Stats
-        $statsStmt = $this->conn->prepare("
-        SELECT
-            COUNT(*)                         AS total,
-            SUM(a.status = 'Completed')      AS Completed,
-            SUM(a.status = 'Pending')        AS Pending,
-            SUM(a.status = 'In Progress')    AS InProgress,
-            SUM(a.status = 'Cancelled')      AS Cancelled
-        $baseSQL
-    ");
-        if ($params) $statsStmt->bind_param($types, ...$params);
-        $statsStmt->execute();
-        $statsRow = $statsStmt->get_result()->fetch_assoc();
-        $stats = [
-            'total'       => (int) $statsRow['total'],
-            'Completed'   => (int) $statsRow['Completed'],
-            'Pending'     => (int) $statsRow['Pending'],
-            'In Progress' => (int) $statsRow['InProgress'],
-            'Cancelled'   => (int) $statsRow['Cancelled'],
-        ];
-
-        // ✅ Rows — followUps joined HERE only, with GROUP BY to prevent duplicates
-        $rowTypes  = $types . 'ii';
-        $rowParams = array_merge($params, [$limit, $offset]);
-
-        $rowStmt = $this->conn->prepare("
+        // ── Branch SQL ──────────────────────────────────
+        $apptBranch = "
     SELECT
         a.id,
-        a.appointmentCode,
-        a.appointmentDate,
-        a.appointmentTime,
-        a.status,
-        a.channel,
-        a.remarks,
-        a.patientId,
-        a.doctorId,
-        CONCAT(p.firstName, ' ', p.lastName)  AS patientName,
-        CONCAT(d.firstName, ' ', d.lastName)  AS doctorName,
-        d.specialization,
-        fu.id                                 AS followUpId,
-        fu.followUpDate,
-        (fu.id IS NOT NULL)                   AS isFollowUp
+        a.appointmentCode  AS appointmentCode,
+        a.appointmentDate  AS appointmentDate,
+        a.appointmentTime  AS appointmentTime,
+        a.status           AS status,
+        a.channel          AS channel,
+        a.remarks          AS remarks,
+        a.address          AS appointmentAddress,
+        a.patientId        AS patientId,
+        a.doctorId         AS doctorId,
+        CONCAT(p.firstName,' ',p.lastName) AS patientName,
+        CONCAT(d.firstName,' ',d.lastName) AS doctorName,
+        d.specialization   AS specialization,
+        NULL               AS followUpId,
+        NULL               AS fuCode,
+        NULL               AS fuDate,
+        0                  AS isFollowUp
     FROM appointments a
     JOIN patients p ON p.id = a.patientId
     JOIN doctors  d ON d.id = a.doctorId
-    LEFT JOIN followUps fu ON fu.appointmentId = a.id
-    $whereSQL
-    GROUP BY a.id
-    ORDER BY a.appointmentDate DESC, a.appointmentTime ASC
+    $aWhereSQL
+";
+        $fuBranch = "
+    SELECT
+        a.id,
+        fu.followUpCode                    AS appointmentCode,
+        fu.followUpDate                    AS appointmentDate,
+        fu.followUpTime                    AS appointmentTime,
+        IFNULL(fu.status, 'Pending')       AS status,
+        'Follow-up'                        AS channel,
+        fu.reason                          AS remarks,
+        a.address                          AS appointmentAddress,
+        fu.patientId,
+        COALESCE(fu.doctorId, a.doctorId)  AS doctorId,
+        CONCAT(p.firstName,' ',p.lastName) AS patientName,
+        CONCAT(COALESCE(fd.firstName, ad.firstName, ''),' ',COALESCE(fd.lastName, ad.lastName, '')) AS doctorName,
+        COALESCE(fd.specialization, ad.specialization, '—') AS specialization,
+        fu.id                              AS followUpId,
+        fu.followUpCode                    AS fuCode,
+        fu.followUpDate                    AS fuDate,
+        1                                  AS isFollowUp
+    FROM followUps fu
+    JOIN appointments a  ON a.id  = fu.appointmentId
+    JOIN patients     p  ON p.id  = fu.patientId
+    LEFT JOIN doctors fd ON fd.id = fu.doctorId
+    LEFT JOIN doctors ad ON ad.id = a.doctorId
+    $fWhereSQL
+";
+
+        // ── Choose which branches to include ────────────
+        if ($channel === 'Follow-up') {
+            $unionSQL    = $fuBranch;
+            $unionTypes  = $fTypes;
+            $unionParams = $fParams;
+        } elseif ($channel) {
+            // specific non-follow-up channel: appointments only
+            $unionSQL    = $apptBranch;
+            $unionTypes  = $aTypes;
+            $unionParams = $aParams;
+        } else {
+            // no channel filter: both
+            $unionSQL    = "($apptBranch) UNION ALL ($fuBranch)";
+            $unionTypes  = $aTypes . $fTypes;
+            $unionParams = array_merge($aParams, $fParams);
+        }
+
+        // ── Stats (appointments only, no channel filter) ─
+        $sWhere  = [];
+        $sTypes  = '';
+        $sParams = [];
+        if ($date) {
+            $sWhere[] = 'a.appointmentDate = ?';
+            $sTypes .= 's';
+            $sParams[] = $date;
+        }
+        if ($doctor) {
+            $sWhere[] = 'a.doctorId = ?';
+            $sTypes .= 'i';
+            $sParams[] = (int)$doctor;
+        }
+        $sWhereSQL = $sWhere ? 'WHERE ' . implode(' AND ', $sWhere) : '';
+
+        $statsStmt = $this->conn->prepare("
+        SELECT
+            COUNT(*)                      AS total,
+            SUM(a.status='Completed')     AS Completed,
+            SUM(a.status='Pending')       AS Pending,
+            SUM(a.status='In Progress')   AS InProgress,
+            SUM(a.status='Cancelled')     AS Cancelled
+        FROM appointments a
+        JOIN patients p ON p.id = a.patientId
+        JOIN doctors  d ON d.id = a.doctorId
+        $sWhereSQL
+    ");
+        if ($sParams) $statsStmt->bind_param($sTypes, ...$sParams);
+        $statsStmt->execute();
+        $sRow  = $statsStmt->get_result()->fetch_assoc();
+        $stats = [
+            'total'       => (int)$sRow['total'],
+            'Completed'   => (int)$sRow['Completed'],
+            'Pending'     => (int)$sRow['Pending'],
+            'In Progress' => (int)$sRow['InProgress'],
+            'Cancelled'   => (int)$sRow['Cancelled'],
+        ];
+
+        // ── Total count ─────────────────────────────────
+        $countStmt = $this->conn->prepare(
+            "SELECT COUNT(*) FROM ($unionSQL) AS combined"
+        );
+        if ($unionParams) $countStmt->bind_param($unionTypes, ...$unionParams);
+        $countStmt->execute();
+        $total = (int)$countStmt->get_result()->fetch_row()[0];
+
+        // ── Paginated rows ──────────────────────────────
+        $rowTypes  = $unionTypes . 'ii';
+        $rowParams = array_merge($unionParams, [$limit, $offset]);
+        $rowStmt   = $this->conn->prepare("
+    SELECT
+        id, appointmentCode, appointmentDate, appointmentTime,
+        status, channel, remarks, appointmentAddress,
+        patientId, doctorId, patientName, doctorName, specialization,
+        followUpId, fuCode, fuDate, isFollowUp
+    FROM ($unionSQL) AS combined
+    ORDER BY appointmentDate DESC, appointmentTime ASC
     LIMIT ? OFFSET ?
 ");
-
         $rowStmt->bind_param($rowTypes, ...$rowParams);
         $rowStmt->execute();
         $rows = $rowStmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -142,6 +235,7 @@ class appointmentModel
         $stmt = $this->conn->prepare("
             SELECT
                 a.*,
+                a.address AS appointmentAddress,
                 CONCAT(p.firstName, ' ', p.lastName) AS patientName,
                 CONCAT(d.firstName, ' ', d.lastName) AS doctorName,
                 d.specialization
@@ -173,11 +267,11 @@ class appointmentModel
 
         $stmt = $this->conn->prepare("
             INSERT INTO appointments
-                (appointmentCode, patientId, doctorId, appointmentDate, appointmentTime, channel, status, remarks)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (appointmentCode, patientId, doctorId, appointmentDate, appointmentTime, channel, status, remarks, address)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ");
         $stmt->bind_param(
-            'siisssss',
+            'siissssss',
             $code,
             $patientId,
             $data['doctorId'],
@@ -185,9 +279,9 @@ class appointmentModel
             $data['appointmentTime'],
             $data['channel'],
             $data['status'],
-            $data['remarks']
+            $data['remarks'],
+            $data['patientAddress']
         );
-
         if (!$stmt->execute()) return false;
 
         $newId = $this->conn->insert_id;
@@ -231,6 +325,17 @@ class appointmentModel
     //  UPDATE STATUS  (action=update_status)
     //  Returns updated stats for the current filter
     // ─────────────────────────────────────────────
+
+    public function updateFollowUpStatus($id, $status)
+    {
+        $stmt = $this->conn->prepare(
+            "UPDATE followUps SET status = ? WHERE id = ?"
+        );
+        $stmt->bind_param('si', $status, $id);
+        if (!$stmt->execute()) return false;
+        logActivity($this->conn, 'followup_status', "Follow-up #{$id} status → {$status}.");
+        return true;
+    }
 
     public function updateStatus($id, $status)
     {
@@ -302,32 +407,56 @@ class appointmentModel
     public function getFollowUp($id)
     {
         $stmt = $this->conn->prepare("
-            SELECT
-                fu.*,
-                CONCAT(p.firstName, ' ', p.lastName) AS patientName
-            FROM followUps fu
-            JOIN patients p ON p.id = fu.patientId
-            WHERE fu.id = ?
-        ");
+        SELECT
+        fu.id,
+        fu.appointmentId,
+        fu.followUpCode,
+        fu.followUpDate,
+        fu.followUpTime,
+        fu.followUpTime AS appointmentTime,
+        fu.patientId,
+        fu.status,
+        fu.reason,
+        fu.createdAt,
+            CONCAT(p.firstName, ' ', p.lastName) AS patientName,
+            COALESCE(NULLIF(fu.doctorId, 0), a.doctorId)    AS effectiveDoctorId,
+            CONCAT(
+                COALESCE(fd.firstName, ad.firstName, ''), ' ',
+                COALESCE(fd.lastName,  ad.lastName,  '')
+            ) AS doctorName,
+            COALESCE(fd.specialization, ad.specialization, '—') AS specialization
+        FROM followUps fu
+        JOIN appointments a  ON a.id  = fu.appointmentId
+        JOIN patients     p  ON p.id  = fu.patientId
+        LEFT JOIN doctors fd ON fd.id = fu.doctorId
+        LEFT JOIN doctors ad ON ad.id = a.doctorId
+        WHERE fu.id = ?
+    ");
         $stmt->bind_param('i', $id);
         $stmt->execute();
-        return $stmt->get_result()->fetch_assoc();
+        $row = $stmt->get_result()->fetch_assoc();
+        if ($row) {
+            $row['doctorId'] = $row['effectiveDoctorId'];
+            $row['resolvedDoctorId'] = $row['effectiveDoctorId'];
+        }
+        return $row;
     }
-
     public function editFollowUp($data)
     {
         $stmt = $this->conn->prepare("
             UPDATE followUps
             SET doctorId     = ?,
                 followUpDate = ?,
+                followUpTime = ?,
                 status       = ?,
                 reason       = ?
             WHERE id = ?
         ");
         $stmt->bind_param(
-            'isssi',
+            'issssi',
             $data['doctorId'],
             $data['appointmentDate'],
+            $data['appointmentTime'],
             $data['status'],
             $data['remarks'],
             $data['id']
@@ -367,7 +496,8 @@ class appointmentModel
                 patientCode,
                 CONCAT(firstName, ' ', lastName) AS name,
                 contactNumber                    AS contact,
-                dateOfBirth                      AS dob
+                dateOfBirth                      AS dob,
+                address
             FROM patients
             WHERE status = 'Active'
               AND (CONCAT(firstName, ' ', lastName) LIKE ? OR patientCode LIKE ?)
@@ -385,7 +515,6 @@ class appointmentModel
 
     public function getSlots($doctorId, $date)
     {
-        // Get doctor's shift for that day
         $day  = date('l', strtotime($date));
         $stmt = $this->conn->prepare("
             SELECT shiftStart, shiftEnd
@@ -399,7 +528,6 @@ class appointmentModel
 
         if (!$schedule) return [];
 
-        // Get already-booked times for this doctor on this date
         $bookedStmt = $this->conn->prepare("
             SELECT appointmentTime
             FROM appointments
@@ -412,7 +540,6 @@ class appointmentModel
             'appointmentTime'
         );
 
-        // Generate 30-min slots between shiftStart and shiftEnd
         $slots   = [];
         $current = strtotime($date . ' ' . $schedule['shiftStart']);
         $end     = strtotime($date . ' ' . $schedule['shiftEnd']);
@@ -422,7 +549,7 @@ class appointmentModel
             $label     = date('g:i A', $current);
             $available = !in_array($value . ':00', $booked) && !in_array($value, $booked);
             $slots[]   = compact('value', 'label', 'available');
-            $current  += 1800; // 30 minutes
+            $current  += 1800;
         }
 
         return $slots;

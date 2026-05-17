@@ -68,11 +68,16 @@ switch ($action) {
             $userEmail = $uStmt->get_result()->fetch_row()[0] ?? '';
 
             $pStmt = $conn->prepare("
-            SELECT DISTINCT p.id FROM patients p
-            LEFT JOIN appointments a ON a.patientId = p.id
-            WHERE a.bookedByUserId = ? OR p.emailAddress = ?
-        ");
-            $pStmt->bind_param('is', $_SESSION['user_id'], $userEmail);
+    SELECT DISTINCT p.id FROM patients p
+    WHERE p.emailAddress = ? AND p.status != 'Inactive'
+
+    UNION
+
+    SELECT DISTINCT a.patientId FROM appointments a
+    JOIN patients p ON p.id = a.patientId
+    WHERE a.bookedByUserId = ? AND p.status != 'Inactive'
+");
+            $pStmt->bind_param('si', $userEmail, $_SESSION['user_id']);
             $pStmt->execute();
             $allowed = array_column($pStmt->get_result()->fetch_all(MYSQLI_ASSOC), 'id');
 

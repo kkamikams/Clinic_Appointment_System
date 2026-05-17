@@ -1033,7 +1033,8 @@ include('./includes/sidebar.php');
                             data-avatar="<?= $initials ?>"
                             data-avatar-bg="<?= $bg ?>"
                             data-avatar-color="<?= $col ?>"
-                            data-emp-status="<?= htmlspecialchars($d['employmentStatus']) ?>">
+                            data-emp-status="<?= htmlspecialchars($d['employmentStatus']) ?>"
+                            data-photo="<?= htmlspecialchars($d['photoUrl'] ?? '') ?>">
                             <td style="white-space:nowrap">
                                 <span style="color:#2563eb;font-weight:600;font-size:.83rem;cursor:pointer;"
                                     onclick="viewDoctor(this.closest('tr'))">
@@ -1042,7 +1043,11 @@ include('./includes/sidebar.php');
                             </td>
                             <td>
                                 <div class="doc-cell">
-                                    <div class="doc-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $initials ?></div>
+                                    <?php if (!empty($d['photoUrl'])): ?>
+                                        <img class="doc-avatar" src="<?= htmlspecialchars($d['photoUrl']) ?>" alt="<?= htmlspecialchars($initials) ?>" style="object-fit:cover;">
+                                    <?php else: ?>
+                                        <div class="doc-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $initials ?></div>
+                                    <?php endif; ?>
                                     <div>
                                         <div class="doc-name"><?= htmlspecialchars($fullName) ?></div>
                                     </div>
@@ -1321,9 +1326,16 @@ include('./includes/sidebar.php');
         const badge = row.querySelector('.badge');
 
         const avatar = document.getElementById('vpAvatar');
-        avatar.textContent = d.avatar;
-        avatar.style.background = d.avatarBg;
-        avatar.style.color = d.avatarColor;
+        const photoUrl = row.getAttribute('data-photo') || '';
+        if (photoUrl) {
+            avatar.innerHTML = `<img src="${photoUrl}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            avatar.style.background = 'transparent';
+        } else {
+            avatar.innerHTML = '';
+            avatar.textContent = d.avatar;
+            avatar.style.background = d.avatarBg;
+            avatar.style.color = d.avatarColor;
+        }
         document.getElementById('vpName').textContent = d.name;
         document.getElementById('vpSpec').textContent = d.spec;
 

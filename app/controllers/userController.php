@@ -176,10 +176,12 @@ function getMyAppointmentsData($conn, $userId, $today)
                a.channel, a.status, a.remarks,
                CONCAT('Dr. ', d.firstName, ' ', d.lastName) AS doctorName,
                d.specialization, d.department,
-               CONCAT(p.firstName, ' ', p.lastName) AS patientName
+               CONCAT(p.firstName, ' ', p.lastName) AS patientName,
+               COALESCE(p.photoUrl, IF(u.firstName = p.firstName AND u.lastName = p.lastName, u.profilePic, NULL)) AS patPhoto
         FROM appointments a
         JOIN doctors  d ON d.id = a.doctorId
         JOIN patients p ON p.id = a.patientId
+        LEFT JOIN users u ON u.emailAddress = p.emailAddress
         WHERE a.bookedByUserId = ? OR p.emailAddress = ?
 
         UNION ALL
@@ -191,10 +193,12 @@ function getMyAppointmentsData($conn, $userId, $today)
                CONCAT('Dr. ', COALESCE(fd.firstName, ad.firstName, ''), ' ', COALESCE(fd.lastName, ad.lastName, '')) AS doctorName,
                COALESCE(fd.specialization, ad.specialization, '—') AS specialization,
                COALESCE(fd.department, ad.department, '—') AS department,
-               CONCAT(p.firstName, ' ', p.lastName) AS patientName
+               CONCAT(p.firstName, ' ', p.lastName) AS patientName,
+               COALESCE(p.photoUrl, IF(u.firstName = p.firstName AND u.lastName = p.lastName, u.profilePic, NULL)) AS patPhoto
         FROM followUps fu
         JOIN appointments a  ON a.id  = fu.appointmentId
         JOIN patients     p  ON p.id  = fu.patientId
+        LEFT JOIN users   u  ON u.emailAddress = p.emailAddress
         LEFT JOIN doctors fd ON fd.id = fu.doctorId
         LEFT JOIN doctors ad ON ad.id = a.doctorId
         WHERE a.bookedByUserId = ? OR p.emailAddress = ?
@@ -218,22 +222,16 @@ function getMedicalRecordsData($conn, $userId)
     // Get ALL patientIds linked to this user account
     // REPLACE this block:
     $stmt = $conn->prepare("
+    SELECT DISTINCT p.id AS patientId FROM patients p
+    WHERE p.emailAddress = ? AND p.status != 'Inactive'
+
+    UNION
+
     SELECT DISTINCT a.patientId FROM appointments a
     JOIN patients p ON p.id = a.patientId
-    WHERE a.bookedByUserId = ? OR p.emailAddress = ?
+    WHERE a.bookedByUserId = ? AND p.status != 'Inactive'
 ");
-    $stmt->bind_param('is', $userId, $userEmail);
-    $stmt->execute();
-    $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    $patientIds = array_column($rows, 'patientId');
-
-    // WITH this:
-    $stmt = $conn->prepare("
-    SELECT id AS patientId FROM patients
-    WHERE emailAddress = ? AND status != 'Inactive'
-    LIMIT 1
-");
-    $stmt->bind_param('s', $userEmail);
+    $stmt->bind_param('si', $userEmail, $userId);
     $stmt->execute();
     $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     $patientIds = array_column($rows, 'patientId');
@@ -254,7 +252,7 @@ function getMedicalRecordsData($conn, $userId)
     SELECT 
         m.id, m.recordCode, m.status, m.createdAt, m.patientId,
         CONCAT(p.firstName, ' ', p.lastName) AS patientName,
-        p.patientCode,
+        p.patientCode, COALESCE(p.photoUrl, IF(u.firstName = p.firstName AND u.lastName = p.lastName, u.profilePic, NULL)) AS patPhoto,
         CONCAT('Dr. ', d.firstName, ' ', d.lastName) AS doctorName,
         d.specialization, d.department,
         (SELECT COUNT(*) FROM medicalRecords c WHERE c.parentRecordId = m.id) + 1 AS entryCount,
@@ -270,6 +268,7 @@ function getMedicalRecordsData($conn, $userId)
     FROM medicalRecords m
     JOIN patients p ON p.id = m.patientId
     JOIN doctors  d ON d.id = m.doctorId
+    LEFT JOIN users u ON u.emailAddress = p.emailAddress
     WHERE m.patientId IN ($ids) AND m.status = 'Finalized' AND m.parentRecordId IS NULL
     ORDER BY lastUpdated DESC
 ")->fetch_all(MYSQLI_ASSOC);

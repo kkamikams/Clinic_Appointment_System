@@ -179,6 +179,33 @@ include('./includes/sidebar.php');
         letter-spacing: -.02em;
     }
 
+    .avatar-photo {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        box-shadow: var(--shadow-md);
+        object-fit: cover;
+        margin: -36px auto 0;
+        position: relative;
+        display: block;
+    }
+
+    .photo-change-label {
+        font-size: .68rem;
+        font-weight: 600;
+        color: var(--blue-600);
+        cursor: pointer;
+        text-decoration: underline;
+        display: block;
+        text-align: center;
+        margin-top: .3rem;
+    }
+
+    #editPhotoInput {
+        display: none;
+    }
+
     .profile-card-spec {
         font-size: .75rem;
         color: var(--text-muted);
@@ -576,9 +603,18 @@ include('./includes/sidebar.php');
             <div class="profile-card">
                 <div class="profile-card-banner"></div>
                 <div class="profile-card-body">
-                    <div class="profile-card-avatar" id="sideAvatar">
-                        <?= strtoupper(substr($doc['firstName'], 0, 1) . substr($doc['lastName'], 0, 1)) ?>
-                    </div>
+                    <?php if (!empty($doc['photoUrl'])): ?>
+                        <img id="sideAvatarImg" class="avatar-photo" src="<?= htmlspecialchars($doc['photoUrl']) ?>" alt="Doctor photo">
+                        <div class="profile-card-avatar" id="sideAvatar" style="display:none;">
+                            <?= strtoupper(substr($doc['firstName'], 0, 1) . substr($doc['lastName'], 0, 1)) ?>
+                        </div>
+                    <?php else: ?>
+                        <img id="sideAvatarImg" class="avatar-photo" src="" alt="" style="display:none;">
+                        <div class="profile-card-avatar" id="sideAvatar">
+                            <?= strtoupper(substr($doc['firstName'], 0, 1) . substr($doc['lastName'], 0, 1)) ?>
+                        </div>
+                    <?php endif; ?>
+                    <label class="photo-change-label" for="editPhotoInput"><i class="bi bi-camera"></i> Change Photo</label>
                     <div class="profile-card-name" id="sideName"><?= htmlspecialchars($fullname) ?></div>
                     <div class="profile-card-spec" id="sideSpec"><?= htmlspecialchars($doc['specialization']) ?></div>
                     <div class="profile-card-id"><?= htmlspecialchars($doc['doctorCode']) ?></div>
@@ -627,6 +663,7 @@ include('./includes/sidebar.php');
                 <input type="hidden" name="id" value="<?= $doc['id'] ?>">
 
                 <input type="hidden" name="emp_status" id="empStatusHidden" value="<?= htmlspecialchars($es) ?>">
+                <input type="file" id="editPhotoInput" name="photo" accept="image/jpeg,image/png,image/gif,image/webp" onchange="previewEditPhoto(this)" style="display:none;">
 
                 <div class="form-section-title"><i class="bi bi-person"></i> Personal Information</div>
                 <div class="form-grid three">
@@ -759,6 +796,20 @@ include('./includes/sidebar.php');
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
+    function previewEditPhoto(input) {
+        const img = document.getElementById('sideAvatarImg');
+        const circle = document.getElementById('sideAvatar');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                img.src = e.target.result;
+                img.style.display = 'block';
+                circle.style.display = 'none';
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
     function updateSidebar() {
         const first = document.querySelector('[name="first_name"]').value;
         const last = document.querySelector('[name="last_name"]').value;

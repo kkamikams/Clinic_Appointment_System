@@ -152,6 +152,35 @@ require_once('../../app/config/config.php');
         line-height: 1.4;
     }
 
+    .photo-upload-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: .5rem;
+        margin-bottom: 1.4rem;
+    }
+
+    .photo-preview-circle {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 3px solid var(--blue-200);
+        object-fit: cover;
+        display: none;
+    }
+
+    .photo-upload-label {
+        font-size: .72rem;
+        font-weight: 600;
+        color: var(--blue-600);
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
+    #photoInput {
+        display: none;
+    }
+
     /* ── Employment status ── */
     .status-options {
         display: flex;
@@ -452,10 +481,12 @@ require_once('../../app/config/config.php');
 
             <div class="form-card side-card">
 
-                <!-- Live initials preview -->
                 <div class="initials-preview-wrap">
+                    <img id="photoPreview" class="photo-preview-circle" src="" alt="Photo preview">
                     <div class="initials-circle" id="initialsCircle">?</div>
                     <div id="welcomeText" style="font-size:.9rem;font-weight:600;color:var(--text-body);text-align:center;">Welcome, Dr.</div>
+                    <label class="photo-upload-label" for="photoInput"><i class="bi bi-camera"></i> Upload Photo</label>
+                    <input type="file" id="photoInput" name="photo" accept="image/jpeg,image/png,image/gif,image/webp" onchange="previewPhoto(this)">
                 </div>
 
                 <div class="section-label">Employment Status</div>
@@ -639,6 +670,20 @@ require_once('../../app/config/config.php');
         document.getElementById('welcomeText').textContent = fn ? 'Welcome, Dr. ' + fn + '!' : 'Welcome, Dr.';
     }
 
+    function previewPhoto(input) {
+        const preview = document.getElementById('photoPreview');
+        const circle = document.getElementById('initialsCircle');
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+                circle.style.display = 'none';
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
     const SPEC_TO_DEPT = {
         'General Medicine': 'General',
         'Pediatrics': 'Child Health',
@@ -781,6 +826,9 @@ require_once('../../app/config/config.php');
         formData.append('notes', document.getElementById('notes').value.trim());
         formData.append('empStatus', document.querySelector('input[name="empStatus"]:checked')?.value || 'Active');
         days.forEach(d => formData.append('days[]', d));
+
+        const photoFile = document.getElementById('photoInput').files[0];
+        if (photoFile) formData.append('photo', photoFile);
 
         fetch('../../app/controllers/doctorController.php?action=save', {
                 method: 'POST',

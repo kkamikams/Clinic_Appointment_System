@@ -64,6 +64,39 @@ include('./includes/sidebar.php');
         margin-bottom: 2px;
     }
 
+    .pat-cell {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+    }
+
+    .pat-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid var(--border);
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: .68rem;
+        font-weight: 700;
+        overflow: hidden;
+    }
+
+    .pat-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+    }
+
+    .pat-name {
+        font-weight: 600;
+        color: var(--text-dark);
+        font-size: .82rem;
+    }
+
     .pagetitle .breadcrumb-item,
     .pagetitle .breadcrumb-item a {
         font-size: .78rem;
@@ -590,7 +623,18 @@ include('./includes/sidebar.php');
                                 data-status="<?= $appt['status'] ?>"
                                 data-upcoming="<?= $isUpcoming ? '1' : '0' ?>">
                                 <td><span class="appt-code"><?= htmlspecialchars($appt['appointmentCode']) ?></span></td>
-                                <td style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= htmlspecialchars($appt['patientName']) ?></td>
+                                <td>
+                                    <div class="pat-cell">
+                                        <div class="pat-avatar" style="background:var(--blue-50);color:var(--blue-700);">
+                                            <?php if (!empty($appt['patPhoto'])): ?>
+                                                <img src="<?= htmlspecialchars($appt['patPhoto']) ?>" alt="">
+                                            <?php else: ?>
+                                                <?= strtoupper(substr($appt['patientName'], 0, 1) . (strpos($appt['patientName'], ' ') !== false ? substr(strrchr($appt['patientName'], ' '), 1, 1) : '')) ?>
+                                            <?php endif; ?>
+                                        </div>
+                                        <span class="pat-name"><?= htmlspecialchars($appt['patientName']) ?></span>
+                                    </div>
+                                </td>
                                 <td>
                                     <div class="doc-name"><?= htmlspecialchars($appt['doctorName']) ?></div>
                                     <div class="doc-spec"><?= htmlspecialchars($appt['specialization']) ?></div>

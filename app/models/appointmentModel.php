@@ -104,6 +104,7 @@ class appointmentModel
         a.patientId        AS patientId,
         a.doctorId         AS doctorId,
         CONCAT(p.firstName,' ',p.lastName) AS patientName,
+        p.photoUrl                         AS patPhoto,
         CONCAT(d.firstName,' ',d.lastName) AS doctorName,
         d.specialization   AS specialization,
         NULL               AS followUpId,
@@ -125,9 +126,10 @@ class appointmentModel
         'Follow-up'                        AS channel,
         fu.reason                          AS remarks,
         a.address                          AS appointmentAddress,
-        fu.patientId,
+        COALESCE(fu.patientId, a.patientId) AS patientId,
         COALESCE(fu.doctorId, a.doctorId)  AS doctorId,
         CONCAT(p.firstName,' ',p.lastName) AS patientName,
+        p.photoUrl                         AS patPhoto,
         CONCAT(COALESCE(fd.firstName, ad.firstName, ''),' ',COALESCE(fd.lastName, ad.lastName, '')) AS doctorName,
         COALESCE(fd.specialization, ad.specialization, '—') AS specialization,
         fu.id                              AS followUpId,
@@ -135,8 +137,8 @@ class appointmentModel
         fu.followUpDate                    AS fuDate,
         1                                  AS isFollowUp
     FROM followUps fu
-    JOIN appointments a  ON a.id  = fu.appointmentId
-    JOIN patients     p  ON p.id  = fu.patientId
+    LEFT JOIN appointments a  ON a.id  = fu.appointmentId
+    JOIN patients     p  ON p.id  = COALESCE(fu.patientId, a.patientId)
     LEFT JOIN doctors fd ON fd.id = fu.doctorId
     LEFT JOIN doctors ad ON ad.id = a.doctorId
     $fWhereSQL
@@ -213,7 +215,7 @@ class appointmentModel
     SELECT
         id, appointmentCode, appointmentDate, appointmentTime,
         status, channel, remarks, appointmentAddress,
-        patientId, doctorId, patientName, doctorName, specialization,
+        patientId, doctorId, patientName, patPhoto, doctorName, specialization,
         followUpId, fuCode, fuDate, isFollowUp
     FROM ($unionSQL) AS combined
     ORDER BY appointmentDate DESC, appointmentTime ASC
@@ -426,8 +428,8 @@ class appointmentModel
             ) AS doctorName,
             COALESCE(fd.specialization, ad.specialization, '—') AS specialization
         FROM followUps fu
-        JOIN appointments a  ON a.id  = fu.appointmentId
-        JOIN patients     p  ON p.id  = fu.patientId
+        LEFT JOIN appointments a  ON a.id  = fu.appointmentId
+        JOIN patients     p  ON p.id  = COALESCE(fu.patientId, a.patientId)
         LEFT JOIN doctors fd ON fd.id = fu.doctorId
         LEFT JOIN doctors ad ON ad.id = a.doctorId
         WHERE fu.id = ?

@@ -55,7 +55,7 @@ switch ($action) {
             $doctorCode = 'DOC-' . $year . '-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
 
             $photoUrl  = null;
-            $uploadDir = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/uploads/doctors/';
+            $uploadDir = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/Clinic_Appointment_System/uploads/doctors/';
 
             if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
                 if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
@@ -71,7 +71,7 @@ switch ($action) {
                 if (!move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $filename)) {
                     throw new Exception('Failed to save photo. Check folder permissions.');
                 }
-                $photoUrl = '/uploads/doctors/' . $filename;
+                $photoUrl = '/Clinic_Appointment_System/uploads/doctors/' . $filename;
             }
 
             $stmt = $conn->prepare("
@@ -192,6 +192,43 @@ switch ($action) {
             exit;
         }
         $stmt->close();
+
+        // Handle photo upload on update
+        if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
+            $uploadDir = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/Clinic_Appointment_System/uploads/doctors/';
+            if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
+                echo json_encode(['success' => false, 'message' => 'Image must be under 2MB.']);
+                exit;
+            }
+            $ext     = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
+            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            if (!in_array($ext, $allowed)) {
+                echo json_encode(['success' => false, 'message' => 'Invalid image type.']);
+                exit;
+            }
+            if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
+
+            // Delete old photo
+            $oldRow = $conn->prepare("SELECT photoUrl FROM doctors WHERE id=?");
+            $oldRow->bind_param('i', $id);
+            $oldRow->execute();
+            $oldRow->bind_result($oldPhoto);
+            $oldRow->fetch();
+            $oldRow->close();
+            if ($oldPhoto) {
+                $oldPath = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . $oldPhoto;
+                if (file_exists($oldPath)) unlink($oldPath);
+            }
+
+            $filename = 'DOC-' . $id . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
+            if (move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $filename)) {
+                $photoUrl = '/Clinic_Appointment_System/uploads/doctors/' . $filename;
+                $upPhoto  = $conn->prepare("UPDATE doctors SET photoUrl=? WHERE id=?");
+                $upPhoto->bind_param('si', $photoUrl, $id);
+                $upPhoto->execute();
+                $upPhoto->close();
+            }
+        }
 
         $del = $conn->prepare("DELETE FROM doctorSchedules WHERE doctorId=?");
         $del->bind_param('i', $id);

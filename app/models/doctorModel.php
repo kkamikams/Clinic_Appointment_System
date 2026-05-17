@@ -102,7 +102,7 @@ class DoctorModel
                 d.id, d.doctorCode, d.firstName, d.middleName, d.lastName,
                 d.specialization, d.contactNumber, d.patientCapacity,
                 d.status, d.employmentStatus, d.emailAddress,
-                d.prcLicenseNo, d.yearsOfExperience,
+                d.prcLicenseNo, d.yearsOfExperience, d.photoUrl,
 
                 COUNT(DISTINCT a.id) AS currentLoad,
 

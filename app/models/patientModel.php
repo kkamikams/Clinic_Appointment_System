@@ -39,7 +39,7 @@ class patientModel
             SELECT
                 p.id, p.patientCode, p.firstName, p.middleName, p.lastName,
                 p.gender, p.dateOfBirth, p.contactNumber, p.emailAddress, p.address,
-                p.status, p.patientCondition,
+                p.status, p.patientCondition, p.photoUrl,
                 TIMESTAMPDIFF(YEAR, p.dateOfBirth, CURDATE()) AS age,
                 GREATEST(
                     COALESCE(MAX(a.appointmentDate), '1000-01-01'),

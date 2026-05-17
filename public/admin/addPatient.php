@@ -108,6 +108,7 @@ require_once('../../app/config/config.php');
         display: flex;
         align-items: center;
         gap: 8px;
+        width: 100%;
     }
 
     .section-label::after {
@@ -121,7 +122,7 @@ require_once('../../app/config/config.php');
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 1rem;
+        gap: .4rem;
     }
 
     .avatar-preview {
@@ -139,6 +140,12 @@ require_once('../../app/config/config.php');
         transition: all .2s;
         position: relative;
         overflow: hidden;
+    }
+
+    .side-column {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
     }
 
     .avatar-preview img {
@@ -177,17 +184,26 @@ require_once('../../app/config/config.php');
         margin-top: .5rem;
     }
 
+    .photo-upload-label {
+        font-size: .72rem;
+        font-weight: 600;
+        color: var(--blue-600);
+        cursor: pointer;
+        text-decoration: underline;
+    }
+
     .radio-option {
         display: flex;
         align-items: center;
         gap: 10px;
         padding: .55rem .85rem;
-        border: 1px solid var(--border);
+        border: 1.5px solid var(--border);
         border-radius: var(--radius-sm);
         cursor: pointer;
         transition: all .15s;
         font-size: .82rem;
         color: var(--text-body);
+        font-weight: 500;
     }
 
     .radio-option:hover {
@@ -198,13 +214,17 @@ require_once('../../app/config/config.php');
     .radio-option input[type="radio"] {
         accent-color: var(--blue-600);
         cursor: pointer;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
     }
 
     .radio-option.selected {
-        border-color: var(--blue-400);
+        border-color: var(--blue-500);
+        border-width: 1.5px;
         background: var(--blue-50);
         color: var(--blue-700);
-        font-weight: 600;
+        font-weight: 700;
     }
 
     .status-dot {
@@ -427,39 +447,43 @@ require_once('../../app/config/config.php');
     <div class="add-layout">
 
         <!-- Side Card -->
-        <div class="form-card side-card">
-            <div class="avatar-uploader">
-                <div class="avatar-preview" id="avatarPreview">
-                    <span id="avatarInitials">?</span>
-                </div>
-                <div id="avatarWelcome" style="
+        <div class="side-column">
+            <div class="form-card side-card">
+                <div class="avatar-uploader">
+                    <div class="avatar-preview" id="avatarPreview">
+                        <span id="avatarInitials">?</span>
+                    </div>
+                    <div id="avatarWelcome" style="
     font-size: .82rem;
     font-weight: 600;
     color: var(--text-body);
     text-align: center;
     margin-top: .5rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0;
 ">Welcome!</div>
-            </div>
+                    <input type="file" id="photoInput" name="photo" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" onchange="previewPhoto(this)">
+                    <label for="photoInput" class="photo-upload-label"><i class="bi bi-camera"></i> Upload Photo</label>
 
-            <div class="section-label">Patient Condition</div>
-            <div class="radio-options">
-                <label class="radio-option selected">
-                    <input type="radio" name="condition" value="Stable" checked onchange="selectRadio(this)">
-                    <span class="status-dot" style="background:var(--green)"></span> Stable
-                </label>
-                <label class="radio-option">
-                    <input type="radio" name="condition" value="Critical" onchange="selectRadio(this)">
-                    <span class="status-dot" style="background:var(--red)"></span> Critical
-                </label>
-                <label class="radio-option">
-                    <input type="radio" name="condition" value="Under Observation" onchange="selectRadio(this)">
-                    <span class="status-dot" style="background:var(--amber)"></span> Under Observation
-                </label>
-                <label class="radio-option">
-                    <input type="radio" name="condition" value="Recovering" onchange="selectRadio(this)">
-                    <span class="status-dot" style="background:var(--blue-500)"></span> Recovering
-                </label>
+                    <div class="section-label" style="text-align:left; width:100%; margin-top:.75rem;">Patient Condition</div>
+                    <div class="radio-options">
+                        <label class="radio-option selected">
+                            <input type="radio" name="condition" value="Stable" checked onchange="selectRadio(this)">
+                            <span class="status-dot" style="background:var(--green)"></span> Stable
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="condition" value="Critical" onchange="selectRadio(this)">
+                            <span class="status-dot" style="background:var(--red)"></span> Critical
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="condition" value="Under Observation" onchange="selectRadio(this)">
+                            <span class="status-dot" style="background:var(--amber)"></span> Under Observation
+                        </label>
+                        <label class="radio-option">
+                            <input type="radio" name="condition" value="Recovering" onchange="selectRadio(this)">
+                            <span class="status-dot" style="background:var(--blue-500)"></span> Recovering
+                        </label>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -548,6 +572,17 @@ require_once('../../app/config/config.php');
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
+    function previewPhoto(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const preview = document.getElementById('avatarPreview');
+                preview.innerHTML = `<img src="${e.target.result}" alt="preview">`;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
     function updateInitials() {
         const fn = document.getElementById('firstname').value.trim();
         const ln = document.getElementById('lastname').value.trim();
@@ -623,6 +658,8 @@ require_once('../../app/config/config.php');
         fd.append('notes', document.getElementById('notes').value.trim());
         fd.append('status', document.querySelector('input[name="status"]:checked')?.value || 'Active');
         fd.append('condition', document.querySelector('input[name="condition"]:checked')?.value || 'Stable');
+        const photoFile = document.getElementById('photoInput').files[0];
+        if (photoFile) fd.append('photo', photoFile);
 
         fetch('../../app/controllers/PatientController.php?action=save', {
                 method: 'POST',

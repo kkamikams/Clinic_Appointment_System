@@ -623,7 +623,18 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
                                 <td>
                                     <span class="rec-id"><?= htmlspecialchars($rec['recordCode']) ?></span>
                                 </td>
-                                <td style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= htmlspecialchars($rec['patientName']) ?></td>
+                                <td>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <?php if (!empty($rec['patPhoto'])): ?>
+                                            <img src="<?= htmlspecialchars($rec['patPhoto']) ?>" style="width:30px;height:30px;border-radius:50%;object-fit:cover;border:2px solid var(--border);">
+                                        <?php else: ?>
+                                            <div style="width:30px;height:30px;border-radius:50%;background:var(--blue-50);color:var(--blue-700);display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;flex-shrink:0;">
+                                                <?= strtoupper(substr($rec['patientName'], 0, 1) . (strpos($rec['patientName'], ' ') !== false ? substr(strrchr($rec['patientName'], ' '), 1, 1) : '')) ?>
+                                            </div>
+                                        <?php endif; ?>
+                                        <span style="font-size:.82rem;font-weight:600;color:var(--text-dark)"><?= htmlspecialchars($rec['patientName']) ?></span>
+                                    </div>
+                                </td>
                                 <td>
                                     <div class="doc-cell">
                                         <div class="doc-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $ini ?></div>
@@ -690,6 +701,17 @@ $avatarColors = ['#1d4ed8', '#065f46', '#92400e', '#5b21b6', '#9d174d', '#155e75
 </div>
 
 <script>
+    function renderAuditTrail(log) {
+        if (!log || !log.length) return '';
+        return `<div style="font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-top:1rem;margin-bottom:.5rem;">
+            <i class="bi bi-journal-text"></i> Audit Trail
+        </div>` + log.map(l => `
+            <div style="font-size:.75rem;color:var(--text-muted);padding:.35rem 0;border-bottom:1px solid var(--border);">
+                <strong>${l.action}</strong> · ${l.by} · ${l.at}
+                ${l.from ? `<span style="margin-left:6px;color:var(--red);">${l.from}</span> → <span style="color:var(--green);">${l.to}</span>` : ''}
+            </div>`).join('');
+    }
+
     function filterRecords() {
         const q = document.getElementById('recSearch').value.toLowerCase();
         const dept = document.getElementById('deptFilter').value;

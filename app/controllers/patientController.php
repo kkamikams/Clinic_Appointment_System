@@ -13,7 +13,7 @@ function handlePatientPhoto(string $patientCode): ?string
     if (empty($_FILES['photo']['tmp_name']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
         return null;
     }
-    $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/uploads/patients/';
+    $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/Clinic_Appointment_System/uploads/patients/';
     if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
 
     $ext     = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
@@ -23,7 +23,7 @@ function handlePatientPhoto(string $patientCode): ?string
     }
     $filename = $patientCode . '_' . time() . '.' . $ext;
     return move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $filename)
-        ? 'uploads/patients/' . $filename
+        ? '/Clinic_Appointment_System/uploads/patients/' . $filename
         : null;
 }
 

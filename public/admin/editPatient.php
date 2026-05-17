@@ -437,9 +437,14 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
             <div class="form-card side-card" style="padding-top:0;overflow:hidden;">
                 <div class="profile-banner"></div>
                 <div style="padding:0 1.25rem 1.5rem;text-align:center;">
-                    <div class="profile-avatar" id="sideAvatar">
-                        <?= strtoupper(substr($p['firstName'], 0, 1) . substr($p['lastName'], 0, 1)) ?>
-                    </div>
+                    <?php if (!empty($p['photoUrl'])): ?>
+                        <img id="sideAvatarImg" src="<?= htmlspecialchars($p['photoUrl']) ?>" alt="" style="width:72px;height:72px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.07);object-fit:cover;margin:-36px auto 0;display:block;">
+                        <div class="profile-avatar" id="sideAvatar" style="display:none;"><?= strtoupper(substr($p['firstName'], 0, 1) . substr($p['lastName'], 0, 1)) ?></div>
+                    <?php else: ?>
+                        <img id="sideAvatarImg" src="" alt="" style="display:none;width:72px;height:72px;border-radius:50%;border:3px solid #fff;object-fit:cover;margin:-36px auto 0;">
+                        <div class="profile-avatar" id="sideAvatar"><?= strtoupper(substr($p['firstName'], 0, 1) . substr($p['lastName'], 0, 1)) ?></div>
+                    <?php endif; ?>
+                    <label for="editPhotoInput" style="font-size:.68rem;font-weight:600;color:var(--blue-600);cursor:pointer;text-decoration:underline;display:block;text-align:center;margin-top:.4rem;"><i class="bi bi-camera"></i> Change Photo</label>
                     <div class="profile-name" id="sideName"><?= htmlspecialchars($fullname) ?></div>
                     <div class="profile-sub" id="sideSub">
                         <?= $p['dateOfBirth'] ? htmlspecialchars($p['dateOfBirth']) . ($age ? ' · ' . $age . ' yrs' : '') : '—' ?>
@@ -474,34 +479,28 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
         <div class="form-card main-form-card">
             <form id="editForm" onsubmit="savePatient(event)">
                 <input type="hidden" name="id" value="<?= $p['id'] ?>">
+                <input type="file" id="editPhotoInput" name="photo" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" onchange="previewEditPhoto(this)">
 
                 <div class="section-label">Personal Information</div>
                 <div class="form-grid cols-3">
                     <div class="field">
                         <label>First Name <span class="req">*</span></label>
-                        <input type="text" name="first_name"
-                            value="<?= htmlspecialchars($p['firstName']) ?>"
-                            required oninput="updateSide()">
+                        <input type="text" name="first_name" value="<?= htmlspecialchars($p['firstName']) ?>" required oninput="updateSide()">
                     </div>
                     <div class="field">
                         <label>Middle Name</label>
-                        <input type="text" name="middle_name"
-                            value="<?= htmlspecialchars($p['middleName'] ?? '') ?>">
+                        <input type="text" name="middle_name" value="<?= htmlspecialchars($p['middleName'] ?? '') ?>">
                     </div>
                     <div class="field">
                         <label>Last Name <span class="req">*</span></label>
-                        <input type="text" name="last_name"
-                            value="<?= htmlspecialchars($p['lastName']) ?>"
-                            required oninput="updateSide()">
+                        <input type="text" name="last_name" value="<?= htmlspecialchars($p['lastName']) ?>" required oninput="updateSide()">
                     </div>
                 </div>
 
                 <div class="form-grid" style="margin-top:1rem;">
                     <div class="field">
                         <label>Date of Birth</label>
-                        <input type="date" name="dob"
-                            value="<?= htmlspecialchars($p['dateOfBirth'] ?? '') ?>"
-                            oninput="updateSide()">
+                        <input type="date" name="dob" value="<?= htmlspecialchars($p['dateOfBirth'] ?? '') ?>" oninput="updateSide()">
                     </div>
                     <div class="field">
                         <label>Gender <span class="req">*</span></label>
@@ -517,9 +516,7 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 <div class="form-grid cols-1" style="margin-top:1rem;">
                     <div class="field">
                         <label>Address</label>
-                        <input type="text" name="address"
-                            value="<?= htmlspecialchars($p['address'] ?? '') ?>"
-                            placeholder="Street, Barangay, City, Province">
+                        <input type="text" name="address" value="<?= htmlspecialchars($p['address'] ?? '') ?>" placeholder="Street, Barangay, City, Province">
                     </div>
                 </div>
 
@@ -529,13 +526,11 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 <div class="form-grid">
                     <div class="field">
                         <label>Contact Number <span class="req">*</span></label>
-                        <input type="tel" name="contact"
-                            value="<?= htmlspecialchars($p['contactNumber'] ?? '') ?>" required>
+                        <input type="tel" name="contact" value="<?= htmlspecialchars($p['contactNumber'] ?? '') ?>" required>
                     </div>
                     <div class="field">
                         <label>Email Address</label>
-                        <input type="email" name="email"
-                            value="<?= htmlspecialchars($p['emailAddress'] ?? '') ?>">
+                        <input type="email" name="email" value="<?= htmlspecialchars($p['emailAddress'] ?? '') ?>">
                     </div>
                 </div>
 
@@ -576,6 +571,20 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
 <div class="toast-wrap" id="toastWrap"></div>
 
 <script>
+    function previewEditPhoto(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                const img = document.getElementById('sideAvatarImg');
+                const circle = document.getElementById('sideAvatar');
+                img.src = e.target.result;
+                img.style.display = 'block';
+                circle.style.display = 'none';
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
     function selectRadio(radio) {
         document.querySelectorAll(`input[name="${radio.name}"]`).forEach(r => {
             r.closest('.radio-option')?.classList.remove('selected');

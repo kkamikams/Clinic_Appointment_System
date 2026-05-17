@@ -897,7 +897,8 @@ include('./includes/sidebar.php');
                             data-doctor="<?= htmlspecialchars($doctor) ?>"
                             data-avatar="<?= $initials ?>"
                             data-avatar-bg="<?= $bg ?>"
-                            data-avatar-color="<?= $col ?>">
+                            data-avatar-color="<?= $col ?>"
+                            data-photo="<?= htmlspecialchars($p['photoUrl'] ?? '') ?>">
                             <td>
                                 <span style="color:#2563eb;font-weight:600;font-size:.83rem;cursor:pointer;"
                                     onclick="viewPatient(this.closest('tr'))">
@@ -906,7 +907,11 @@ include('./includes/sidebar.php');
                             </td>
                             <td>
                                 <div class="pat-cell">
-                                    <div class="pat-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $initials ?></div>
+                                    <?php if (!empty($p['photoUrl'])): ?>
+                                        <img class="pat-avatar" src="<?= htmlspecialchars($p['photoUrl']) ?>" alt="<?= htmlspecialchars($initials) ?>" style="object-fit:cover;">
+                                    <?php else: ?>
+                                        <div class="pat-avatar" style="background:<?= $bg ?>;color:<?= $col ?>"><?= $initials ?></div>
+                                    <?php endif; ?>
                                     <div>
                                         <div class="pat-name"><?= htmlspecialchars($fullName) ?></div>
                                         <div class="pat-id"><?= htmlspecialchars($p['patientCode']) ?></div>
@@ -1195,9 +1200,15 @@ include('./includes/sidebar.php');
         const d = row.dataset;
 
         const avatar = document.getElementById('vpAvatar');
-        avatar.textContent = d.avatar;
-        avatar.style.background = d.avatarBg;
-        avatar.style.color = d.avatarColor;
+        if (d.photo) {
+            avatar.innerHTML = `<img src="${d.photo}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">`;
+            avatar.style.background = 'transparent';
+        } else {
+            avatar.innerHTML = '';
+            avatar.textContent = d.avatar;
+            avatar.style.background = d.avatarBg;
+            avatar.style.color = d.avatarColor;
+        }
 
         document.getElementById('vpName').textContent = d.fullname;
         document.getElementById('vpSub').textContent = d.age + ' yrs · ' + d.gender;

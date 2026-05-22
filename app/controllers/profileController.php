@@ -1,6 +1,7 @@
 <?php
 require_once('../../app/config/config.php');
 
+// Fetches a single user record by ID
 function getUserById($conn, $userId)
 {
     $stmt = $conn->prepare("SELECT * FROM users WHERE id = ? LIMIT 1");
@@ -33,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($firstName) || empty($lastName) || empty($username) || empty($email)) {
         $error = "First name, last name, username, and email are required.";
     } else {
+        // Ensure the new username isn't already taken by another account
         $checkStmt = $conn->prepare("SELECT id FROM users WHERE username = ? AND id != ?");
         $checkStmt->bind_param("si", $username, $userId);
         $checkStmt->execute();
@@ -41,7 +43,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($checkStmt->num_rows > 0) {
             $error = "Username is already taken.";
         } else {
-            // Handle profile picture upload
             $profilePic = null;
             if (isset($_FILES['profilePic']) && $_FILES['profilePic']['error'] === 0) {
                 $allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -53,10 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } elseif ($fileSize > 2 * 1024 * 1024) {
                     $error = "Image size must be under 2MB.";
                 } else {
-                    $userRole   = $_SESSION['authUser']['role'] ?? $_SESSION['userRole'] ?? 'user';
-                    $panel      = ($userRole === 'admin') ? 'admin' : 'user';
-                    $uploadDir  = __DIR__ . '/../../public/' . $panel . '/assets/uploads/profiles/';
-                    $uploadUrl  = '/Clinic_Appointment_System/public/' . $panel . '/assets/uploads/profiles/';
+                    $uploadDir  = __DIR__ . '/../../app/uploads/profiles/';
+                    $uploadUrl  = '/Clinic_Appointment_System/app/uploads/profiles/';
                     if (!is_dir($uploadDir)) {
                         mkdir($uploadDir, 0755, true);
                     }
@@ -65,13 +64,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (move_uploaded_file($_FILES['profilePic']['tmp_name'], $uploadDir . $fileName)) {
                         $profilePic = $uploadUrl . $fileName;
                     } else {
-                        $error = "Failed to upload image. Tried path: " . ($uploadDir . $fileName);  // <-- changed
+                        $error = "Failed to upload image. Tried path: " . ($uploadDir . $fileName);
                     }
                 }
             }
 
             if (empty($error)) {
-                // Handle password change
                 if (!empty($newPassword)) {
                     if ($newPassword !== $confirmPass) {
                         $error = "Passwords do not match.";
@@ -95,6 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($profilePic)        $fields['profilePic'] = $profilePic;
                     if (!empty($newPassword)) $fields['password']  = password_hash($newPassword, PASSWORD_DEFAULT);
 
+                    // Build the UPDATE query dynamically so password and photo are only included if provided
                     $setClauses = implode(', ', array_map(fn($k) => "$k = ?", array_keys($fields)));
                     $values     = array_values($fields);
                     $values[]   = $userId;
@@ -110,7 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['authUser']['username'] = $username;
                         $_SESSION['profile_success'] = "Profile updated successfully.";
 
-                        // Always sync profilePic from DB after update
+                        // Re-fetch profilePic from DB to keep the session in sync after update
                         $syncStmt = $conn->prepare("SELECT profilePic FROM users WHERE id = ?");
                         $syncStmt->bind_param("i", $userId);
                         $syncStmt->execute();
@@ -128,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch latest user data
+// Load fresh user data to populate the profile form
 $fetchStmt = $conn->prepare("SELECT * FROM users WHERE id = ?");
 $fetchStmt->bind_param("i", $userId);
 $fetchStmt->execute();

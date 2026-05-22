@@ -10,12 +10,14 @@ header('X-Content-Type-Options: nosniff');
 
 $action = $_GET['action'] ?? '';
 
+// Validates and normalizes date input to Y-m-d, returns empty string if invalid
 function sanitizeDate(string $val): string
 {
     if (!$val) return '';
     $d = DateTime::createFromFormat('Y-m-d', $val);
     return $d ? $d->format('Y-m-d') : '';
 }
+// Validates and normalizes time input to H:i:s, returns empty string if invalid
 function sanitizeTime(string $val): string
 {
     if (!$val) return '';
@@ -77,6 +79,7 @@ switch ($action) {
             break;
         }
 
+        // Verify doctor exists and is still active before booking
         $docStmt = $conn->prepare("SELECT id FROM doctors WHERE id = ? AND employmentStatus = 'Active'");
         $docStmt->bind_param('i', $doctorId);
         $docStmt->execute();
@@ -87,6 +90,7 @@ switch ($action) {
             break;
         }
 
+        // Prevent double-booking the same doctor at the same date and time
         $takenStmt = $conn->prepare("
             SELECT id FROM appointments
             WHERE doctorId = ? AND appointmentDate = ? AND appointmentTime = ?
@@ -101,6 +105,7 @@ switch ($action) {
             break;
         }
 
+        // Reuse existing patient record if email and name match, otherwise create a new one
         $patientId = (int)($body['patientId'] ?? 0);
         if (!$patientId) {
             $email    = trim($body['email']   ?? '');
@@ -187,6 +192,7 @@ switch ($action) {
         $userRow = $userResult->fetch_assoc();
         $userEmail = $userRow['emailAddress'] ?? '';
 
+        // Ensure the user can only cancel their own appointments
         $checkStmt = $conn->prepare("
             SELECT a.id, a.appointmentCode, a.appointmentDate, a.status
             FROM appointments a

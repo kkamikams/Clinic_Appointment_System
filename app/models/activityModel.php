@@ -9,9 +9,7 @@ class ActivityModel
         $this->conn = $conn;
     }
 
-    /**
-     * Returns the 8 most recent activity rows.
-     */
+    // Returns the 8 most recent activity entries
     public function recent(): array
     {
         return $this->conn->query("
@@ -21,11 +19,7 @@ class ActivityModel
         ")->fetch_all(MYSQLI_ASSOC);
     }
 
-    /**
-     * Returns a paginated, optionally filtered list of activity rows.
-     *
-     * @return array{ rows: array, total: int }
-     */
+    // Returns a paginated and optionally type-filtered list of activity entries
     public function all(int $limit, int $offset, string $type): array
     {
         $type  = $this->conn->real_escape_string($type);
@@ -42,11 +36,7 @@ class ActivityModel
         return ['rows' => $rows, 'total' => $total];
     }
 
-    /**
-     * Returns today's activity count, today's appointment count, and on-duty doctor count.
-     *
-     * @return array{ today_activity: int, appt_today: int, on_duty: int }
-     */
+    // Returns today's activity count, appointment count, and on-duty doctor count
     public function stats(): array
     {
         $today = date('Y-m-d');

@@ -12,7 +12,7 @@ class patientModel
     public function getTotalPatients()
     {
         return $this->conn->query(
-            "SELECT COUNT(*) FROM patients WHERE status != 'Inactive'"
+            "SELECT COUNT(*) FROM patients"
         )->fetch_row()[0];
     }
 
@@ -24,22 +24,35 @@ class patientModel
         )->fetch_row()[0];
     }
 
-    // FROM: $critical = $conn->query("SELECT COUNT(*) FROM patients WHERE patientCondition = 'Critical'")
-    public function getCriticalCount()
+    public function getInactiveCount()
     {
         return $this->conn->query(
-            "SELECT COUNT(*) FROM patients WHERE patientCondition = 'Critical'"
+            "SELECT COUNT(*) FROM patients WHERE status = 'Inactive'"
         )->fetch_row()[0];
     }
 
-    // FROM: $sql = "SELECT p.id, p.patientCode..." + $patients = $conn->query($sql)
+    public function getNewThisMonth()
+    {
+        return $this->conn->query(
+            "SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(CURDATE()) AND YEAR(createdAt)=YEAR(CURDATE())"
+        )->fetch_row()[0];
+    }
+
+    public function getTotalCount()
+    {
+        return $this->conn->query(
+            "SELECT COUNT(*) FROM patients"
+        )->fetch_row()[0];
+    }
+
     public function getAllPatients()
     {
         $sql = "
             SELECT
                 p.id, p.patientCode, p.firstName, p.middleName, p.lastName,
                 p.gender, p.dateOfBirth, p.contactNumber, p.emailAddress, p.address,
-                p.status, p.patientCondition, p.photoUrl,
+                p.status,
+                COALESCE(p.photoUrl, u.profilePic) AS photoUrl,
                 TIMESTAMPDIFF(YEAR, p.dateOfBirth, CURDATE()) AS age,
                 GREATEST(
                     COALESCE(MAX(a.appointmentDate), '1000-01-01'),
@@ -53,6 +66,9 @@ class patientModel
                     ORDER BY a3.appointmentDate DESC LIMIT 1
                 ) AS docName
             FROM patients p
+            LEFT JOIN users u ON u.emailAddress = p.emailAddress
+    AND u.firstName = p.firstName 
+    AND u.lastName = p.lastName
             LEFT JOIN appointments a
                 ON a.patientId = p.id AND a.status = 'Completed'
             LEFT JOIN followups f
@@ -80,11 +96,11 @@ class patientModel
         $address    = $data['address'] ?? null;
 
         $stmt = $this->conn->prepare("
-        INSERT INTO patients
-            (patientCode, firstName, middleName, lastName, gender, dateOfBirth,
-             contactNumber, emailAddress, address, status, patientCondition)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', 'Stable')
-    ");
+            INSERT INTO patients
+                (patientCode, firstName, middleName, lastName, gender, dateOfBirth,
+                 contactNumber, emailAddress, address, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')
+        ");
         $stmt->bind_param(
             'sssssssss',
             $pCode,

@@ -8,7 +8,6 @@ class dashboardModel
         $this->conn = $conn;
     }
 
-    // FROM: $apptToday = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate = '$today'")
     public function getAppointmentsToday($today)
     {
         $result = $this->conn->query(
@@ -19,7 +18,6 @@ class dashboardModel
         return $row ? (int)$row[0] : 0;
     }
 
-    // FROM: $apptYesterday = $conn->query("SELECT COUNT(*) FROM appointments WHERE appointmentDate = DATE_SUB...")
     public function getAppointmentsYesterday($today)
     {
         $result = $this->conn->query(
@@ -30,7 +28,6 @@ class dashboardModel
         return $row ? (int)$row[0] : 0;
     }
 
-    // FROM: $patMonth = $conn->query("SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(CURDATE())...")
     public function getPatientsThisMonth()
     {
         $result = $this->conn->query(
@@ -41,9 +38,9 @@ class dashboardModel
         return $row ? (int)$row[0] : 0;
     }
 
-    // FROM: $patLastMonth = $conn->query("SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(DATE_SUB...)")
     public function getPatientsLastMonth()
     {
+        // YEAR() is checked alongside MONTH() to avoid matching the same month from a prior year
         $result = $this->conn->query(
             "SELECT COUNT(*) FROM patients WHERE MONTH(createdAt)=MONTH(DATE_SUB(CURDATE(),INTERVAL 1 MONTH)) AND YEAR(createdAt)=YEAR(DATE_SUB(CURDATE(),INTERVAL 1 MONTH))"
         );
@@ -52,7 +49,6 @@ class dashboardModel
         return $row ? (int)$row[0] : 0;
     }
 
-    // FROM: $totalPatients = $conn->query("SELECT COUNT(*) FROM patients WHERE status='Active'")
     public function getTotalActivePatients()
     {
         $result = $this->conn->query(
@@ -63,7 +59,6 @@ class dashboardModel
         return $row ? (int)$row[0] : 0;
     }
 
-    // FROM: $totalDoctors = $conn->query("SELECT COUNT(*) FROM doctors WHERE employmentStatus='Active'")
     public function getTotalActiveDoctors()
     {
         $result = $this->conn->query(
@@ -74,7 +69,6 @@ class dashboardModel
         return $row ? (int)$row[0] : 0;
     }
 
-    // FROM: $onDutyNow = $conn->query("SELECT COUNT(*) FROM doctors WHERE status='On Duty'")
     public function getOnDutyCount()
     {
         $result = $this->conn->query(
@@ -85,27 +79,27 @@ class dashboardModel
         return $row ? (int)$row[0] : 0;
     }
 
-    // FROM: $chartData = []; for ($i = 6; $i >= 0; $i--) { ... }
     public function getChartData()
     {
         $start = date('Y-m-d', strtotime('-6 days'));
 
         $result = $this->conn->query("
-        SELECT
-            appointmentDate                   AS date,
-            COUNT(*)                          AS total,
-            SUM(status = 'Completed')         AS completed,
-            SUM(status = 'Cancelled')         AS cancelled
-        FROM appointments
-        WHERE appointmentDate >= '$start'
-        GROUP BY appointmentDate
-        ORDER BY appointmentDate ASC
-    ");
+            SELECT
+                appointmentDate                   AS date,
+                COUNT(*)                          AS total,
+                SUM(status = 'Completed')         AS completed,
+                SUM(status = 'Cancelled')         AS cancelled
+            FROM appointments
+            WHERE appointmentDate >= '$start'
+            GROUP BY appointmentDate
+            ORDER BY appointmentDate ASC
+        ");
         if (!$result) return [];
-        $rows = $result->fetch_all(MYSQLI_ASSOC);
 
-        $indexed = array_column($rows, null, 'date');
+        // Index rows by date so missing days can be filled with zeros below
+        $indexed = array_column($result->fetch_all(MYSQLI_ASSOC), null, 'date');
 
+        // Build a continuous 7-day array, defaulting days with no appointments to zero
         $chartData = [];
         for ($i = 6; $i >= 0; $i--) {
             $d           = date('Y-m-d', strtotime("-$i days"));
@@ -120,7 +114,6 @@ class dashboardModel
         return $chartData;
     }
 
-    // FROM: $apptRows = $conn->query("SELECT a.appointmentCode, a.appointmentTime...")
     public function getTodayAppointments($today)
     {
         $result = $this->conn->query("
@@ -139,7 +132,8 @@ class dashboardModel
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    // FROM: $conn->query("UPDATE doctors d LEFT JOIN doctorSchedules ds...")
+    // Marks active doctors as 'Off Duty' if they have no schedule entry for today.
+    // Skips doctors already set to 'Off Duty' to avoid unnecessary writes.
     public function updateOffDutyDoctors($today)
     {
         $this->conn->query("
@@ -152,7 +146,7 @@ class dashboardModel
         ");
     }
 
-    // FROM: $dutyDoctors = $conn->query("SELECT d.id, d.firstName, d.lastName...")
+    // Cancelled appointments are excluded so currentLoad reflects only active bookings
     public function getDutyDoctors($today)
     {
         $result = $this->conn->query("
@@ -172,7 +166,6 @@ class dashboardModel
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    // FROM: $activities = $conn->query("SELECT * FROM recentActivity ORDER BY createdAt DESC LIMIT 8")
     public function getRecentActivity()
     {
         $result = $this->conn->query(
@@ -182,21 +175,22 @@ class dashboardModel
         return $result->fetch_all(MYSQLI_ASSOC);
     }
 
-    // FROM: $apptCompleted, $apptPending, $apptInProgress, $apptCancelled = $conn->query(...)
     public function getStatusBreakdown($today)
     {
         $result = $this->conn->query("
-        SELECT
-            SUM(status = 'Completed')   AS completed,
-            SUM(status = 'Pending')     AS pending,
-            SUM(status = 'In Progress') AS inProgress,
-            SUM(status = 'Cancelled')   AS cancelled
-        FROM appointments
-        WHERE appointmentDate = '$today'
-    ");
-        if (!$result) return ['completed' => 0, 'pending' => 0, 'inProgress' => 0, 'cancelled' => 0];
+            SELECT
+                SUM(status = 'Completed')   AS completed,
+                SUM(status = 'Pending')     AS pending,
+                SUM(status = 'In Progress') AS inProgress,
+                SUM(status = 'Cancelled')   AS cancelled
+            FROM appointments
+            WHERE appointmentDate = '$today'
+        ");
+
+        $empty = ['completed' => 0, 'pending' => 0, 'inProgress' => 0, 'cancelled' => 0];
+        if (!$result) return $empty;
         $row = $result->fetch_assoc();
-        if (!$row) return ['completed' => 0, 'pending' => 0, 'inProgress' => 0, 'cancelled' => 0];
+        if (!$row) return $empty;
 
         return [
             'completed'  => (int) $row['completed'],

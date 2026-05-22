@@ -2,6 +2,7 @@
 $root = dirname(__DIR__);
 include_once($root . "/config/config.php");
 
+// Generates a random UUID v4 for new user records
 function generate_uuid()
 {
     return sprintf(
@@ -35,6 +36,7 @@ if (isset($_POST['loginButton'])) {
 
             if (password_verify($password, $storedPassword)) {
                 $passwordOk = true;
+                // Legacy fallback: rehash plaintext passwords on first login after migration
             } elseif ($password === $storedPassword) {
                 // Backwards compatibility for older plaintext passwords.
                 $passwordOk = true;
@@ -54,6 +56,7 @@ if (isset($_POST['loginButton'])) {
                 exit();
             }
 
+            // Regenerate session ID to prevent session fixation attacks
             session_regenerate_id(true);
             $user_id  = $data['id'];
             $fullName = trim($data['firstName'] . ' ' . $data['lastName']);

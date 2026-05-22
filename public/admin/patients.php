@@ -4,10 +4,12 @@ require_once('../../app/config/config.php');
 require_once('../../app/models/PatientModel.php');
 
 $patientModel  = new PatientModel($conn);
-$totalPatients = $patientModel->getTotalPatients();
-$activeCount   = $patientModel->getActiveCount();
-$critical      = $patientModel->getCriticalCount();
-$patients      = $patientModel->getAllPatients();
+$totalPatients  = $patientModel->getTotalPatients();
+$activeCount    = $patientModel->getActiveCount();
+$inactiveCount  = $patientModel->getInactiveCount();
+$newThisMonth   = $patientModel->getNewThisMonth();
+$totalCount     = $patientModel->getTotalCount();
+$patients       = $patientModel->getAllPatients();
 
 
 $avatarBgs    = ['#dbeafe', '#d1fae5', '#fef3c7', '#ede9fe', '#fce7f3', '#cffafe'];
@@ -343,11 +345,6 @@ include('./includes/sidebar.php');
         color: var(--green-dark);
     }
 
-    .badge-discharged {
-        background: var(--gray-light);
-        color: var(--gray-dark);
-    }
-
     .badge-inactive {
         background: #f3f4f6;
         color: #6b7280;
@@ -443,10 +440,6 @@ include('./includes/sidebar.php');
 
     .dot-active {
         background: var(--green);
-    }
-
-    .dot-discharged {
-        background: #9ca3af;
     }
 
     .dot-inactive {
@@ -567,7 +560,7 @@ include('./includes/sidebar.php');
         top: 0;
         right: 0;
         height: 100%;
-        width: 400px;
+        width: min(450px, 92vw);
         max-width: 100vw;
         background: #fff;
         box-shadow: -8px 0 40px rgba(0, 0, 0, .14);
@@ -798,9 +791,9 @@ include('./includes/sidebar.php');
 
     <div class="stat-strip">
         <div class="stat-card">
-            <div class="sc-label">Total Patients</div>
-            <div class="sc-num" id="stat-total"><?= $totalPatients ?></div>
-            <div class="sc-sub">Active &amp; discharged</div>
+            <div class="sc-label">Total</div>
+            <div class="sc-num" id="stat-total"><?= $totalCount ?></div>
+            <div class="sc-sub">All patients</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Active</div>
@@ -808,9 +801,14 @@ include('./includes/sidebar.php');
             <div class="sc-sub">Currently active</div>
         </div>
         <div class="stat-card">
-            <div class="sc-label">Critical</div>
-            <div class="sc-num" id="stat-critical"><?= $critical ?></div>
-            <div class="sc-sub">Needs attention</div>
+            <div class="sc-label">Inactive</div>
+            <div class="sc-num" id="stat-inactive"><?= $inactiveCount ?></div>
+            <div class="sc-sub">Deactivated records</div>
+        </div>
+        <div class="stat-card">
+            <div class="sc-label">New This Month</div>
+            <div class="sc-num" id="stat-new"><?= $newThisMonth ?></div>
+            <div class="sc-sub"><?= date('F Y') ?></div>
         </div>
     </div>
 
@@ -824,15 +822,7 @@ include('./includes/sidebar.php');
             <select class="filter-select" id="statusFilter" onchange="applyFilters()">
                 <option value="">All Status</option>
                 <option value="Active">Active</option>
-                <option value="Discharged">Discharged</option>
                 <option value="Inactive">Inactive</option>
-            </select>
-            <select class="filter-select" id="conditionFilter" onchange="applyFilters()">
-                <option value="">All Conditions</option>
-                <option value="Stable">Stable</option>
-                <option value="Critical">Critical</option>
-                <option value="Under Observation">Under Observation</option>
-                <option value="Recovering">Recovering</option>
             </select>
             <a href="addPatient" class="btn-primary-sm"><i class="bi bi-plus-lg"></i> Add Patient</a>
         </div>
@@ -848,7 +838,6 @@ include('./includes/sidebar.php');
                         <th>Last Visit</th>
                         <th>Doctor</th>
                         <th>Status</th>
-                        <th>Condition</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -870,21 +859,12 @@ include('./includes/sidebar.php');
                         }
                         $statusCls = match ($p['status']) {
                             'Active'     => 'badge-active',
-                            'Discharged' => 'badge-discharged',
                             default      => 'badge-inactive'
-                        };
-                        $condCls = match ($p['patientCondition']) {
-                            'Critical'          => 'badge-critical',
-                            'Stable'            => 'badge-stable',
-                            'Recovering'        => 'badge-recovering',
-                            'Under Observation' => 'badge-observation',
-                            default             => 'badge-stable'
                         };
                     ?>
                         <tr
                             data-name="<?= htmlspecialchars(strtolower($fullName)) ?>"
                             data-status="<?= htmlspecialchars($p['status']) ?>"
-                            data-condition="<?= htmlspecialchars($p['patientCondition']) ?>"
                             data-id="<?= $p['id'] ?>"
                             data-code="<?= htmlspecialchars($p['patientCode']) ?>"
                             data-fullname="<?= htmlspecialchars($fullName) ?>"
@@ -930,21 +910,7 @@ include('./includes/sidebar.php');
                                 </button>
                                 <div class="status-dropdown">
                                     <div class="status-opt" onclick="setStatus(this,'Active','badge-active',<?= $p['id'] ?>)"><span class="dot dot-active"></span>Active</div>
-                                    <div class="status-opt" onclick="setStatus(this,'Discharged','badge-discharged',<?= $p['id'] ?>)"><span class="dot dot-discharged"></span>Discharged</div>
                                     <div class="status-opt" onclick="setStatus(this,'Inactive','badge-inactive',<?= $p['id'] ?>)"><span class="dot dot-inactive"></span>Inactive</div>
-                                </div>
-                            </td>
-
-                            <td class="status-cell">
-                                <button class="badge-btn" onclick="toggleDropdown(this)">
-                                    <span class="badge <?= $condCls ?>"><?= htmlspecialchars($p['patientCondition']) ?></span>
-                                    <span class="badge-caret">▾</span>
-                                </button>
-                                <div class="status-dropdown">
-                                    <div class="status-opt" onclick="setCondition(this,'Stable','badge-stable',<?= $p['id'] ?>)"><span class="dot dot-stable"></span>Stable</div>
-                                    <div class="status-opt" onclick="setCondition(this,'Recovering','badge-recovering',<?= $p['id'] ?>)"><span class="dot dot-recovering"></span>Recovering</div>
-                                    <div class="status-opt" onclick="setCondition(this,'Under Observation','badge-observation',<?= $p['id'] ?>)"><span class="dot dot-observation"></span>Under Observation</div>
-                                    <div class="status-opt" onclick="setCondition(this,'Critical','badge-critical',<?= $p['id'] ?>)"><span class="dot dot-critical"></span>Critical</div>
                                 </div>
                             </td>
 
@@ -1034,11 +1000,9 @@ include('./includes/sidebar.php');
     function getFilteredRows() {
         const q = document.getElementById('patSearch').value.toLowerCase();
         const st = document.getElementById('statusFilter').value;
-        const cond = document.getElementById('conditionFilter').value;
         return Array.from(document.querySelectorAll('#patTbody tr:not(.filler-row)')).filter(row =>
             (!q || (row.dataset.name || '').includes(q)) &&
-            (!st || row.dataset.status === st) &&
-            (!cond || row.dataset.condition === cond)
+            (!st || row.dataset.status === st)
         );
     }
 
@@ -1126,46 +1090,18 @@ include('./includes/sidebar.php');
             });
     }
 
-    function setCondition(optEl, label, cls, patientId) {
-        const dd = optEl.closest('.status-dropdown');
-        const badge = dd.previousElementSibling.querySelector('.badge');
-        badge.className = 'badge ' + cls;
-        badge.textContent = label;
-        dd.classList.remove('open');
-        const row = optEl.closest('tr');
-        row.dataset.condition = label;
-
-        fetch('../../app/controllers/PatientController.php?action=update_condition', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                body: `id=${patientId}&condition=${encodeURIComponent(label)}`
-            })
-            .then(r => r.json())
-            .then(res => {
-                if (res.success) {
-                    recount();
-                    showToast('✔ Condition updated to <strong>' + label + '</strong>', 'info');
-                } else showToast('❌ Failed to update condition', 'error');
-            });
-    }
-
     function recount() {
         const allRows = Array.from(document.querySelectorAll('#patTbody tr:not(.filler-row)'));
-        let total = 0,
-            active = 0,
-            critical = 0;
+        let active = 0,
+            inactive = 0;
         allRows.forEach(r => {
             const st = r.dataset.status || '';
-            const cd = r.dataset.condition || '';
-            if (st !== 'Inactive') total++;
             if (st === 'Active') active++;
-            if (cd === 'Critical') critical++;
+            else if (st === 'Inactive') inactive++;
         });
-        animateNum('stat-total', total);
         animateNum('stat-active', active);
-        animateNum('stat-critical', critical);
+        animateNum('stat-inactive', inactive);
+        animateNum('stat-total', active + inactive);
     }
 
     function animateNum(id, target) {
@@ -1186,14 +1122,7 @@ include('./includes/sidebar.php');
 
     const statusBadgeStyle = {
         'Active': 'background:rgba(209,250,229,.25);color:#d1fae5;border:1px solid rgba(209,250,229,.4)',
-        'Discharged': 'background:rgba(243,244,246,.2);color:#e5e7eb;border:1px solid rgba(229,231,235,.3)',
         'Inactive': 'background:rgba(243,244,246,.15);color:#d1d5db;border:1px solid rgba(209,213,219,.3)',
-    };
-    const condBadgeStyle = {
-        'Critical': 'background:rgba(254,226,226,.25);color:#fecaca;border:1px solid rgba(252,165,165,.3)',
-        'Stable': 'background:rgba(209,250,229,.2);color:#bbf7d0;border:1px solid rgba(134,239,172,.3)',
-        'Recovering': 'background:rgba(219,234,254,.2);color:#bfdbfe;border:1px solid rgba(147,197,253,.3)',
-        'Under Observation': 'background:rgba(254,243,199,.2);color:#fde68a;border:1px solid rgba(252,211,77,.3)',
     };
 
     function viewPatient(row) {
@@ -1221,10 +1150,8 @@ include('./includes/sidebar.php');
         document.getElementById('vpAddress').textContent = d.address;
 
         const sSt = statusBadgeStyle[d.status] || statusBadgeStyle['Inactive'];
-        const sCd = condBadgeStyle[d.condition] || condBadgeStyle['Stable'];
         document.getElementById('vpBadges').innerHTML =
-            `<span class="vp-badge-pill" style="${sSt}">${escHtml(d.status)}</span>
-             <span class="vp-badge-pill" style="${sCd}">${escHtml(d.condition)}</span>`;
+            `<span class="vp-badge-pill" style="${sSt}">${escHtml(d.status)}</span>`
 
         document.getElementById('panelOverlay').classList.add('show');
         const panel = document.getElementById('viewPanel');

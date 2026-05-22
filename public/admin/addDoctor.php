@@ -678,12 +678,14 @@ require_once('../../app/config/config.php');
             reader.onload = e => {
                 preview.src = e.target.result;
                 preview.style.display = 'block';
+                // Hide initials once a photo is uploaded
                 circle.style.display = 'none';
             };
             reader.readAsDataURL(input.files[0]);
         }
     }
 
+    // Auto-fills the department field based on the selected specialization
     const SPEC_TO_DEPT = {
         'General Medicine': 'General',
         'Pediatrics': 'Child Health',
@@ -710,6 +712,7 @@ require_once('../../app/config/config.php');
     }
 
     function toggleDay(label) {
+        // setTimeout defers reading checkbox.checked until after the browser processes the click
         setTimeout(() => {
             label.classList.toggle('active', label.querySelector('input[type="checkbox"]').checked);
             if (document.querySelectorAll('.day-chip input:checked').length) {
@@ -828,6 +831,7 @@ require_once('../../app/config/config.php');
         days.forEach(d => formData.append('days[]', d));
 
         const photoFile = document.getElementById('photoInput').files[0];
+        // Photo is optional; only appended if the user selected a file
         if (photoFile) formData.append('photo', photoFile);
 
         fetch('../../app/controllers/doctorController.php?action=save', {

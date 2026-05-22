@@ -453,27 +453,6 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 </div>
             </div>
 
-            <div class="form-card cond-card">
-                <div class="section-label">Patient Condition</div>
-                <div class="radio-options">
-                    <?php
-                    $condColors = [
-                        'Stable'            => 'var(--green)',
-                        'Critical'          => 'var(--red)',
-                        'Under Observation' => 'var(--amber)',
-                        'Recovering'        => 'var(--blue-500)',
-                    ];
-                    foreach ($condColors as $val => $col): ?>
-                        <label class="radio-option <?= $p['patientCondition'] === $val ? 'selected' : '' ?>">
-                            <input type="radio" name="condition" value="<?= $val ?>"
-                                <?= $p['patientCondition'] === $val ? 'checked' : '' ?>
-                                onchange="selectRadio(this)">
-                            <span class="status-dot" style="background:<?= $col ?>"></span> <?= $val ?>
-                        </label>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-
         </div>
 
         <div class="form-card main-form-card">
@@ -540,10 +519,9 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
                 <div class="form-grid">
                     <div class="field">
                         <label>Patient Status</label>
-                        <select name="status">
-                            <option <?= $p['status'] === 'Active'     ? 'selected' : '' ?>>Active</option>
-                            <option <?= $p['status'] === 'Discharged' ? 'selected' : '' ?>>Discharged</option>
-                            <option <?= $p['status'] === 'Inactive'   ? 'selected' : '' ?>>Inactive</option>
+                        <select id="patientStatus" name="status">
+                            <option value="Active" <?= $p['status'] === 'Active'   ? 'selected' : '' ?>>Active</option>
+                            <option value="Inactive" <?= $p['status'] === 'Inactive' ? 'selected' : '' ?>>Inactive</option>
                         </select>
                     </div>
                 </div>
@@ -612,7 +590,6 @@ $age = $p['dateOfBirth'] ? floor((time() - strtotime($p['dateOfBirth'])) / 31557
     function savePatient(e) {
         e.preventDefault();
         const data = new FormData(e.target);
-        data.set('condition', document.querySelector('input[name="condition"]:checked')?.value || 'Stable');
 
         fetch('../../app/controllers/PatientController.php?action=update', {
                 method: 'POST',

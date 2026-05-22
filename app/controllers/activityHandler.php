@@ -6,6 +6,7 @@ require_once(__DIR__ . '/../../app/models/ActivityModel.php');
 
 header('Content-Type: application/json');
 
+// Activity log API: returns recent entries, paginated full list, or summary stats
 $action = $_GET['action'] ?? '';
 $model  = new ActivityModel($conn);
 

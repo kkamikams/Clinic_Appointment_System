@@ -1,5 +1,6 @@
 <?php
 
+// Records an action to the recentActivity table (e.g. appointment booked, patient updated)
 function logActivity($conn, $type, $desc, $refId = null, $refType = null)
 {
     $stmt = $conn->prepare(
@@ -10,6 +11,7 @@ function logActivity($conn, $type, $desc, $refId = null, $refType = null)
     $stmt->execute();
 }
 
+// Generates a unique sequential code like APP-2025-0012 based on the highest existing number
 function generateAppointmentCode($conn): string
 {
     $max = (int) $conn->query(
@@ -19,6 +21,7 @@ function generateAppointmentCode($conn): string
     return 'APP-' . date('Y') . '-' . str_pad($max + 1, 4, '0', STR_PAD_LEFT);
 }
 
+// Returns a doctor's weekly schedule sorted Monday–Sunday
 function getDoctorSchedule($conn, int $doctorId): array
 {
     $stmt = $conn->prepare("
@@ -33,6 +36,7 @@ function getDoctorSchedule($conn, int $doctorId): array
     return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 }
 
+// Builds 30-minute time slots for a doctor on a given date, marking each as available or booked
 function getAvailableSlots($conn, int $doctorId, string $date): array
 {
     $dow      = date('l', strtotime($date));
@@ -64,12 +68,16 @@ function getAvailableSlots($conn, int $doctorId, string $date): array
     $end      = strtotime($date . ' ' . $schedule['shiftEnd']);
     $interval = 30 * 60;
 
+    // Generate a slot every 30 minutes between shift start and end
     for ($t = $start; $t < $end; $t += $interval) {
         $hhmm    = date('H:i', $t);
+        $isToday  = ($date === date('Y-m-d'));
+        $isPast   = $isToday && ($t <= time());
         $slots[] = [
             'value'     => $hhmm,
             'label'     => date('g:i A', $t),
-            'available' => !in_array($hhmm, $bookedTimes),
+            'available' => !in_array($hhmm, $bookedTimes) && !$isPast,
+            'past'      => $isPast,
         ];
     }
     return $slots;

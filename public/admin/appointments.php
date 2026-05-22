@@ -1,9 +1,25 @@
 <?php
 session_start();
+require_once('../../app/config/config.php');
+require_once('../../app/models/appointmentModel.php');
+require_once('../../app/controllers/helpers.php');
+
+$model = new appointmentModel($conn);
+$stats = $model->getStats();
+$result = $model->list([
+    'date' => '',
+    'search' => '',
+    'status' => '',
+    'channel' => '',
+    'doctor' => '',
+    'page' => 1,
+]);
+$rows = $result['rows'];
+$total = $result['total'];
+
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
-require_once('../../app/config/config.php');
 ?>
 
 <style>
@@ -507,9 +523,10 @@ require_once('../../app/config/config.php');
     }
 
     .channel-chip.followup {
-        background: var(--amber-light);
-        color: var(--amber-dark);
-        border: 1px solid #fde68a;
+        background: var(--blue-50);
+        color: var(--blue-700);
+        border: 1px solid var(--blue-100);
+        white-space: nowrap;
     }
 
     .action-btns {
@@ -796,22 +813,22 @@ require_once('../../app/config/config.php');
     <div class="stat-strip">
         <div class="stat-card">
             <div class="sc-label">Total</div>
-            <div class="sc-num" id="statTotal">—</div>
-            <div class="sc-sub" id="statTotalSub">Loading…</div>
+            <div class="sc-num" id="statTotal"><?= $stats['total'] ?? 0 ?></div>
+            <div class="sc-sub" id="statTotalSub">All appointments</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Completed</div>
-            <div class="sc-num" id="statCompleted">—</div>
-            <div class="sc-sub" id="statCompletedSub">—</div>
+            <div class="sc-num" id="statCompleted"><?= $stats['Completed'] ?? 0 ?></div>
+            <div class="sc-sub" id="statCompletedSub">0% completion rate</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Upcoming</div>
-            <div class="sc-num" id="statPending">—</div>
+            <div class="sc-num" id="statPending"><?= $stats['Pending'] ?? 0 ?></div>
             <div class="sc-sub">Awaiting service</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Cancelled</div>
-            <div class="sc-num" id="statCancelled">—</div>
+            <div class="sc-num" id="statCancelled"><?= $stats['Cancelled'] ?? 0 ?></div>
             <div class="sc-sub">Selected filter</div>
         </div>
     </div>
@@ -844,7 +861,6 @@ require_once('../../app/config/config.php');
                 <option>Walk-in</option>
                 <option>Online</option>
                 <option>Phone</option>
-                <option>Referral</option>
                 <option>Follow-up</option>
             </select>
             <select class="filter-select" id="apptDoctor" onchange="loadAppointments(1)">
@@ -856,7 +872,7 @@ require_once('../../app/config/config.php');
         </div>
 
         <div class="tbl-wrap">
-            <div class="tbl-loading" id="tblLoading" style="display:flex;">
+            <div class="tbl-loading" id="tblLoading" style="display:none;">
                 <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
             </div>
             <table class="table" id="apptTable">
@@ -1170,7 +1186,9 @@ require_once('../../app/config/config.php');
         document.getElementById('apptDate').style.opacity = '0.4';
         document.getElementById('apptDate').disabled = true;
         document.getElementById('toolbarDate').textContent = '| All Dates';
-        loadAppointments(1);
+        renderRows(<?= json_encode($rows) ?>);
+        renderStats(<?= json_encode($stats) ?>, true);
+        renderPagination(<?= $total ?>, 1, <?= $result['limit'] ?? 20 ?>);
     });
 
     document.addEventListener('click', e => {
@@ -1239,7 +1257,7 @@ require_once('../../app/config/config.php');
             .then(r => r.json())
             .then(res => {
                 if (res.success) {
-                    renderStats(res.stats, showAllDates);
+                    if (res.stats) renderStats(res.stats, showAllDates);
                     showToast('Status updated to "' + (newStatus === 'Pending' ? 'Upcoming' : newStatus) + '"', 'success');
                 } else {
                     badge.style.background = oldBg;
@@ -1460,13 +1478,17 @@ require_once('../../app/config/config.php');
             .then(r => r.json())
             .then(res => {
                 document.getElementById('tblLoading').style.display = 'none';
-                if (!res.success) return;
+                if (!res.success) {
+                    console.error('appointments list failed:', res);
+                    return;
+                }
                 renderRows(res.rows);
-                renderStats(res.stats, showAllDates);
+                if (res.stats) renderStats(res.stats, showAllDates);
                 renderPagination(res.total, res.page, res.limit);
             })
-            .catch(() => {
+            .catch(err => {
                 document.getElementById('tblLoading').style.display = 'none';
+                console.error('loadAppointments fetch error:', err);
             });
     }
 
@@ -1740,8 +1762,8 @@ require_once('../../app/config/config.php');
                                 let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;width:100%;">';
                                 res.slots.forEach(slot => {
                                     html += `<button type="button" data-val="${slot.value}"
-                        style="border:1px solid var(--border);border-radius:8px;padding:6px 4px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-dark);cursor:pointer;width:100%;text-align:center;font-weight:600;${!slot.available ? 'text-decoration:line-through;opacity:.45;cursor:not-allowed;color:var(--text-muted);background:#e5e7eb;border-color:#d1d5db;' : ''}"
-                        ${!slot.available ? 'disabled' : ''}
+                        style="border:1px solid var(--border);border-radius:8px;padding:6px 4px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-dark);cursor:pointer;width:100%;text-align:center;font-weight:600;${slot.past ? 'text-decoration:line-through;opacity:.35;cursor:not-allowed;color:var(--text-muted);background:#f3f4f6;border-color:#e5e7eb;' : !slot.available ? 'text-decoration:line-through;opacity:.45;cursor:not-allowed;color:var(--text-muted);background:#e5e7eb;border-color:#d1d5db;' : ''}"
+                        ${!slot.available || slot.past ? 'disabled' : ''}
                         onclick="selectAdminSlot('${slot.value}', this)">${slot.label}</button>`;
                                 });
                                 html += '</div>';
@@ -2412,8 +2434,8 @@ require_once('../../app/config/config.php');
                 let html = '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:4px;width:100%;">';
                 res.slots.forEach(slot => {
                     html += `<button type="button" data-val="${slot.value}"
-                        style="border:1px solid var(--border);border-radius:8px;padding:6px 4px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-dark);cursor:pointer;width:100%;text-align:center;font-weight:600;${!slot.available ? 'text-decoration:line-through;opacity:.45;cursor:not-allowed;color:var(--text-muted);background:#e5e7eb;border-color:#d1d5db;' : ''}"
-                        ${!slot.available ? 'disabled' : ''}
+                        style="border:1px solid var(--border);border-radius:8px;padding:6px 4px;font-size:.75rem;font-family:'DM Sans',sans-serif;background:var(--surface);color:var(--text-dark);cursor:pointer;width:100%;text-align:center;font-weight:600;${slot.past ? 'text-decoration:line-through;opacity:.35;cursor:not-allowed;color:var(--text-muted);background:#f3f4f6;border-color:#e5e7eb;' : !slot.available ? 'text-decoration:line-through;opacity:.45;cursor:not-allowed;color:var(--text-muted);background:#e5e7eb;border-color:#d1d5db;' : ''}"
+                        ${!slot.available || slot.past ? 'disabled' : ''}
                         onclick="selectAdminSlot('${slot.value}', this)">${slot.label}</button>`;
                 });
                 html += '</div>';

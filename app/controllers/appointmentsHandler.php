@@ -1,198 +1,39 @@
 <?php
 
-include('../middleware/admin.php');
-require_once('../config/config.php');
+session_start();
+if (empty($_SESSION['authUser']) && empty($_SESSION['user_id'])) {
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
+    exit();
+}
+require_once(__DIR__ . '/../config/config.php');
 require_once(__DIR__ . '/helpers.php');
 require_once(__DIR__ . '/../models/appointmentModel.php');
 
 header('Content-Type: application/json');
+
 $action = $_GET['action'] ?? '';
 $model  = new appointmentModel($conn);
 
 switch ($action) {
-
-    case 'get_linked_record':
-        $apptId = (int)($_GET['apptId'] ?? 0);
-        $row    = $model->getLinkedRecord($apptId);
-        echo json_encode(['success' => true, 'data' => $row]);
-        break;
-
-    case 'get_linked_followup':
-        $apptId = (int)($_GET['apptId'] ?? 0);
-        $currentFollowUpId = (int)($_GET['excludeId'] ?? 0);
-        $rows = [];
-        if ($apptId && $currentFollowUpId) {
-            // Get current follow-up's date so we only show NEWER ones
-            $curStmt = $conn->prepare("SELECT followUpDate FROM followUps WHERE id = ? LIMIT 1");
-            $curStmt->bind_param('i', $currentFollowUpId);
-            $curStmt->execute();
-            $curRow = $curStmt->get_result()->fetch_assoc();
-            $currentDate = $curRow['followUpDate'] ?? '0000-00-00';
-
-            $stmt = $conn->prepare("
-            SELECT id, followUpCode, followUpDate, followUpTime AS appointmentTime, status, reason
-            FROM followUps
-            WHERE appointmentId = ?
-              AND id != ?
-              AND followUpDate > ?
-            ORDER BY followUpDate ASC
-        ");
-            $stmt->bind_param('iis', $apptId, $currentFollowUpId, $currentDate);
-            $stmt->execute();
-            $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
-        }
-        echo json_encode(['success' => true, 'data' => $rows, 'currentId' => $currentFollowUpId]);
-        break;
-
-    case 'get_linked_record_followup':
-        $followUpId = (int)($_GET['followUpId'] ?? 0);
-        $row = null;
-        if ($followUpId) {
-            $stmt = $conn->prepare("
-            SELECT recordCode, diagnosis, recordType, status
-            FROM medicalRecords
-            WHERE followUpId = ?
-            LIMIT 1
-        ");
-            $stmt->bind_param('i', $followUpId);
-            $stmt->execute();
-            $row = $stmt->get_result()->fetch_assoc();
-        }
-        echo json_encode(['success' => true, 'data' => $row]);
-        break;
-
-    case 'list':
-        $result = $model->list([
-            'date'    => $_GET['date']    ?? '',
-            'search'  => $_GET['search']  ?? '',
-            'status'  => $_GET['status']  ?? '',
-            'channel' => $_GET['channel'] ?? '',
-            'doctor'  => $_GET['doctor']  ?? 0,
-            'page'    => $_GET['page']    ?? 1,
-        ]);
-        echo json_encode(['success' => true, ...$result]);
-        break;
-
-    case 'get':
-        $row = $model->get((int)($_GET['id'] ?? 0));
-        echo json_encode(['success' => (bool)$row, 'data' => $row]);
-        break;
-
-    case 'get_followup':
-        $row = $model->getFollowUp((int)($_GET['id'] ?? 0));
-        echo json_encode(['success' => (bool)$row, 'data' => $row]);
-        break;
-
-    case 'add':
-        $body = json_decode(file_get_contents('php://input'), true) ?? [];
-
-        // Validate appointment date is not in the past
-        $appointmentDate = $body['appointmentDate'] ?? '';
-        if ($appointmentDate && $appointmentDate < date('Y-m-d')) {
-            echo json_encode(['success' => false, 'message' => 'Appointment date cannot be in the past.']);
-            break;
-        }
-
-        $id   = $model->add([
-            'patientId'       => (int)($body['patientId']    ?? 0),
-            'patientName'     => $body['patientName']         ?? '',
-            'patientGender'   => $body['patientGender']       ?? 'Other',
-            'patientDOB'      => $body['patientDOB']          ?? null,
-            'patientContact'  => $body['patientContact']      ?? null,
-            'patientEmail'    => $body['patientEmail']        ?? null,
-            'patientAddress'  => $body['patientAddress']      ?? null,
-            'doctorId'        => (int)($body['doctorId']      ?? 0),
-            'appointmentDate' => $appointmentDate,
-            'appointmentTime' => $body['appointmentTime']     ?? '',
-            'channel'         => $body['channel']             ?? 'Walk-in',
-            'status'          => $body['status']              ?? 'Pending',
-            'remarks'         => $body['remarks']             ?? '',
-        ]);
-        echo json_encode(
-            $id
-                ? ['success' => true,  'id' => $id]
-                : ['success' => false, 'message' => 'Could not create appointment']
-        );
-        break;
-
-    case 'edit':
-        $body = json_decode(file_get_contents('php://input'), true) ?? [];
-
-        // Validate appointment date is not in the past
-        $appointmentDate = $body['appointmentDate'] ?? '';
-        if ($appointmentDate && $appointmentDate < date('Y-m-d')) {
-            echo json_encode(['success' => false, 'message' => 'Appointment date cannot be in the past.']);
-            break;
-        }
-
-        $ok   = $model->edit([
-            'id'              => (int)($body['id']        ?? 0),
-            'patientId'       => (int)($body['patientId'] ?? 0),
-            'doctorId'        => (int)($body['doctorId']  ?? 0),
-            'appointmentDate' => $appointmentDate,
-            'appointmentTime' => $body['appointmentTime'] ?? '',
-            'channel'         => $body['channel']         ?? 'Walk-in',
-            'status'          => $body['status']          ?? 'Pending',
-            'remarks'         => $body['remarks']         ?? '',
-        ]);
-        echo json_encode(['success' => $ok]);
-        break;
-
-    case 'edit_followup':
-        $body = json_decode(file_get_contents('php://input'), true) ?? [];
-        $ok   = $model->editFollowUp([
-            'id'              => (int)($body['id']        ?? 0),
-            'doctorId'        => (int)($body['doctorId']  ?? 0),
-            'appointmentDate' => $body['appointmentDate'] ?? '',
-            'appointmentTime' => $body['appointmentTime'] ?? '',
-            'status'          => $body['status']          ?? 'Pending',
-            'remarks'         => $body['remarks']         ?? '',
-        ]);
-        echo json_encode(['success' => $ok]);
-        break;
-
-    case 'cancel':
-        $id = (int)($_POST['id'] ?? 0);
-        echo json_encode(['success' => $model->cancel($id)]);
-        break;
-
-    // ── Update status for regular appointments ──────────
-    case 'update_status':
-        $id      = (int)($_POST['id']    ?? 0);
-        $status  = trim($_POST['status'] ?? '');
-        $allowed = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
-
-        if (!$id || !in_array($status, $allowed)) {
-            echo json_encode(['success' => false, 'message' => 'Invalid data']);
-            break;
-        }
-
-        $ok = $model->updateStatus($id, $status);
-        echo json_encode(['success' => $ok, 'stats' => $model->getStats()]);
-        break;
-
-    // ── Update status for follow-up rows ────────────────
-    case 'update_followup_status':
-        $id      = (int)($_POST['id']    ?? 0);
-        $status  = trim($_POST['status'] ?? '');
-        $allowed = ['Pending', 'In Progress', 'Completed', 'Cancelled'];
-
-        if (!$id || !in_array($status, $allowed)) {
-            echo json_encode(['success' => false, 'message' => 'Invalid data']);
-            break;
-        }
-
-        $ok = $model->updateFollowUpStatus($id, $status);
-        echo json_encode(['success' => $ok, 'stats' => $model->getStats()]);
-        break;
 
     case 'get_doctors':
         echo json_encode(['success' => true, 'data' => $model->getDoctors()]);
         break;
 
     case 'get_patients':
-        $rows = $model->searchPatients($_GET['q'] ?? '');
-        echo json_encode(['success' => true, 'data' => $rows]);
+        $q = $_GET['q'] ?? '';
+        echo json_encode(['success' => true, 'data' => $model->searchPatients($q)]);
+        break;
+
+    case 'get_slots':
+        $doctorId = (int)($_GET['doctorId'] ?? 0);
+        $date     = $_GET['date'] ?? '';
+        if (!$doctorId || !$date) {
+            echo json_encode(['success' => true, 'slots' => []]);
+            break;
+        }
+        $slots = getAvailableSlots($conn, $doctorId, $date);
+        echo json_encode(['success' => true, 'slots' => $slots]);
         break;
 
     case 'get_doctor_schedule':
@@ -204,17 +45,98 @@ switch ($action) {
         echo json_encode(['success' => true, 'data' => getDoctorSchedule($conn, $doctorId)]);
         break;
 
-    case 'get_slots':
-        $doctorId = (int)($_GET['doctorId'] ?? 0);
-        $date     = $_GET['date'] ?? '';
-        if (!$doctorId || !$date) {
-            echo json_encode(['success' => true, 'slots' => []]);
-            break;
+    case 'list':
+        $date = $_GET['date'] ?? '';
+
+        // FIX: Convert DD/MM/YYYY to YYYY-MM-DD for MySQL
+        if (!empty($date) && strpos($date, '/') !== false) {
+            $parts = explode('/', $date);
+            if (count($parts) === 3) {
+                $date = $parts[2] . '-' . $parts[1] . '-' . $parts[0];
+            }
         }
-        $slots = $model->getSlots($doctorId, $date);
-        echo json_encode(['success' => true, 'slots' => $slots]);
+
+        $search  = trim($_GET['search'] ?? '');
+        $status  = $_GET['status'] ?? '';
+        $channel = $_GET['channel'] ?? '';
+        $doctor  = $_GET['doctor'] ?? '';
+        $page    = max(1, (int)($_GET['page'] ?? 1));
+
+        $result  = $model->list([
+            'date' => $date,
+            'search' => $search,
+            'status' => $status,
+            'channel' => $channel,
+            'doctor' => $doctor,
+            'page' => $page,
+        ]);
+        echo json_encode(array_merge(['success' => true], $result));
+        break;
+
+    case 'get':
+        $id = (int)($_GET['id'] ?? 0);
+        $row = $model->get($id);
+        echo json_encode($row ? ['success' => true, 'data' => $row] : ['success' => false, 'message' => 'Not found']);
+        break;
+
+    case 'get_followup':
+        $id = (int)($_GET['id'] ?? 0);
+        $row = $model->getFollowUp($id);
+        echo json_encode($row ? ['success' => true, 'data' => $row] : ['success' => false]);
+        break;
+
+    case 'get_linked_record':
+        $apptId = (int)($_GET['apptId'] ?? 0);
+        echo json_encode(['success' => true, 'data' => $model->getLinkedRecord($apptId)]);
+        break;
+
+    case 'get_linked_followup':
+        $apptId = (int)($_GET['apptId'] ?? 0);
+        $exclude = (int)($_GET['excludeId'] ?? 0);
+        $stmt = $conn->prepare("SELECT id, followUpCode, followUpDate, status FROM followUps WHERE appointmentId = ?" . ($exclude ? " AND id != ?" : "") . " ORDER BY followUpDate ASC");
+        if ($exclude) $stmt->bind_param('ii', $apptId, $exclude);
+        else $stmt->bind_param('i', $apptId);
+        $stmt->execute();
+        $rows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        echo json_encode(['success' => true, 'data' => $rows]);
+        break;
+
+    case 'add':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') break;
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        $newId = $model->add($body);
+        if ($newId) echo json_encode(['success' => true, 'id' => $newId]);
+        else echo json_encode(['success' => false]);
+        break;
+
+    case 'edit':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') break;
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        echo json_encode(['success' => (bool)$model->edit($body)]);
+        break;
+
+    case 'edit_followup':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') break;
+        $body = json_decode(file_get_contents('php://input'), true) ?? [];
+        echo json_encode(['success' => (bool)$model->editFollowUp($body)]);
+        break;
+
+    case 'update_status':
+        $id = (int)($_POST['id'] ?? 0);
+        $status = $_POST['status'] ?? '';
+        $ok = $model->updateStatus($id, $status);
+        $stats = $model->getStats();
+        echo json_encode(['success' => (bool)$ok, 'stats' => $stats]);
+        break;
+
+    case 'update_followup_status':
+        $id = (int)($_POST['id'] ?? 0);
+        $status = $_POST['status'] ?? '';
+        $ok = $model->updateFollowUpStatus($id, $status);
+        $stats = $model->getStats();
+        echo json_encode(['success' => (bool)$ok, 'stats' => $stats]);
         break;
 
     default:
-        echo json_encode(['success' => false, 'message' => 'Unknown action']);
+        echo json_encode(['success' => false, 'message' => "Unknown action: '$action'"]);
 }

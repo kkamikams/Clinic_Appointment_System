@@ -1,12 +1,16 @@
 <?php
 session_start();
+require_once('../../app/config/config.php');
+require_once('../../app/models/MedicalRecordModel.php');
+
+$model       = new MedicalRecordModel($conn);
+$stats       = $model->getStats();
+$preload     = $model->list(['search' => '', 'type' => '', 'status' => '', 'page' => 1]);
 
 include('./includes/header.php');
 include('./includes/topbar.php');
 include('./includes/sidebar.php');
-require_once('../../app/config/config.php');
 ?>
-
 <style>
     @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,300;1,9..40,400&display=swap');
 
@@ -877,22 +881,22 @@ require_once('../../app/config/config.php');
     <div class="stat-strip">
         <div class="stat-card">
             <div class="sc-label">Total Records</div>
-            <div class="sc-num" id="statTotal">—</div>
+            <div class="sc-num" id="statTotal"><?= $stats['total'] ?? 0 ?></div>
             <div class="sc-sub">All time</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Updated Today</div>
-            <div class="sc-num" id="statToday">—</div>
+            <div class="sc-num" id="statToday"><?= $stats['today'] ?? 0 ?></div>
             <div class="sc-sub">Records modified</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Lab Results</div>
-            <div class="sc-num" id="statLab">—</div>
+            <div class="sc-num" id="statLab"><?= $stats['labPending'] ?? 0 ?></div>
             <div class="sc-sub">Pending review</div>
         </div>
         <div class="stat-card">
             <div class="sc-label">Prescriptions</div>
-            <div class="sc-num" id="statRx">—</div>
+            <div class="sc-num" id="statRx"><?= $stats['prescriptions'] ?? 0 ?></div>
             <div class="sc-sub">Active this month</div>
         </div>
     </div>
@@ -923,7 +927,7 @@ require_once('../../app/config/config.php');
         </div>
 
         <div class="tbl-wrap">
-            <div class="tbl-loading" id="tblLoading" style="display:flex;">
+            <div class="tbl-loading" id="tblLoading" style="display:none;">
                 <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
             </div>
             <table class="table">
@@ -1199,7 +1203,9 @@ require_once('../../app/config/config.php');
     });
 
     document.addEventListener('DOMContentLoaded', () => {
-        loadRecords(1);
+        renderRows(<?= json_encode($preload['rows']) ?>);
+        renderStats(<?= json_encode($stats) ?>);
+        renderPagination(<?= $preload['total'] ?>, 1, <?= $preload['limit'] ?? 20 ?>);
 
         const params = new URLSearchParams(window.location.search);
         const apptId = params.get('apptId');
@@ -1221,7 +1227,7 @@ require_once('../../app/config/config.php');
                     document.getElementById('doctorPillName').textContent = appt.doctorName;
                     document.getElementById('doctorPillSub').textContent = appt.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
-                    loadRecDoctorSchedule(docRes.data.doctorId);
+                    loadRecDoctorSchedule(appt.doctorId);
                     if (appt.remarks) document.getElementById('fDiagnosis').value = appt.remarks;
                     // ── Lock all three fields — no clearing allowed ──
                     lockAppt(true);
@@ -1384,7 +1390,7 @@ require_once('../../app/config/config.php');
                             document.getElementById('doctorPillName').textContent = docRes.data.doctorName;
                             document.getElementById('doctorPillSub').textContent = docRes.data.specialization || '';
                             document.getElementById('doctorPill').classList.add('show');
-                            loadRecDoctorSchedule(docRes.data.doctorId);
+                            loadRecDoctorSchedule(appt.doctorId);
                         }
                         lockPatientDoctor(true);
                         const patBox = document.getElementById('patientLockedBox');
@@ -1518,7 +1524,7 @@ require_once('../../app/config/config.php');
         }).join('');
         return `<div class="status-cell">
             <button class="badge-btn" onclick="toggleStatusDrop(this)">
-                <span class="rec-badge badge-label" style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:999px;padding:3px 12px;letter-spacing:.03em;">${current}</span>
+                <span class="rec-badge badge-label" style="background:${cfg.bg};color:${cfg.color};font-family:'DM Sans',sans-serif;font-size:.63rem;font-weight:600;border-radius:6px;padding:3px 12px;letter-spacing:.03em;">${current}</span>
                 <span class="badge-caret">▾</span>
             </button>
             <div class="status-dropdown">${opts}</div>
@@ -1571,7 +1577,7 @@ require_once('../../app/config/config.php');
                     document.getElementById('doctorPillName').textContent = appt.doctorName;
                     document.getElementById('doctorPillSub').textContent = appt.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
-                    loadRecDoctorSchedule(d.doctorId);
+                    loadRecDoctorSchedule(appt.doctorId);
                 }
                 if (appt.patientId) {
                     document.getElementById('fPatient').value = appt.patientId;
@@ -1668,9 +1674,9 @@ require_once('../../app/config/config.php');
                 ${r.latestType?`<div class="diag-icd">${r.latestType}</div>`:''}
             </td>
             <td>${r.doctorName||'—'}</td>
-            <td><span style="background:var(--blue-50);color:var(--blue-700);font-size:.63rem;font-weight:700;padding:2px 9px;border-radius:5px;border:1px solid var(--blue-100);">
-                ${r.entryCount} visit${r.entryCount!=1?'s':''}
-            </span></td>
+            <td><span style="background:var(--blue-50);color:var(--blue-700);font-size:.63rem;font-weight:700;padding:2px 9px;border-radius:5px;border:1px solid var(--blue-100);white-space:nowrap;">
+    ${r.entryCount} visit${r.entryCount!=1?'s':''}
+</span></td>
             <td>${fmtDate((r.lastUpdated||r.createdAt)?.slice(0,10))}</td>
             <td>${statusDropdown(r.id, r.status)}</td>
 <td><div class="action-btns">
@@ -1686,10 +1692,10 @@ require_once('../../app/config/config.php');
     }
 
     function renderStats(s) {
-        document.getElementById('statTotal').textContent = s.total ?? '—';
-        document.getElementById('statToday').textContent = s.today ?? '—';
-        document.getElementById('statLab').textContent = s.labPending ?? '—';
-        document.getElementById('statRx').textContent = s.prescriptions ?? '—';
+        document.getElementById('statTotal').textContent = s?.total ?? 0;
+        document.getElementById('statToday').textContent = s?.today ?? 0;
+        document.getElementById('statLab').textContent = s?.labPending ?? 0;
+        document.getElementById('statRx').textContent = s?.prescriptions ?? 0;
     }
 
     function renderPagination(total, page, limit) {
@@ -1853,7 +1859,7 @@ require_once('../../app/config/config.php');
                     document.getElementById('doctorPillName').textContent = d.doctorName || '—';
                     document.getElementById('doctorPillSub').textContent = d.specialization || '';
                     document.getElementById('doctorPill').classList.add('show');
-                    loadRecDoctorSchedule(d.doctorId);
+                    loadRecDoctorSchedule(appt.doctorId);
                 }
                 if (d.appointmentId) {
                     document.getElementById('fAppointment').value = d.appointmentId;

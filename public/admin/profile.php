@@ -537,7 +537,7 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
         const firstName = document.getElementById('mFirstName').value.trim();
         const lastName = document.getElementById('mLastName').value.trim();
         const username = document.getElementById('mUsername').value.trim();
-        const email = document.getElementById('mEmail').value.trim();
+        const email = document.getElementById('mEmailAddress').value.trim();
         const newPass = document.getElementById('mNewPass').value;
         const confPass = document.getElementById('mConfirmPass').value;
 

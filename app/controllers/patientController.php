@@ -13,7 +13,7 @@ function handlePatientPhoto(string $patientCode): ?string
     if (empty($_FILES['photo']['tmp_name']) || $_FILES['photo']['error'] !== UPLOAD_ERR_OK) {
         return null;
     }
-    $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/Clinic_Appointment_System/uploads/patients/';
+    $uploadDir = $_SERVER['DOCUMENT_ROOT'] . '/Clinic_Appointment_System/app/uploads/patients/';
     if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
 
     $ext     = strtolower(pathinfo($_FILES['photo']['name'], PATHINFO_EXTENSION));
@@ -23,7 +23,7 @@ function handlePatientPhoto(string $patientCode): ?string
     }
     $filename = $patientCode . '_' . time() . '.' . $ext;
     return move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $filename)
-        ? '/Clinic_Appointment_System/uploads/patients/' . $filename
+        ? '/Clinic_Appointment_System/app/uploads/patients/' . $filename
         : null;
 }
 
@@ -40,10 +40,8 @@ switch ($action) {
         $contact    = trim($_POST['contact']      ?? '');
         $email      = trim($_POST['email']        ?? '');
         $notes      = trim($_POST['notes']        ?? '');
-        $status     = in_array($_POST['status']    ?? '', ['Active', 'Discharged', 'Inactive'])
+        $status = in_array($_POST['status'] ?? '', ['Active', 'Inactive'])
             ? $_POST['status'] : 'Active';
-        $condition  = in_array($_POST['condition'] ?? '', ['Stable', 'Critical', 'Under Observation', 'Recovering'])
-            ? $_POST['condition'] : 'Stable';
 
         if (!$firstName || !$lastName || !$gender || !$contact) {
             echo json_encode(['success' => false, 'message' => 'Required fields are missing.']);
@@ -62,12 +60,12 @@ switch ($action) {
 
         $stmt = $conn->prepare("
             INSERT INTO patients
-                (patientCode, firstName, middleName, lastName, gender, dateOfBirth,
-                 contactNumber, emailAddress, address, status, patientCondition, notes, photoUrl)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+    (patientCode, firstName, middleName, lastName, gender, dateOfBirth,
+     contactNumber, emailAddress, address, status, notes, photoUrl)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
         ");
         $stmt->bind_param(
-            'sssssssssssss',
+            'ssssssssssss',
             $patientCode,
             $firstName,
             $middleName,
@@ -78,7 +76,6 @@ switch ($action) {
             $email,
             $address,
             $status,
-            $condition,
             $notes,
             $photoUrl
         );
@@ -106,10 +103,8 @@ switch ($action) {
         $contact    = trim($_POST['contact']       ?? '');
         $email      = trim($_POST['email']         ?? '');
         $notes      = trim($_POST['notes']         ?? '');
-        $status     = in_array($_POST['status']    ?? '', ['Active', 'Discharged', 'Inactive'])
+        $status     = in_array($_POST['status']    ?? '', ['Active', 'Inactive'])
             ? $_POST['status'] : 'Active';
-        $condition  = in_array($_POST['condition'] ?? '', ['Stable', 'Critical', 'Under Observation', 'Recovering'])
-            ? $_POST['condition'] : 'Stable';
 
         if (!$id || !$firstName || !$lastName || !$gender || !$contact) {
             echo json_encode(['success' => false, 'message' => 'Required fields are missing.']);
@@ -132,14 +127,14 @@ switch ($action) {
         }
 
         $sql = "UPDATE patients SET
-            firstName=?, middleName=?, lastName=?, gender=?, dateOfBirth=?,
-            contactNumber=?, emailAddress=?, address=?,
-            status=?, patientCondition=?, notes=?,
-            updatedAt=NOW()
-            $photoSql
-        WHERE id=?";
+    firstName=?, middleName=?, lastName=?, gender=?, dateOfBirth=?,
+    contactNumber=?, emailAddress=?, address=?,
+    status=?, notes=?,
+    updatedAt=NOW()
+    $photoSql
+WHERE id=?";
 
-        $types  = 'sssssssssss' . ($photoResult ? 's' : '') . 'i';
+        $types  = 'ssssssssss' . ($photoResult ? 's' : '') . 'i';
         $params = [
             $firstName,
             $middleName,
@@ -150,7 +145,6 @@ switch ($action) {
             $email,
             $address,
             $status,
-            $condition,
             $notes
         ];
         if ($photoResult) $params[] = $photoResult;
@@ -174,7 +168,7 @@ switch ($action) {
         $id     = (int)($_POST['id']     ?? 0);
         $status = trim($_POST['status']  ?? '');
 
-        if (!$id || !in_array($status, ['Active', 'Discharged', 'Inactive'])) {
+        if (!$id || !in_array($status, ['Active', 'Inactive'])) {
             echo json_encode(['success' => false, 'message' => 'Invalid input.']);
             exit;
         }
@@ -192,29 +186,6 @@ switch ($action) {
         }
         $stmt->close();
         break;
-
-
-    case 'update_condition':
-
-        $id        = (int)($_POST['id']        ?? 0);
-        $condition = trim($_POST['condition']  ?? '');
-
-        if (!$id || !in_array($condition, ['Stable', 'Critical', 'Under Observation', 'Recovering'])) {
-            echo json_encode(['success' => false, 'message' => 'Invalid input.']);
-            exit;
-        }
-
-        $stmt = $conn->prepare("UPDATE patients SET patientCondition=? WHERE id=?");
-        $stmt->bind_param('si', $condition, $id);
-
-        if ($stmt->execute()) {
-            echo json_encode(['success' => true]);
-        } else {
-            echo json_encode(['success' => false, 'message' => 'Database error.']);
-        }
-        $stmt->close();
-        break;
-
 
     default:
         echo json_encode(['success' => false, 'message' => 'Unknown action.']);

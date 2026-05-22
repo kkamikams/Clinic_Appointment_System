@@ -9,6 +9,7 @@ if (isset($_POST['logoutButton'])) {
     exit();
 }
 
+// Fetches all data needed for the user dashboard: stats, next appointment, recent records, and available doctors
 function getDashboardData($conn, $userId, $userEmail)
 {
     $today = date('Y-m-d');
@@ -19,6 +20,7 @@ function getDashboardData($conn, $userId, $userEmail)
     $patientRow = $stmt->get_result()->fetch_assoc();
     $patientId  = $patientRow['id'] ?? 0;
 
+    // No linked patient record found — return zeroed-out dashboard data
     if (!$patientId) {
         $chartMonths = [];
         for ($i = 5; $i >= 0; $i--)
@@ -143,9 +145,9 @@ function getDashboardData($conn, $userId, $userEmail)
     );
 }
 
+// Fetches appointment stats and full list (including follow-ups) for the logged-in user
 function getMyAppointmentsData($conn, $userId, $today)
 {
-    // Get the user's email to also match by patient email
     $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
     $uStmt->bind_param('i', $userId);
     $uStmt->execute();
@@ -212,6 +214,7 @@ function getMyAppointmentsData($conn, $userId, $today)
     return compact('statTotal', 'statUpcoming', 'statCompleted', 'statCancelled', 'appointments');
 }
 
+// Fetches finalized medical records and stats for all patients linked to the logged-in user
 function getMedicalRecordsData($conn, $userId)
 {
     $uStmt = $conn->prepare("SELECT emailAddress FROM users WHERE id = ? LIMIT 1");
@@ -219,8 +222,6 @@ function getMedicalRecordsData($conn, $userId)
     $uStmt->execute();
     $userEmail = $uStmt->get_result()->fetch_row()[0] ?? '';
 
-    // Get ALL patientIds linked to this user account
-    // REPLACE this block:
     $stmt = $conn->prepare("
     SELECT DISTINCT p.id AS patientId FROM patients p
     WHERE p.emailAddress = ? AND p.status != 'Inactive'
@@ -276,6 +277,7 @@ function getMedicalRecordsData($conn, $userId)
     return compact('statTotal', 'statMonth', 'statDoctors', 'statDepts', 'records');
 }
 
+// Fetches the user's linked patient record, active doctors, and specializations for the booking form
 function getBookAppointmentData($conn, $userEmail)
 {
     $stmt = $conn->prepare("SELECT * FROM patients WHERE emailAddress = ? AND status != 'Inactive' LIMIT 1");

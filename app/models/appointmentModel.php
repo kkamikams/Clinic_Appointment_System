@@ -103,17 +103,18 @@ class appointmentModel
         a.address          AS appointmentAddress,
         a.patientId        AS patientId,
         a.doctorId         AS doctorId,
-        CONCAT(p.firstName,' ',p.lastName) AS patientName,
-        p.photoUrl                         AS patPhoto,
+        COALESCE(CONCAT(p.firstName,' ',p.lastName), 'Unknown Patient') AS patientName,
+        COALESCE(p.photoUrl, IF(u.firstName = p.firstName AND u.lastName = p.lastName, u.profilePic, NULL)) AS patPhoto,
         CONCAT(d.firstName,' ',d.lastName) AS doctorName,
         d.specialization   AS specialization,
         NULL               AS followUpId,
         NULL               AS fuCode,
         NULL               AS fuDate,
         0                  AS isFollowUp
-    FROM appointments a
-    JOIN patients p ON p.id = a.patientId
-    JOIN doctors  d ON d.id = a.doctorId
+FROM appointments a
+LEFT JOIN patients p ON p.id = a.patientId
+LEFT JOIN doctors  d ON d.id = a.doctorId
+LEFT JOIN users u ON u.emailAddress = p.emailAddress
     $aWhereSQL
 ";
         $fuBranch = "
@@ -128,8 +129,8 @@ class appointmentModel
         a.address                          AS appointmentAddress,
         COALESCE(fu.patientId, a.patientId) AS patientId,
         COALESCE(fu.doctorId, a.doctorId)  AS doctorId,
-        CONCAT(p.firstName,' ',p.lastName) AS patientName,
-        p.photoUrl                         AS patPhoto,
+        COALESCE(CONCAT(p.firstName,' ',p.lastName), 'Unknown Patient') AS patientName,
+        COALESCE(p.photoUrl, IF(u.firstName = p.firstName AND u.lastName = p.lastName, u.profilePic, NULL)) AS patPhoto,
         CONCAT(COALESCE(fd.firstName, ad.firstName, ''),' ',COALESCE(fd.lastName, ad.lastName, '')) AS doctorName,
         COALESCE(fd.specialization, ad.specialization, '—') AS specialization,
         fu.id                              AS followUpId,
@@ -138,9 +139,10 @@ class appointmentModel
         1                                  AS isFollowUp
     FROM followUps fu
     LEFT JOIN appointments a  ON a.id  = fu.appointmentId
-    JOIN patients     p  ON p.id  = COALESCE(fu.patientId, a.patientId)
+    LEFT JOIN patients     p  ON p.id  = COALESCE(fu.patientId, a.patientId)
     LEFT JOIN doctors fd ON fd.id = fu.doctorId
     LEFT JOIN doctors ad ON ad.id = a.doctorId
+    LEFT JOIN users u ON u.emailAddress = p.emailAddress
     $fWhereSQL
 ";
 
@@ -150,12 +152,10 @@ class appointmentModel
             $unionTypes  = $fTypes;
             $unionParams = $fParams;
         } elseif ($channel) {
-            // specific non-follow-up channel: appointments only
             $unionSQL    = $apptBranch;
             $unionTypes  = $aTypes;
             $unionParams = $aParams;
         } else {
-            // no channel filter: both
             $unionSQL    = "($apptBranch) UNION ALL ($fuBranch)";
             $unionTypes  = $aTypes . $fTypes;
             $unionParams = array_merge($aParams, $fParams);
@@ -185,9 +185,9 @@ class appointmentModel
             SUM(a.status='In Progress')   AS InProgress,
             SUM(a.status='Cancelled')     AS Cancelled
         FROM appointments a
-        JOIN patients p ON p.id = a.patientId
-        JOIN doctors  d ON d.id = a.doctorId
-        $sWhereSQL
+LEFT JOIN patients p ON p.id = a.patientId
+LEFT JOIN doctors  d ON d.id = a.doctorId
+$sWhereSQL
     ");
         if ($sParams) $statsStmt->bind_param($sTypes, ...$sParams);
         $statsStmt->execute();
@@ -242,8 +242,8 @@ class appointmentModel
                 CONCAT(d.firstName, ' ', d.lastName) AS doctorName,
                 d.specialization
             FROM appointments a
-            JOIN patients p ON p.id = a.patientId
-            JOIN doctors  d ON d.id = a.doctorId
+            LEFT JOIN patients p ON p.id = a.patientId
+            LEFT JOIN doctors  d ON d.id = a.doctorId
             WHERE a.id = ?
         ");
         $stmt->bind_param('i', $id);
@@ -251,18 +251,14 @@ class appointmentModel
         return $stmt->get_result()->fetch_assoc();
     }
 
-    // ─────────────────────────────────────────────
-    //  ADD  (action=add)
-    // ─────────────────────────────────────────────
-
     public function add($data)
     {
-        // Create new patient inline if needed
         if (empty($data['patientId']) && !empty($data['patientName'])) {
             $patientId = $this->createPatient($data);
             if (!$patientId) return false;
         } else {
             $patientId = (int) $data['patientId'];
+            if (!$patientId) return false;
         }
 
         $code = $this->generateCode('APPT');
@@ -429,7 +425,7 @@ class appointmentModel
             COALESCE(fd.specialization, ad.specialization, '—') AS specialization
         FROM followUps fu
         LEFT JOIN appointments a  ON a.id  = fu.appointmentId
-        JOIN patients     p  ON p.id  = COALESCE(fu.patientId, a.patientId)
+        LEFT JOIN patients     p  ON p.id  = COALESCE(fu.patientId, a.patientId)
         LEFT JOIN doctors fd ON fd.id = fu.doctorId
         LEFT JOIN doctors ad ON ad.id = a.doctorId
         WHERE fu.id = ?
@@ -443,6 +439,7 @@ class appointmentModel
         }
         return $row;
     }
+
     public function editFollowUp($data)
     {
         $stmt = $this->conn->prepare("
@@ -493,19 +490,19 @@ class appointmentModel
     {
         $like = '%' . $q . '%';
         $stmt = $this->conn->prepare("
-            SELECT
-                id,
-                patientCode,
-                CONCAT(firstName, ' ', lastName) AS name,
-                contactNumber                    AS contact,
-                dateOfBirth                      AS dob,
-                address
-            FROM patients
-            WHERE status = 'Active'
-              AND (CONCAT(firstName, ' ', lastName) LIKE ? OR patientCode LIKE ?)
-            ORDER BY firstName ASC
-            LIMIT 20
-        ");
+    SELECT
+        id,
+        patientCode,
+        CONCAT(firstName, ' ', lastName) AS name,
+        contactNumber                    AS contact,
+        dateOfBirth                      AS dob,
+        address
+    FROM patients
+    WHERE status = 'Active'
+      AND (CONCAT(firstName, ' ', lastName) LIKE ? OR patientCode LIKE ?)
+    ORDER BY firstName ASC
+    LIMIT 20
+");
         $stmt->bind_param('ss', $like, $like);
         $stmt->execute();
         return $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
@@ -586,21 +583,28 @@ class appointmentModel
         $lastName   = $nameParts[count($nameParts) - 1] ?? '';
         $code       = $this->generateCode('PAT');
 
+        $dob     = $data['patientDOB']     ?? null;
+        $contact = $data['patientContact'] ?? null;
+        $email   = $data['patientEmail']   ?? null;
+        $address = $data['patientAddress'] ?? null;
+
         $stmt = $this->conn->prepare("
             INSERT INTO patients
-                (patientCode, firstName, middleName, lastName, dateOfBirth, gender, contactNumber, email, status)
+                (patientCode, firstName, middleName, lastName, dateOfBirth,
+                 contactNumber, emailAddress, address, status)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Active')
         ");
+
         $stmt->bind_param(
             'ssssssss',
             $code,
             $firstName,
             $middleName,
             $lastName,
-            $data['patientDOB'],
-            $data['patientGender'],
-            $data['patientContact'],
-            $data['patientEmail']
+            $dob,
+            $contact,
+            $email,
+            $address
         );
 
         return $stmt->execute() ? $this->conn->insert_id : null;
@@ -608,6 +612,8 @@ class appointmentModel
 
     private function generateCode($prefix)
     {
-        return strtoupper($prefix) . '-' . strtoupper(substr(uniqid(), -6));
+        $year = date('Y');
+        $max  = (int) $this->conn->query("SELECT MAX(id) FROM appointments")->fetch_row()[0];
+        return strtoupper($prefix) . '-' . $year . '-' . str_pad($max + 1, 4, '0', STR_PAD_LEFT);
     }
 }

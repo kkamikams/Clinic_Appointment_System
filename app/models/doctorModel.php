@@ -11,6 +11,7 @@ class DoctorModel
 
     public function getDoctorById($id)
     {
+        // Fetch doctor with aggregated schedule: ordered working days, earliest shift start, latest shift end
         $stmt = $this->conn->prepare("
             SELECT d.*,
                 GROUP_CONCAT(
@@ -36,6 +37,8 @@ class DoctorModel
         return $stmt->get_result()->fetch_assoc();
     }
 
+    // Updates all active doctors' status based on whether their schedule covers the current day and time.
+    // Skips doctors currently on 'Break' to avoid overriding a manually set status.
     public function updateDutyStatus($todayName, $currentTime)
     {
         $stmt = $this->conn->prepare("
@@ -58,6 +61,7 @@ class DoctorModel
         $stmt->execute();
     }
 
+    // Excludes 'Inactive' doctors from the total count
     public function getTotalDoctors()
     {
         return $this->conn->query("
@@ -97,6 +101,8 @@ class DoctorModel
 
     public function getAllDoctors($todayName)
     {
+        // $todayName is passed three times: to check if today is a working day,
+        // and to extract today's specific shift start and end times
         $sql = "
             SELECT
                 d.id, d.doctorCode, d.firstName, d.middleName, d.lastName,
@@ -115,12 +121,14 @@ class DoctorModel
                 MIN(ds.shiftStart) AS shiftStart,
                 MAX(ds.shiftEnd) AS shiftEnd,
 
+                -- Today-specific schedule flags used for real-time availability display
                 MAX(CASE WHEN ds.dayOfWeek = ? THEN 1 ELSE 0 END) AS hasToday,
                 MAX(CASE WHEN ds.dayOfWeek = ? THEN ds.shiftStart END) AS todayStart,
                 MAX(CASE WHEN ds.dayOfWeek = ? THEN ds.shiftEnd END) AS todayEnd
 
             FROM doctors d
 
+            -- Only count today's non-cancelled appointments for current load
             LEFT JOIN appointments a
                 ON a.doctorId = d.id
                AND a.appointmentDate = CURDATE()

@@ -131,7 +131,7 @@ class MedicalRecordModel
         $rows = $this->conn->query("
     SELECT 
         m.id, m.recordCode, m.status, m.createdAt, m.updatedAt,
-        p.patientCode, p.photoUrl AS patPhoto,
+        p.patientCode, COALESCE(p.photoUrl, IF(u.firstName = p.firstName AND u.lastName = p.lastName, u.profilePic, NULL)) AS patPhoto,
         TRIM(CONCAT(p.firstName,' ',p.lastName)) AS patientName,
         TRIM(CONCAT(d.firstName,' ',d.lastName)) AS doctorName,
         d.specialization,
@@ -151,6 +151,7 @@ class MedicalRecordModel
     FROM medicalRecords m
     JOIN patients p ON p.id = m.patientId
     JOIN doctors  d ON d.id = m.doctorId
+    LEFT JOIN users u ON u.emailAddress = p.emailAddress
     $parentWhere
     ORDER BY lastUpdated DESC
     LIMIT $limit OFFSET $offset

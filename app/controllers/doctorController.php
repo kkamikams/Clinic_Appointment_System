@@ -37,9 +37,11 @@ switch ($action) {
             exit;
         }
 
+        // Wrap doctor insert and schedule insert in a transaction to keep data consistent
         $conn->begin_transaction();
 
         try {
+            // Generate a sequential doctor code like DOC-2025-001
             $year    = date('Y');
             $lastRow = $conn->query("
                 SELECT doctorCode FROM doctors
@@ -54,8 +56,8 @@ switch ($action) {
             }
             $doctorCode = 'DOC-' . $year . '-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
 
-            $photoUrl  = null;
-            $uploadDir = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/Clinic_Appointment_System/uploads/doctors/';
+            $photoUrl  = null; // initialize as null
+            $uploadDir = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/Clinic_Appointment_System/app/uploads/doctors/';
 
             if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
                 if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
@@ -71,7 +73,7 @@ switch ($action) {
                 if (!move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $filename)) {
                     throw new Exception('Failed to save photo. Check folder permissions.');
                 }
-                $photoUrl = '/Clinic_Appointment_System/uploads/doctors/' . $filename;
+                $photoUrl = '/Clinic_Appointment_System/app/uploads/doctors/' . $filename;
             }
 
             $stmt = $conn->prepare("
@@ -193,9 +195,9 @@ switch ($action) {
         }
         $stmt->close();
 
-        // Handle photo upload on update
+        // Remove the previous photo file from disk before saving the new one
         if (!empty($_FILES['photo']['tmp_name']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-            $uploadDir = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/Clinic_Appointment_System/uploads/doctors/';
+            $uploadDir = rtrim($_SERVER['DOCUMENT_ROOT'], '/') . '/Clinic_Appointment_System/app/uploads/doctors/';
             if ($_FILES['photo']['size'] > 2 * 1024 * 1024) {
                 echo json_encode(['success' => false, 'message' => 'Image must be under 2MB.']);
                 exit;
@@ -222,7 +224,7 @@ switch ($action) {
 
             $filename = 'DOC-' . $id . '_' . bin2hex(random_bytes(5)) . '.' . $ext;
             if (move_uploaded_file($_FILES['photo']['tmp_name'], $uploadDir . $filename)) {
-                $photoUrl = '/Clinic_Appointment_System/uploads/doctors/' . $filename;
+                $photoUrl = '/Clinic_Appointment_System/app/uploads/doctors/' . $filename;
                 $upPhoto  = $conn->prepare("UPDATE doctors SET photoUrl=? WHERE id=?");
                 $upPhoto->bind_param('si', $photoUrl, $id);
                 $upPhoto->execute();
@@ -230,6 +232,7 @@ switch ($action) {
             }
         }
 
+        // Replace existing schedule by deleting all entries then reinserting
         $del = $conn->prepare("DELETE FROM doctorSchedules WHERE doctorId=?");
         $del->bind_param('i', $id);
         $del->execute();
@@ -253,8 +256,8 @@ switch ($action) {
         echo json_encode(['success' => true]);
         break;
 
+    // Auto-sync all active doctors' duty status based on today's schedule before applying the manual override
     case 'update_status':
-
         $todayName = date('l');
         $conn->query("
             UPDATE doctors d

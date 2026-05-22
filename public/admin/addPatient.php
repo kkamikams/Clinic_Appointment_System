@@ -463,26 +463,6 @@ require_once('../../app/config/config.php');
 ">Welcome!</div>
                     <input type="file" id="photoInput" name="photo" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" onchange="previewPhoto(this)">
                     <label for="photoInput" class="photo-upload-label"><i class="bi bi-camera"></i> Upload Photo</label>
-
-                    <div class="section-label" style="text-align:left; width:100%; margin-top:.75rem;">Patient Condition</div>
-                    <div class="radio-options">
-                        <label class="radio-option selected">
-                            <input type="radio" name="condition" value="Stable" checked onchange="selectRadio(this)">
-                            <span class="status-dot" style="background:var(--green)"></span> Stable
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="condition" value="Critical" onchange="selectRadio(this)">
-                            <span class="status-dot" style="background:var(--red)"></span> Critical
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="condition" value="Under Observation" onchange="selectRadio(this)">
-                            <span class="status-dot" style="background:var(--amber)"></span> Under Observation
-                        </label>
-                        <label class="radio-option">
-                            <input type="radio" name="condition" value="Recovering" onchange="selectRadio(this)">
-                            <span class="status-dot" style="background:var(--blue-500)"></span> Recovering
-                        </label>
-                    </div>
                 </div>
             </div>
         </div>
@@ -656,9 +636,9 @@ require_once('../../app/config/config.php');
         fd.append('contact', document.getElementById('contact').value.trim());
         fd.append('email', document.getElementById('email').value.trim());
         fd.append('notes', document.getElementById('notes').value.trim());
-        fd.append('status', document.querySelector('input[name="status"]:checked')?.value || 'Active');
-        fd.append('condition', document.querySelector('input[name="condition"]:checked')?.value || 'Stable');
+        fd.append('status', 'Active');
         const photoFile = document.getElementById('photoInput').files[0];
+        // Photo is optional; only appended if the user selected a file
         if (photoFile) fd.append('photo', photoFile);
 
         fetch('../../app/controllers/PatientController.php?action=save', {

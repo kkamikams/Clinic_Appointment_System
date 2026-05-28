@@ -409,11 +409,11 @@ $dateJoined = (!empty($user['createdAt'])) ? date('F j, Y', strtotime($user['cre
 
                 <!-- Middle Name -->
                 <div>
-                    <label class="m-label">Middle Name</label>
-                    <input type="text" name="middleName" class="m-input"
-                        value="<?php echo htmlspecialchars($user['middleName'] ?? ''); ?>">
+                    <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Middle Name</label>
+                    <input type="text" name="middleName"
+                        value="<?php echo htmlspecialchars($user['middleName'] ?? ''); ?>"
+                        style="width:100%;padding:9px 12px;border:1px solid #e5e7eb;border-radius:10px;font-size:0.88rem;margin-top:4px;box-sizing:border-box;">
                 </div>
-
                 <!-- Last Name -->
                 <div>
                     <label style="font-size:0.72rem;font-weight:700;color:#6b7280;text-transform:uppercase;">Last Name <span class="req">*</span></label>

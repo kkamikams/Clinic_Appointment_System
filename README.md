@@ -53,6 +53,4 @@ This system is designed specifically for outpatient clinics only. Patients are c
 
 ## Developers
 
-## Developers
-
 Developed as part of our final project requirement in Web Systems and Technologies (WebSys), focused on improving outpatient clinic workflows through digital appointment and records management.
